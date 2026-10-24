@@ -1,0 +1,15 @@
+Statement,Header,Field Name,Field Value
+Statement,Data,Period,"January 1, 2025 - December 31, 2025"
+Account Information,Header,Field Name,Field Value
+Account Information,Data,Account,U1234567
+Account Information,Data,Master Name,Lynx B.V.
+Cash Report,Header,Currency Summary,Currency,Total
+Cash Report,Data,Starting Cash,EUR,1000
+Cash Report,Data,Ending Cash,EUR,5997
+Deposits & Withdrawals,Header,Currency,Settle Date,Description,Amount
+Deposits & Withdrawals,Data,EUR,2025-01-10,Electronic Fund Transfer,10000
+Deposits & Withdrawals,Data,Total,,,10000
+Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,Proceeds,Comm/Fee,Basis
+Trades,Data,Order,Stocks,EUR,VWCE,"2025-01-15, 10:00:00",50,100,-5000,-3,5003
+Open Positions,Header,DataDiscriminator,Asset Category,Currency,Symbol,Quantity,Cost Basis,Close Price
+Open Positions,Data,Summary,Stocks,EUR,VWCE,50,5003,110

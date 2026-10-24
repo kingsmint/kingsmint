@@ -1,0 +1,14 @@
+{
+  "name": "kingsmint",
+  "description": "Kingsmint: accounting with Beancount, Fava, and Claude Code.",
+  "owner": {
+    "name": "kingsmint"
+  },
+  "plugins": [
+    {
+      "name": "kingsmint",
+      "source": "./",
+      "description": "Personal and one-person-company accounting with Beancount and Fava."
+    }
+  ]
+}

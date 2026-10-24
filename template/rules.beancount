@@ -1,0 +1,11 @@
+; Categorization rules, used by `kingsmint import`.
+;   DATE custom "rule" "REGEX" Account
+; REGEX is case-insensitive (write backslashes twice: "\\bBP\\b") and matched against
+; "payee | narration | counterparty IBAN | amount", e.g. "Lidl 185 | Card payment | | -57.36".
+; Optional "Account share" pairs after the account split off a share of the amount;
+; the main account gets the rest.
+; First matching rule wins, so put specific rules before general ones.
+; A rule applies only to transactions on or after its DATE.
+; After changing rules, run `uv run kingsmint reimport`.
+
+; 2000-01-01 custom "rule" "\\bLidl\\b|\\bTesco\\b" Expenses:Food:Groceries

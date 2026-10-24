@@ -1,0 +1,13 @@
+Tatra banka, a. s.
+IBAN  SK5511000000002912345679
+Od 1.7.2025 Do 31.7.2025
+Počiatočný zostatok    500.00
+Koncový zostatok       1 234.00
+Dátum zúčtovania   Popis                         Suma
+1.7.2025    Prijatá platba                    1 000.00
+2.7.2025         Platiteľ: SK8975000000000012345671
+                   Test Payer
+5.7.2025    Platba kartou                     -266.00
+5.7.2025         Miesto platby: BRATISLAVA      Kaufland
+www.tatrabanka.sk
+Týmto potvrdzujeme, že Váš vklad je chránený.

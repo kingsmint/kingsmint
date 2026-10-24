@@ -1,0 +1,22 @@
+option "title" "TITLE"
+option "operating_currency" "CURRENCY"
+option "documents" "documents"
+
+include "accounts.beancount"
+include "rules.beancount"
+include "prices.beancount"
+include "ledger/*/*.beancount"
+
+; Fava: number format of this locale (for example sk_SK: 1 098 707,95; en_US: 1,098,707.95)
+2000-01-01 custom "fava-option" "locale" "LOCALE"
+; Fava: show income, liabilities and equity as positive numbers
+2000-01-01 custom "fava-option" "invert-income-liabilities-equity" "true"
+
+; Baseline: average monthly spending over the last 12 months, by the `need` and `cut` metadata in
+; accounts.beancount. Loan repayments count when the liability has need: "essential". today = everything except income-linked,
+; reduced = essential + (flexible and unknown) x cut, minimum = essential only.
+; Runway = liquid money / baseline. Mark illiquid assets (property, loans given) with liquid: "false".
+2000-01-01 query "Baseline" "SELECT round(sum(number(convert(position, 'CURRENCY', date))) / 12, 0) AS today, round(sum(number(convert(position, 'CURRENCY', date)) * coalesce(decimal(open_meta(account, 'cut')), decimal(str(open_meta(account, 'need')) = 'essential'))) / 12, 0) AS reduced, round(sum(number(convert(position, 'CURRENCY', date)) * decimal(str(open_meta(account, 'need')) = 'essential')) / 12, 0) AS minimum WHERE (account ~ '^Expenses' OR (account ~ '^Liabilities' AND str(open_meta(account, 'need')) = 'essential' AND number > 0)) AND date >= date_add(today(), -365) AND str(open_meta(account, 'need')) != 'income-linked'"
+2000-01-01 query "Baseline by need" "SELECT str(open_meta(account, 'need')) AS need, round(sum(number(convert(position, 'CURRENCY', date))) / 12, 0) AS today, round(sum(number(convert(position, 'CURRENCY', date)) * coalesce(decimal(open_meta(account, 'cut')), decimal(str(open_meta(account, 'need')) = 'essential'))) / 12, 0) AS reduced WHERE (account ~ '^Expenses' OR (account ~ '^Liabilities' AND str(open_meta(account, 'need')) = 'essential' AND number > 0)) AND date >= date_add(today(), -365) GROUP BY need ORDER BY need"
+2000-01-01 query "Baseline by account" "SELECT str(open_meta(account, 'need')) AS need, account, round(sum(number(convert(position, 'CURRENCY', date))) / 12, 0) AS today, round(sum(number(convert(position, 'CURRENCY', date)) * coalesce(decimal(open_meta(account, 'cut')), decimal(str(open_meta(account, 'need')) = 'essential'))) / 12, 0) AS reduced WHERE (account ~ '^Expenses' OR (account ~ '^Liabilities' AND str(open_meta(account, 'need')) = 'essential' AND number > 0)) AND date >= date_add(today(), -365) GROUP BY need, account ORDER BY need, today DESC"
+2000-01-01 query "Liquid money" "SELECT root(account, 3) AS account, convert(value(sum(position)), 'CURRENCY') AS liquid WHERE account ~ '^Assets:(Me|Co):' AND coalesce(str(open_meta(account, 'liquid')), '') != 'false' GROUP BY account"

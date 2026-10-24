@@ -1,0 +1,14 @@
+Fio banka, a.s., pobočka zahraničnej banky
+Výpis za obdobie 1.6.2025-30.6.2025
+IBAN  SK2083300000002012345678
+Mena účtu  EUR
+Starý zostatok      1 000,00
+Nový zostatok       1 450,00
+Dátum      Názov               Protiúčet                  Užívateľský symbol
+2.6.2025   Bezhotovostný príjem   SK3311000000002612345678/1100   500,00
+ 2.6.2025  Prevod  Client Ltd
+ 12345678901  Faktura 2025-01
+5.6.2025   Platba kartou                       -50,00
+ 12345678902
+ Nákup: Alza.sk, Praha, CZ
+                                                              1 z 1

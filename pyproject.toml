@@ -1,0 +1,18 @@
+[project]
+name = "kingsmint"
+version = "0.1.0"
+description = "Personal and one-person-company accounting with Beancount, Fava, and Claude Code"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.13"
+dependencies = ["beancount>=3.2", "beanquery", "fava>=1.30", "pypdfium2>=4.30"]
+
+[project.scripts]
+kingsmint = "kingsmint.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["pytest"]

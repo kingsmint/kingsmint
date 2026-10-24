@@ -1,0 +1,21 @@
+VÚB, a.s., Mlynské nivy 1, 829 90 Bratislava 25
+VÝPIS Z ÚČTU
+Typ:        BEŽNÝ ÚČET
+Názov:      TEST TESTER
+Číslo:      SK3102000000001234567890
+Vlastné použiteľné prostriedky
+  k 31.05.2025      1.000,00
+Dátum   Popis transakcie                           Suma     Poplatok
+03/06  SK8911000000002612345678   1234                2.500,00
+       Prevod z iného účtu           A1B2C3D4E5F6G
+       Názov: Example s.r.o.
+       Účel platby: Mzda 05/2025
+05/06  Platba kartou                                     -45,20
+04/06 Lidl Bratislava08:53           X1Y2Z3A4B5C6D
+15/06  SK1209000000005123456789                         -500,00
+       Platba na iný účet            Q1W2E3R4T5Y6U      -0,30
+       Názov: Jana Testová
+       Účel platby: Nájom 06/2025
+Vlast. použit. prostr. k 30.06.2025
+  2.954,50
+ROZPIS POPLATKOV
