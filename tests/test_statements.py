@@ -56,10 +56,10 @@ def test_import_every_bank(tmp_path):
     run = kingsmint(ledger, "import")
     assert run.returncode == 0, run.stderr
     lines = run.stdout.splitlines()
-    assert len(lines) == 9 and all(line.startswith("ok ") for line in lines), run.stdout  # the savings CSV: one per year
+    assert len(lines) == 9 and all(line.startswith("ok ") for line in lines), run.stdout  # the savings CSV: 2023, 2024 (no movements), 2025
     assert not [f for f in (ledger / "inbox").iterdir() if f.name != ".keep"]  # all archived
-    empty = (ledger / "ledger/Assets-Me-VUB-Savings/csv-2026.beancount").read_text(encoding="utf-8")
-    assert "2026-01-01 balance Assets:Me:VUB:Savings 100.05 EUR" in empty and " * " not in empty  # a year without movements
+    empty = (ledger / "ledger/Assets-Me-VUB-Savings/csv-2024.beancount").read_text(encoding="utf-8")
+    assert "2024-01-01 balance Assets:Me:VUB:Savings 0.00 EUR" in empty and " * " not in empty  # a year without movements
     # the January transfers from VUB Current have no other side: its statements start in June
     check = kingsmint(ledger, "check")
     assert check.stdout.startswith("FAIL Assets:Transit is -11100.00 EUR since 2025-01-02:") and check.stdout.count("\n") == 1, \

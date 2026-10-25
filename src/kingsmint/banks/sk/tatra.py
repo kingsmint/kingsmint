@@ -54,7 +54,7 @@ def tb_txn(t, lines):
     return t
 
 
-# Tatra banka layout used until mid-2025: "Od 1.1.2025 Do 31.1.2025", amounts "-2 500.00"
+# Tatra banka layout used from January to June 2025 only (before and after: parse_pdf): "Od 1.1.2025 Do 31.1.2025", amounts "-2 500.00"
 TB2_START = re.compile(r"^(\d{1,2}\.\d{1,2}\.\d{4})\s{2,}(\S.*?)\s{2,}(-?\d[\d ]*\.\d\d)$")
 TB2_PAGE = re.compile(r"tatrabanka\.sk|^\s*(Tatra banka, a\. s\.|IČO:|Obchodný register|Oddiel:)")
 

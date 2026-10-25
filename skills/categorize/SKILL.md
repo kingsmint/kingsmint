@@ -47,7 +47,8 @@ The tree grows from the user's transactions; there is no default tree.
 - Add the `open` next to its siblings, dated `2000-01-01`. Give every expense account `need`, and
   `cut` when `need` is flexible or unknown, as the comment in `accounts.beancount` defines.
 - Taxes the user pays go to `Expenses:Taxes:<Kind>`; a company's costs to `Expenses:Business:<Item>`
-  with `need: "income-linked"`: they stop when the company stops.
+  with `need: "income-linked"`: they stop when the company stops. Bank fees stay in `Expenses:Bank:Fees`
+  for every account: the importer posts fees there, and the paying account shows whose they are.
 
 ## Rule gotchas
 
