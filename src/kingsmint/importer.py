@@ -120,6 +120,8 @@ def render(st, account, own, rules, source):
         flag = "!" if other.endswith("Uncategorized") else "*"
         out.append(f"{t.date} {flag} {q(t.payee)} {q(t.narration)}")
         out.append(f"  document: {q(source)}")  # Fava opens the statement from the transaction
+        if t.iban:
+            out.append(f"  iban: {q(t.iban)}")  # counterparty; rules and transfer detection match on it
         out.append(f"  {account}  {t.amount + t.fee:.2f} {st.currency}")
         if t.fee:
             out.append(f"  Expenses:Bank:Fees  {-t.fee:.2f} {st.currency}")

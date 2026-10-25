@@ -65,5 +65,6 @@ def test_import_every_bank(tmp_path):
                      "Assets:Me:IBKR:Securities  50 VWCE {{5000 EUR}}",  # IBKR
                      '"Buy 50 VWCE"\n  document: "2025-12-31.ibkr.csv"',
                      'document: "2025-02-05.SK6611000000002987654321.csv"',  # CSV
+                     'iban: "SK1209000000005123456789"',  # counterparty
                      "Assets:Transit"]:  # transfers from an own account
         assert expected in out, expected
