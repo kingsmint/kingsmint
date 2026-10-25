@@ -9,3 +9,5 @@
 ; After changing rules, run `uv run kingsmint reimport`.
 
 ; 2000-01-01 custom "rule" "\\bLidl\\b|\\bTesco\\b" Expenses:Food:Groceries
+
+; Unknown: counterparties the user could not explain; the categorize skill does not ask about them again.

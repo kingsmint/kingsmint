@@ -46,7 +46,9 @@ def coverage(entries):
             first, last = spans.get((e.account, e.meta["filename"]), (e.date, e.date))
             spans[(e.account, e.meta["filename"])] = (min(first, e.date), max(last, e.date))
     out = {}
-    for (account, _), (first, last) in sorted(spans.items(), key=lambda kv: kv[1]):
+    for (account, name), (first, last) in sorted(spans.items(), key=lambda kv: kv[1]):
+        if first == last and Path(name).stem.isdigit():  # IBKR <year>.beancount: one closing balance for the year
+            first = dt.date(int(Path(name).stem), 1, 1)
         # the closing balance is dated the day after the statement; an IBKR report has one balance date
         out.setdefault(account, []).append((first, last - dt.timedelta(days=1) if last > first else last))
     return out
@@ -58,29 +60,31 @@ def gaps(spans):
 
 
 def transit(entries):
-    """Assets:Transit balance on the last day every current account is imported; not empty = a missing side."""
+    """Assets:Transit balance on the last day every current account is imported, and the day since when it
+    has not been empty; not empty = a transfer with a missing side."""
     ends = [spans[-1][1] for spans in coverage(entries).values()]
     if not ends:
-        return None, inventory.Inventory()
+        return None, inventory.Inventory(), None
     # shortcut: an account whose statements stop 2 months before the newest one counts as finished,
     # and transfers take up to a week; mark finished accounts with `statements_until` if this misfires
     day = min(d for d in ends if d >= max(ends) - dt.timedelta(days=62)) - dt.timedelta(days=7)
-    total = inventory.Inventory()
-    for e in entries:
+    total, since = inventory.Inventory(), None
+    for e in entries:  # sorted by date
         if isinstance(e, data.Transaction) and e.date <= day:
             for p in e.postings:
                 if p.account == "Assets:Transit":
                     total.add_amount(p.units)
-    return day, total
+                    since = None if total.is_empty() else since or e.date
+    return day, total, since
 
 
 def check():
     entries, errors, _ = loader.load_file("main.beancount")
     printer.print_errors(errors)
-    day, total = transit(entries)
+    day, total, since = transit(entries)
     if not total.is_empty():
-        print(f"FAIL Assets:Transit is {', '.join(str(p.units) for p in total)} on {day}: a transfer between own accounts has one side only; "
-              "import the missing statement (see `uv run kingsmint coverage`)")
+        print(f"FAIL Assets:Transit is {', '.join(str(p.units) for p in total)} since {since}: a transfer between own "
+              "accounts has one side only; import the other account's statement for that day")
     sys.exit(1 if errors or not total.is_empty() else 0)
 
 

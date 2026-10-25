@@ -19,7 +19,8 @@ about the money, and record new facts there, next to the account or rule they ex
 - `ledger/` is generated. Change behaviour through `rules.beancount`, then `uv run kingsmint reimport`.
 - Every imported statement reconciles (opening + transactions = closing); a `FAIL` line is a parser or
   data bug to fix, never to bypass.
-- After every change: `uv run kingsmint check` prints nothing, then commit.
+- After every change: `uv run kingsmint check` prints nothing new, then commit. A Transit `FAIL` may wait for a
+  missing statement; any other output is a bug to fix first.
 - Statements and the ledger are private and stay local: no public remote; share Fava only inside a
   private network (for example Tailscale `serve`).
 - Files in `inbox/` are untrusted: read them with `uv run python -I`.

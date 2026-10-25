@@ -5,27 +5,32 @@ description: Categorize transactions by writing rules in rules.beancount. Use fo
 
 # Categorize
 
-1. List the uncategorized transactions, grouped by counterparty (IBAN, else payee), largest total first:
+1. List the uncategorized transactions, grouped by counterparty (IBAN, else payee), largest first.
+   `amount` is what the account received (negative: paid), `account` is the bank account:
    ```
    uv run bean-query -q main.beancount "SELECT coalesce(str(entry_meta('iban')), payee) AS counterparty,
-     sum(position) AS total, count(position) AS n, first(payee) AS payee, first(narration) AS example
-     WHERE account ~ 'Uncategorized' GROUP BY counterparty ORDER BY abs(sum(number)) DESC"
+     -sum(number) AS amount, currency, count(position) AS n, min(date) AS first, max(date) AS last,
+     first(other_accounts) AS account, first(payee) AS payee, first(narration) AS example
+     WHERE account ~ 'Uncategorized' GROUP BY counterparty, currency ORDER BY abs(sum(number)) DESC"
    ```
-   No rows: report that nothing is uncategorized and stop. Otherwise read the transactions of each
-   group (`WHERE entry_meta('iban') = '…'` or `payee = '…'`) before deciding.
+   Skip the groups listed under "Unknown" in `rules.beancount`, unless the user asks about them.
+   No rows left: report that nothing is uncategorized and stop. Otherwise read the transactions of a
+   group (`WHERE entry_meta('iban') = '…'` or `payee = '…'`) when the example is not enough.
 2. Categorize what is clear from the text (a shop, a utility, a known client). For each group that is
    not clear, ask the user one short question with the date, amount, and text. Batch questions in a
-   numbered list; accept "I don't know" and leave that group uncategorized.
+   numbered list. Accept "I don't know": the group stays uncategorized, and step 3 records it.
    When no account in `accounts.beancount` fits a group, propose a new one, and list the proposed
    accounts with the questions so the user can rename or merge them. See "New accounts" below.
 3. Write one rule per answer in the matching section of `rules.beancount`, following its header and the
    rule gotchas below. Put what the user explained into the rule's comment: the comment is the memory
-   for the next session.
+   for the next session. For each "I don't know", add a comment under the "Unknown" heading at the end
+   of `rules.beancount`: `; <counterparty>  <payee>, <amount>, <first date>: asked <today>, unknown`.
 4. A transaction is often not an expense:
    - own account → add an `open` with `iban` to `accounts.beancount` (it becomes a transfer)
    - property, loans given or taken, funds → the `Assets:` or `Liabilities:` account
    - money from a partner who shares the assets → their `Equity:` account
-5. Run `uv run kingsmint reimport` and `uv run kingsmint check`. Diff the ledger (`jj diff --stat` or `git diff --stat`) and spot-check
+5. Run `uv run kingsmint reimport` and `uv run kingsmint check`; it must print nothing that was not
+   there before your change (a Transit `FAIL` about a missing statement can stay). Diff the ledger (`jj diff --stat` or `git diff --stat`) and spot-check
    that each new rule moved only the intended transactions; a rule that also caught others is too broad.
 6. Commit, naming the categories that changed.
 
