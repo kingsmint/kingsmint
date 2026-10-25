@@ -23,6 +23,11 @@ ACCOUNTS = """
 2000-01-01 open Assets:Me:IBKR:Cash
   ibkr: "U1234567"
 2000-01-01 open Assets:Me:IBKR:Securities "FIFO"
+2000-01-01 open Income:Investments:Gains
+2000-01-01 open Income:Investments:Interest
+2000-01-01 open Expenses:Investments:Fees
+2000-01-01 open Expenses:Taxes:Withholding
+2000-01-01 open Expenses:Food:Groceries
 """ + "".join(f"2000-01-01 pad {a} Equity:Opening-Balances\n"  # the first statements do not start at 0
               for a in ["Assets:Me:VUB:Current", "Assets:Me:Tatra:Current", "Assets:Me:Tatra:Second", "Assets:Co:Fio:Current"])
 

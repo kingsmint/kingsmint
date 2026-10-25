@@ -13,145 +13,29 @@
 ; 2000-01-01 open Assets:Me:Broker:Cash
 ;   ibkr: "U0000000"
 ; 2000-01-01 open Assets:Me:Broker:Securities "FIFO"
+; 2000-01-01 open Income:Investments:Gains  ; the broker import posts to these four
+; 2000-01-01 open Income:Investments:Interest
+; 2000-01-01 open Expenses:Investments:Fees
+;   need: "income-linked"
+; 2000-01-01 open Expenses:Taxes:Withholding
+;   need: "income-linked"
 
 2000-01-01 open Assets:Transit  ; transfers between own accounts
 2000-01-01 open Equity:Opening-Balances
 2000-01-01 open Equity:Conversions  ; exchanges between own accounts in different currencies
 
-2000-01-01 open Income:Clients
-2000-01-01 open Income:Benefits
-2000-01-01 open Income:Family
-2000-01-01 open Income:Inheritance
-2000-01-01 open Income:Investments:Gains
-2000-01-01 open Income:Investments:Interest
-2000-01-01 open Income:Other
+; Income and expense accounts grow from your transactions: the `categorize` skill adds one when
+; no existing account fits, as `Income:<Area>` or `Expenses:<Area>:<Item>`.
 2000-01-01 open Income:Uncategorized
 
 ; `need` on expense accounts groups spending for the baseline queries in Fava:
 ; essential (fixed by contract or law), flexible (needed, can be reduced), optional (luxury, can stop),
 ; income-linked (stops with the income), unknown (mixed: cash, card, uncategorized).
 ; `cut` on flexible and unknown accounts: the share still paid after cutting back.
-2000-01-01 open Expenses:Food:Groceries
-  need: "flexible"
-  cut: 0.7
-2000-01-01 open Expenses:Food:Restaurants
-  need: "optional"
-2000-01-01 open Expenses:Housing:Interest
-  need: "essential"
-2000-01-01 open Expenses:Housing:Garden
-  need: "optional"
-2000-01-01 open Expenses:Housing:Rent
-  need: "essential"
-2000-01-01 open Expenses:Housing:Maintenance
-  need: "flexible"
-  cut: 0.8
-2000-01-01 open Expenses:Housing:Fees
-  need: "essential"
-2000-01-01 open Expenses:Housing:Energy
-  need: "essential"
-2000-01-01 open Expenses:Housing:Water
-  need: "essential"
-2000-01-01 open Expenses:Housing:Telecom
-  need: "flexible"
-  cut: 0.7
-2000-01-01 open Expenses:Housing:Waste
-  need: "essential"
-2000-01-01 open Expenses:Transport:Fuel
-  need: "flexible"
-  cut: 0.6
-2000-01-01 open Expenses:Transport:Parking
-  need: "flexible"
-  cut: 0.8
-2000-01-01 open Expenses:Transport:Tolls
-  need: "flexible"
-  cut: 0.8
-2000-01-01 open Expenses:Transport:Car
-  need: "flexible"
-  cut: 0.8
-2000-01-01 open Expenses:Transport:Public
-  need: "flexible"
-  cut: 0.8
-2000-01-01 open Expenses:Kids:School
-  need: "essential"
-2000-01-01 open Expenses:Kids:Activities
-  need: "flexible"
-  cut: 0.5
-2000-01-01 open Expenses:Kids:Toys
-  need: "optional"
-2000-01-01 open Expenses:Health
-  need: "flexible"
-  cut: 0.8
-2000-01-01 open Expenses:Personal
-  need: "flexible"
-  cut: 0.5
-2000-01-01 open Expenses:Sport
-  need: "optional"
-2000-01-01 open Expenses:Leisure
-  need: "optional"
-2000-01-01 open Expenses:Pets
-  need: "flexible"
-  cut: 0.8
-2000-01-01 open Expenses:Shopping:Clothing
-  need: "flexible"
-  cut: 0.5
-2000-01-01 open Expenses:Shopping:Drugstore
-  need: "flexible"
-  cut: 0.8
-2000-01-01 open Expenses:Shopping:Home
-  need: "optional"
-2000-01-01 open Expenses:Shopping:Electronics
-  need: "optional"
-2000-01-01 open Expenses:Shopping:Books
-  need: "optional"
-2000-01-01 open Expenses:Shopping:Other
-  need: "optional"
-2000-01-01 open Expenses:Travel
-  need: "optional"
-2000-01-01 open Expenses:Insurance
-  need: "essential"
-2000-01-01 open Expenses:Gifts
-  need: "optional"
-2000-01-01 open Expenses:Family
-  need: "flexible"
-  cut: 0.8
 2000-01-01 open Expenses:Cash
   need: "unknown"
   cut: 0.5
-2000-01-01 open Expenses:CreditCard
-  need: "unknown"
-  cut: 0.5
 2000-01-01 open Expenses:Bank:Fees
-  need: "essential"
-2000-01-01 open Expenses:Business:Accounting
-  need: "essential"
-2000-01-01 open Expenses:Business:Software
-  need: "flexible"
-  cut: 0.5
-2000-01-01 open Expenses:Business:Contractors
-  need: "income-linked"
-2000-01-01 open Expenses:Business:CashFee
-  need: "income-linked"
-2000-01-01 open Expenses:Business:Training
-  need: "income-linked"
-2000-01-01 open Expenses:Investments:Fees
-  need: "income-linked"
-2000-01-01 open Expenses:Taxes:Income
-  need: "income-linked"
-2000-01-01 open Expenses:Taxes:Health
-  need: "essential"
-2000-01-01 open Expenses:Taxes:Social
-  need: "essential"
-2000-01-01 open Expenses:Taxes:VAT
-  need: "income-linked"
-2000-01-01 open Expenses:Taxes:Corporate
-  need: "income-linked"
-2000-01-01 open Expenses:Taxes:Dividend
-  need: "income-linked"
-2000-01-01 open Expenses:Taxes:Property
-  need: "essential"
-2000-01-01 open Expenses:Taxes:Withholding
-  need: "income-linked"
-2000-01-01 open Expenses:Taxes:Transaction
   need: "essential"
 2000-01-01 open Expenses:Uncategorized
   need: "unknown"

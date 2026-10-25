@@ -12,6 +12,7 @@ For developers who want one view of their personal money and their one-person co
 - Categorization rules are Beancount `custom "rule"` directives, so the whole setup stays in Beancount.
 - Claude Code skills import statements, ask you about unknown transactions and write rules,
   explain changes in net profit, and add parsers for new banks.
+- No fixed chart of accounts: income and expense accounts are created from your own transactions.
 - Local first: your statements and ledger stay in a private repository on your computer.
 
 ## Supported statements

@@ -34,10 +34,10 @@ The template is `template/` in this plugin's directory (`${CLAUDE_PLUGIN_ROOT}/t
      - One `open` per bank account: `Assets:<Me|Co>:<Bank>:<Kind>`, where `<Bank>` is the short name
        people use, in ASCII (`Tatra`, `VUB`, `Fio`) and `<Kind>` is `Current`, `Savings`, or `USD` for a second currency.
        The `iban` comes from the first statement (the `import` skill adds it).
-     - A broker, named the same way (`IBKR`): `Assets:Me:<Broker>:Cash` with `ibkr` metadata and `:Securities "FIFO"`.
+     - A broker, named the same way (`IBKR`): `Assets:Me:<Broker>:Cash` with `ibkr` metadata and `:Securities "FIFO"`,
+       and the four investment accounts from the commented example.
      - A partner who shares the assets: `Equity:<Name>`.
-     - The expense tree: keep `Expenses:Kids:*` only with children, `Expenses:Family` only with regular
-       family support, `Expenses:Business:*` and `Expenses:Taxes:Corporate`, `Dividend`, `VAT` only with a company.
+     - Leave income and expenses as they are: the `categorize` skill builds them from the transactions.
      - What the user said (who pays what, arrangements) as comments next to the accounts; personal
        costs paid by the company become rules later, when their transactions appear.
      - Remove the commented examples.
@@ -45,6 +45,6 @@ The template is `template/` in this plugin's directory (`${CLAUDE_PLUGIN_ROOT}/t
 7. Create the repository (`jj git init` or `git init`), and commit `Initial ledger`. No remote: the
    ledger is private.
 8. Ask the user to download their statements into `inbox/` (as far back as the bank allows), then run
-   the `import` skill.
+   the `import` skill and then the `categorize` skill.
 
 Done when `uv run kingsmint doctor` reports no `FAIL`, the first commit exists, and the user knows where to put statements.
