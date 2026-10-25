@@ -8,8 +8,8 @@ write ledger/<account>/<YYYY-MM>.beancount and move the PDF to documents/.
 IBKR year-to-date activity statement CSVs always replace ledger/<broker account>/<year>.beancount; the cash
 account is the one whose `ibkr` metadata is the IBKR account number, securities are its sibling `:Securities`.
 Account history CSVs (VUB "export pohybov na účte", Tatra download; the file name must start with the
-account IBAN) are split by year into ledger/<account>/csv-<year>.beancount; years that already have
-PDF statements are skipped.
+account IBAN) are split by year into ledger/<account>/csv-<year>.beancount, including years without
+movements; years that already have PDF statements are skipped.
 Files already in documents/ stay where they are (used by `kingsmint import --force documents`).
 """
 
@@ -54,13 +54,14 @@ def import_account_csv(path, rows, accounts, own, rules, force):
     first = parsed[0]
     balance = first[1] - first[0].amount if first[1] is not None else Decimal(0)  # no balance column: opened at 0
     folder = ROOT / "ledger" / account.replace(":", "-")
-    years = sorted({t.date.year for t, _ in parsed})
+    # every year of the export, also those without movements: the export shows the balance did not change
+    years = list(range(min(t.date.year for t, _ in parsed), max(t.date.year for t, _ in parsed) + 1))
     doc = None
     for year in years:
         items = [x for x in parsed if x[0].date.year == year]
         opening, closing = balance, balance + sum(t.amount for t, _ in items)
         balance = closing
-        if items[-1][1] is not None and items[-1][1] != closing:
+        if items and items[-1][1] is not None and items[-1][1] != closing:
             return print(f"FAIL {path.name}: {year} sums to {closing}, the bank's balance is {items[-1][1]}")
         if any(folder.glob(f"{year}-[0-9][0-9].beancount")):
             continue  # this year comes from PDF statements
