@@ -23,8 +23,10 @@ description: Categorize transactions by writing rules in rules.beancount. Use fo
    accounts with the questions so the user can rename or merge them. See "New accounts" below.
 3. Write one rule per answer in the matching section of `rules.beancount`, following its header and the
    rule gotchas below. Put what the user explained into the rule's comment: the comment is the memory
-   for the next session. For each "I don't know", add a comment under the "Unknown" heading at the end
+   for the next session. For each "I don't know" the user said, add a comment under the "Unknown" heading at the end
    of `rules.beancount`: `; <counterparty>  <payee>, <amount>, <first date>: asked <today>, unknown`.
+   A question nobody answered (no user, the user skipped it) is not an answer: record nothing, and
+   the group comes back in the next run.
 4. A transaction is often not an expense:
    - own account → add an `open` with `iban` to `accounts.beancount` (it becomes a transfer)
    - property, loans given or taken, funds → the `Assets:` or `Liabilities:` account

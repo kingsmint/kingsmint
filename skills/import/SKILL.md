@@ -24,7 +24,8 @@ description: Import bank and broker statements from inbox/ into the ledger. Use 
    account's statement for that period is missing. Find which one with step 4. When an account has
    no more statements to import (closed, or history ends), add `statements_until` to its `open`.
 4. Run `uv run kingsmint coverage` and report it: per account, the first and last imported day,
-   every `missing` period, and the accounts `never imported`. These are what the user must download next.
+   every `missing` period (between statements, and from the last one to the end of last month), and
+   the accounts `never imported`. These are what the user must download next.
 5. Run the `categorize` skill on the new transactions.
 6. Commit: `Import <banks> <months>`.
 

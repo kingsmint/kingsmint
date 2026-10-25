@@ -91,12 +91,18 @@ def check():
 def show_coverage():
     entries = loader.load_file("main.beancount")[0]
     cov = coverage(entries)
-    for e in entries:
-        if isinstance(e, data.Open) and ("iban" in e.meta or "ibkr" in e.meta) and e.account not in cov:
-            print(f"{e.account}  never imported")
+    closed = {e.account for e in entries if isinstance(e, data.Close)}
+    # accounts that still get statements: missing up to the end of last month, the newest one a bank can issue
+    current = {e.account for e in entries if isinstance(e, data.Open) and ("iban" in e.meta or "ibkr" in e.meta)
+               and "statements_until" not in e.meta and e.account not in closed}
+    for account in sorted(current - cov.keys()):
+        print(f"{account}  never imported")
+    month_end = dt.date.today().replace(day=1) - dt.timedelta(days=1)
     for account, spans in cov.items():
-        missing = "".join(f"  missing {a} .. {b}" for a, b in gaps(spans))
-        print(f"{account}  {spans[0][0]} .. {spans[-1][1]}{missing}")
+        missing = gaps(spans)
+        if account in current and spans[-1][1] < month_end:
+            missing.append((spans[-1][1] + dt.timedelta(days=1), month_end))
+        print(f"{account}  {spans[0][0]} .. {spans[-1][1]}" + "".join(f"  missing {a} .. {b}" for a, b in missing))
 
 
 def doctor():

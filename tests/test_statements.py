@@ -63,8 +63,8 @@ def test_import_every_bank(tmp_path):
     assert check.stdout.startswith("FAIL Assets:Transit is -11100.00 EUR since 2025-01-02:") and check.stdout.count("\n") == 1, \
         check.stdout + check.stderr
     coverage = kingsmint(ledger, "coverage").stdout
-    assert "Assets:Me:VUB:Current  2025-06-01 .. 2025-06-30\n" in coverage
-    assert "Assets:Me:IBKR:Cash  2025-01-01 .. 2025-12-31\n" in coverage, coverage
+    assert "Assets:Me:VUB:Current  2025-06-01 .. 2025-06-30  missing 2025-07-01 .. " in coverage  # up to last month
+    assert "Assets:Me:IBKR:Cash  2025-01-01 .. 2025-12-31  missing 2026-01-01 .. " in coverage, coverage
     assert kingsmint(ledger, "import").stdout.startswith("nothing to import in ")
 
     out = "".join(f.read_text(encoding="utf-8") for f in sorted((ledger / "ledger").rglob("*.beancount")))
