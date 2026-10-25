@@ -6,8 +6,13 @@ description: Categorize transactions by writing rules in rules.beancount. Use fo
 # Categorize
 
 1. List the uncategorized transactions, grouped by counterparty (IBAN, else payee), largest total first:
-   `SELECT payee, narration, sum(position), count(position) WHERE account ~ 'Uncategorized' GROUP BY payee, narration`.
-   Read the full postings of each group with the `iban` metadata.
+   ```
+   uv run bean-query -q main.beancount "SELECT coalesce(str(entry_meta('iban')), payee) AS counterparty,
+     sum(position) AS total, count(position) AS n, first(payee) AS payee, first(narration) AS example
+     WHERE account ~ 'Uncategorized' GROUP BY counterparty ORDER BY abs(sum(number)) DESC"
+   ```
+   No rows: report that nothing is uncategorized and stop. Otherwise read the transactions of each
+   group (`WHERE entry_meta('iban') = '…'` or `payee = '…'`) before deciding.
 2. Categorize what is clear from the text (a shop, a utility, a known client). For each group that is
    not clear, ask the user one short question with the date, amount, and text. Batch questions in a
    numbered list; accept "I don't know" and leave that group uncategorized.
@@ -34,7 +39,8 @@ The tree grows from the user's transactions; there is no default tree.
   into an existing account.
 - Add the `open` next to its siblings, dated `2000-01-01`. Give every expense account `need`, and
   `cut` when `need` is flexible or unknown, as the comment in `accounts.beancount` defines.
-- Taxes the user pays go to `Expenses:Taxes:<Kind>`; a company's costs to `Expenses:Business:<Item>`.
+- Taxes the user pays go to `Expenses:Taxes:<Kind>`; a company's costs to `Expenses:Business:<Item>`
+  with `need: "income-linked"`: they stop when the company stops.
 
 ## Rule gotchas
 

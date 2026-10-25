@@ -192,6 +192,8 @@ def main(args):
     force = "--force" in args
     paths = [Path(a) for a in args if a != "--force"] or [ROOT / "inbox"]
     files = sorted(f for p in paths for f in ([p] if p.is_file() else p.rglob("*")) if f.suffix.lower() in (".pdf", ".csv"))
+    if not files:
+        return print(f"nothing to import in {', '.join(map(str, paths))}")
     accounts, own, rules, ibkr = load()
     for f in files:
         if f.suffix.lower() == ".pdf":

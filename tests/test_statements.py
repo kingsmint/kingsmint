@@ -58,8 +58,12 @@ def test_import_every_bank(tmp_path):
     lines = run.stdout.splitlines()
     assert len(lines) == 7 and all(line.startswith("ok ") for line in lines), run.stdout
     assert not [f for f in (ledger / "inbox").iterdir() if f.name != ".keep"]  # all archived
+    # the January transfers from VUB Current have no other side: its statements start in June
     check = kingsmint(ledger, "check")
-    assert check.returncode == 0 and not check.stdout + check.stderr, check.stdout + check.stderr
+    assert check.stdout.startswith("FAIL Assets:Transit is -11100.00 EUR on ") and check.stdout.count("\n") == 1, \
+        check.stdout + check.stderr
+    assert "Assets:Me:VUB:Current  2025-06-01 .. 2025-06-30\n" in kingsmint(ledger, "coverage").stdout
+    assert kingsmint(ledger, "import").stdout.startswith("nothing to import in ")
 
     out = "".join(f.read_text(encoding="utf-8") for f in sorted((ledger / "ledger").rglob("*.beancount")))
     for expected in ['"Lidl Bratislava" "Platba kartou"\n  document: "2025-06-30.vub.pdf"\n  Assets:Me:VUB:Current  -45.20 EUR\n'

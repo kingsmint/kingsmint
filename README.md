@@ -46,7 +46,8 @@ company, and household, and creates your ledger repository from `template/`.
 |---|---|
 | `uv run kingsmint import` | import new files from `inbox/` |
 | `uv run kingsmint reimport` | rebuild `ledger/` from `documents/` after changing rules |
-| `uv run kingsmint check` | validate the ledger |
+| `uv run kingsmint check` | validate the ledger, and that each transfer between own accounts has both sides |
+| `uv run kingsmint coverage` | the periods each account's statements cover, and the missing ones |
 | `uv run kingsmint fava` | open Fava on http://localhost:5050 |
 | `uv run kingsmint rates` | refresh month-end USD/EUR rates from the ECB |
 | `uv run kingsmint doctor` | check the tools and the ledger files |
