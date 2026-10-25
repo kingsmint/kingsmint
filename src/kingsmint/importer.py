@@ -234,7 +234,9 @@ def scan(paths):
 def main(args):
     force = "--force" in args
     paths = [Path(a) for a in args if a != "--force"] or [ROOT / "inbox"]
-    files = sorted(f for p in paths for f in ([p] if p.is_file() else p.rglob("*")) if f.suffix.lower() in (".pdf", ".csv"))
+    # PDFs first: an account history CSV skips the years that PDF statements already cover
+    files = sorted((f for p in paths for f in ([p] if p.is_file() else p.rglob("*")) if f.suffix.lower() in (".pdf", ".csv")),
+                   key=lambda f: (f.suffix.lower() == ".csv", f.name))
     if not files:
         return print(f"nothing to import in {', '.join(map(str, paths))}")
     accounts, own, rules, ibkr = load()
