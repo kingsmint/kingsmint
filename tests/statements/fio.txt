@@ -1,4 +1,7 @@
 Fio banka, a.s., pobočka zahraničnej banky
+                                   (612345678)
+                                   Demo s.r.o.
+Typ účtu       BU - běžný účet
 Výpis za obdobie 1.6.2025-30.6.2025
 IBAN  SK2083300000002012345678
 Mena účtu  EUR

@@ -31,6 +31,13 @@ description: Categorize transactions by writing rules in rules.beancount. Use fo
    - own account → add an `open` with `iban` to `accounts.beancount` (it becomes a transfer)
    - property, loans given or taken, funds → the `Assets:` or `Liabilities:` account
    - money from a partner who shares the assets → their `Equity:` account
+
+   Facts about the household and the company come from the transactions, not from an interview. Ask
+   about one in the same numbered list when a group shows it, and record the answer as a comment in
+   `accounts.beancount`: regular money from a person with the user's surname or a joint holder (a
+   partner who shares the assets?), payments to the tax office for VAT (is the company VAT-registered?),
+   monthly payments to an accounting firm (does an accountant keep the official books?), shops or
+   restaurants paid from a company account (does the company pay personal costs?).
 5. Run `uv run kingsmint reimport` and `uv run kingsmint check`; it must print nothing that was not
    there before your change (a Transit `FAIL` about a missing statement can stay). Diff the ledger (`jj diff --stat` or `git diff --stat`) and spot-check
    that each new rule moved only the intended transactions; a rule that also caught others is too broad.

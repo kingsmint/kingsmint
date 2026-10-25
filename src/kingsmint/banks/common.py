@@ -25,6 +25,14 @@ class Statement:
     end: dt.date
     txns: list[Txn] = field(default_factory=list)
     currency: str = "EUR"
+    holder: str = ""  # account owner as printed, e.g. "Example, s.r.o." or "Ing. Novák, Ján"
+    type: str = ""  # account type as printed, e.g. "Osobný účet"
+
+
+def header(rx, text):
+    """First group of `rx` in the statement header, or ""."""
+    m = re.search(rx, text, re.M)
+    return squash(m[1]) if m else ""
 
 
 def squash(s):

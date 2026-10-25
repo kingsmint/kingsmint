@@ -13,10 +13,9 @@ description: Import bank and broker statements from inbox/ into the ledger. Use 
      the better source (full month, newer layout), rerun with `--force`.
    - `skip … unknown bank`: no parser matches. Use the `add-bank` skill.
    - `FAIL … sum`: the parser misread a row. Fix the parser with the `add-bank` skill.
-   - `FAIL … no account with iban` (PDF) or `FAIL … must start with an IBAN` (CSV, named after the
-     account's IBAN): add the IBAN as `iban` metadata to the matching account in
-     `accounts.beancount` (same bank and owner, no IBAN yet), or ask the user what the new account is
-     and add an `open`. Import again.
+   - `FAIL … no account with iban` (PDF), `FAIL … must start with an IBAN` (CSV), or `no account with
+     ibkr` (broker): a new account. Run `uv run kingsmint scan`, propose the account as "Accounts from
+     statements" below describes, and add its `open` when the user confirms. Import again.
 3. Run `uv run kingsmint check`. A failing `balance` usually means a missing statement month; find the gap.
    On the account's first statement it means the account had money before the oldest statement: add
    `<open date> pad <account> Equity:Opening-Balances` under its `open`.
@@ -28,6 +27,27 @@ description: Import bank and broker statements from inbox/ into the ledger. Use 
    the accounts `never imported`. These are what the user must download next.
 5. Run the `categorize` skill on the new transactions.
 6. Commit: `Import <banks> <months>`.
+
+## Accounts from statements
+
+`uv run kingsmint scan` prints one line per file: bank, IBAN (or broker account), currency, period,
+`holder`, `type`, and the account it belongs to, or `NEW`. Derive each new account from it:
+
+- Owner: `Assets:Co` when the holder is a company (`s.r.o.`, `a.s.`, `spol.`, `GmbH`, `Ltd`, `Inc`, ...),
+  `Assets:Me` when it is a person. A joint holder ("A and B") is `Assets:Me`; the other person is a
+  partner who shares the assets: propose `Equity:<First name>` for the money they send.
+- Name: `Assets:<Me|Co>:<Bank>:<Kind>`. `<Bank>` is the short name people use, in ASCII (`VUB`, `Tatra`,
+  `Fio`, `IBKR`, or the introducing broker such as `Lynx`). `<Kind>` comes from `type` and the currency:
+  `Current` for a current account, `Savings` for a savings account, the currency code (`USD`) for a
+  second currency at the same bank and owner. A broker is `<Broker>:Cash` with `ibkr` metadata, plus
+  `<Broker>:Securities "FIFO"`.
+- An account history CSV has no holder. Import the PDFs first, then look for transfers to its IBAN:
+  `uv run bean-query -q main.beancount "SELECT date, account, payee, narration, position WHERE entry_meta('iban') = '<IBAN>'"`.
+  The user's own name or "Sporenie" from their account shows the owner and the kind.
+
+Ask the user, in one numbered list, only when the statements cannot show it: no holder and no
+transfers, two accounts that would get the same name (ask for a short name), or a type that is neither
+current nor savings. Write what they said as a comment next to the `open`.
 
 Done when every inbox file is `ok` or explained to the user, the check prints nothing (or only a
 Transit `FAIL` whose missing statement the user was told to download), and the coverage gaps are reported.

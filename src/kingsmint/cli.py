@@ -1,5 +1,6 @@
 """usage: uv run kingsmint COMMAND   (in the ledger directory)
 
+  scan [PATH ...]              show what the statements in inbox/ (or PATHs) are, without importing
   import [--force] [PATH ...]  import new statements from inbox/ (or PATHs)
   reimport                     rebuild ledger/ from documents/, re-applying the rules
   check                        validate the ledger, and that transfers between own accounts have both sides
@@ -130,6 +131,8 @@ def main():
     cmd, args = (sys.argv[1], sys.argv[2:]) if len(sys.argv) > 1 else ("", [])
     if cmd == "import":
         importer.main(args)
+    elif cmd == "scan":
+        importer.scan([Path(a) for a in args] or [importer.ROOT / "inbox"])
     elif cmd == "reimport":
         importer.main(["--force", "documents"])
     elif cmd == "check":

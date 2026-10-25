@@ -26,7 +26,7 @@ from beancount.core import data
 
 from kingsmint.banks import CSV_PARSERS, PARSERS
 from kingsmint.banks.common import Statement
-from kingsmint.banks.intl.ibkr import parse_csv as parse_ibkr
+from kingsmint.banks.intl.ibkr import parse_csv as parse_ibkr, sections as ibkr_sections
 from kingsmint.pdf import pdf_text
 
 ROOT = Path.cwd()
@@ -187,6 +187,48 @@ def import_pdf(pdf, accounts, own, rules, force):
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(render(st, account, own, rules, archive(pdf, account, st.end).name), encoding="utf-8")
     print(f"ok   {pdf.name} -> {out.relative_to(ROOT)} ({len(st.txns)} txns)")
+
+
+# ---------------------------------------------------------------- scan
+
+
+def scan_file(f, accounts, ibkr):
+    """One line about a statement without importing it: bank, account id, currency, period, holder, type."""
+    if f.suffix.lower() == ".pdf":
+        text = pdf_text(f)
+        parse = next((p for marker, p in PARSERS if marker in text), None)
+        if not parse:
+            return "unknown bank"
+        st = parse(text)
+        bank, key, known, currency, start, end = parse.__module__.split(".")[-1], st.iban, accounts.get(st.iban), st.currency, st.start, st.end
+        holder, kind = st.holder, st.type
+    elif f.read_bytes()[:20].lstrip(b"\xef\xbb\xbf").startswith(b"Statement,"):
+        _, acct, key, start, end = ibkr_sections(f)
+        bank, known, currency = "ibkr", ibkr.get(key), acct.get("Base Currency", "")
+        holder, kind = acct.get("Name", ""), acct.get("Customer Type", "")
+    else:
+        rows = read_csv(f)
+        parse = next((p for column, p in CSV_PARSERS if column in rows[0]), None)
+        iban = re.match(r"(?:\d{4}-\d\d-\d\d\.)*([A-Z]{2}\d{2}[A-Z0-9]{11,30})", f.name)
+        if not parse or not iban:
+            return "unknown bank" if not parse else "the name must start with the account IBAN"
+        dates = [t.date for t, _ in parse(rows)]
+        bank, key, known, currency, start, end = parse.__module__.split(".")[-1] + " csv", iban[1], accounts.get(iban[1]), "", min(dates), max(dates)
+        holder = kind = ""  # an account history export has no header
+    fields = [bank, key, currency, f"{start}..{end}", f"holder: {holder}" if holder else "", f"type: {kind}" if kind else ""]
+    return "  ".join(x for x in fields if x) + f"  -> {known or 'NEW'}"
+
+
+def scan(paths):
+    files = sorted(f for p in paths for f in ([p] if p.is_file() else p.rglob("*")) if f.suffix.lower() in (".pdf", ".csv"))
+    if not files:
+        return print(f"nothing to scan in {', '.join(map(str, paths))}")
+    accounts, _, _, ibkr = load()
+    for f in files:
+        try:
+            print(f"{f.name}  {scan_file(f, accounts, ibkr)}")
+        except Exception as e:  # one unreadable file must not hide the others
+            print(f"{f.name}  FAIL {type(e).__name__}: {e}")
 
 
 def main(args):

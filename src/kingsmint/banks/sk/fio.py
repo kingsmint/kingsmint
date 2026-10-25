@@ -2,7 +2,7 @@
 
 import re
 
-from kingsmint.banks.common import Statement, Txn, date, sk_num, squash
+from kingsmint.banks.common import Statement, Txn, date, header, sk_num, squash
 
 FIO_AMT = r"(-?\d{1,3}(?:[  ]\d{3})*,\d\d)"
 FIO_START = re.compile(r"^ ?(\d{1,2}\.\d{1,2}\.\d{4})\s{2,}(\S.*?)(?:\s{2,}(\S+))?\s{2,}" + FIO_AMT + "$")
@@ -16,6 +16,9 @@ def parse_pdf(text):
     st = Statement(re.search(r"IBAN\s+(SK\d+)", text)[1], opening, closing, start, end)
     if cur := re.search(r"Mena účtu\s+([A-Z]{3})", text):
         st.currency = cur[1]
+    # the holder is the first line of the address block, under the statement number "(610417125)"
+    st.holder = header(r"^\s*\(\d{6,}\)\s*\n(?:\s*Výpis z účtu\s*\n)?\s+(\S.*?)\s*$", text)
+    st.type = header(r"^\s*Typ účtu\s+(.+?)(?:\s{2,}|$)", text)
 
     recs, skip = [], True
     for line in text.splitlines():

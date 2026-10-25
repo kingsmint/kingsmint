@@ -9,8 +9,7 @@ def num(s):  # "1,803", "-0.00005183"
     return Decimal(s.replace(",", ""))
 
 
-def parse_csv(path, ibkr):
-    """Return (cash account, start, end, opening entries, year entries); `ibkr` maps account numbers to cash accounts."""
+def sections(path):
     headers, sec = {}, {}
     for row in csv.reader(path.open(encoding="utf-8-sig")):
         if len(row) < 3:
@@ -21,13 +20,18 @@ def parse_csv(path, ibkr):
             sec.setdefault(row[0], []).append(dict(zip(headers.get(row[0], []), row[2:])))  # 2021 has data rows without a header
     info = {r["Field Name"]: r["Field Value"] for r in sec["Statement"]}
     acct = {r["Field Name"]: r["Field Value"] for r in sec.get("Account Information", [])}
-    number = acct.get("Account", "").split(" ")[0]  # "U1234567 (Custom Consolidated)"
+    start, end = (dt.datetime.strptime(x.strip(), "%B %d, %Y").date() for x in info["Period"].split(" - "))
+    return sec, acct, acct.get("Account", "").split(" ")[0], start, end  # "U1234567 (Custom Consolidated)"
+
+
+def parse_csv(path, ibkr):
+    """Return (cash account, start, end, opening entries, year entries); `ibkr` maps account numbers to cash accounts."""
+    sec, acct, number, start, end = sections(path)
     if number not in ibkr:
         raise ValueError(f"no account with ibkr: {number!r} in accounts.beancount")
     cash_acc = ibkr[number]
     sec_acc = cash_acc.rsplit(":", 1)[0] + ":Securities"
     broker = acct.get("Master Name", "IBKR").split(" ")[0]  # introducing broker, e.g. "Lynx B.V."
-    start, end = (dt.datetime.strptime(x.strip(), "%B %d, %Y").date() for x in info["Period"].split(" - "))
 
     # positions at the start = closing positions minus this period's changes
     pos = {}  # (symbol, currency) -> [quantity, cost]

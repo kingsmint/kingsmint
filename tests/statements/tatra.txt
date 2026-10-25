@@ -1,6 +1,7 @@
 Tatra banka, a.s., Hodžovo námestie 3, 811 06 Bratislava 1
-Osobný účet        1234567890    Majiteľ Tester Test                 Dátum 30.06.2025
+Osobný účet        1234567890    Mena  EUR                 Dátum 30.06.2025
 IBAN SK55 1100 0000 0029 1234 5678
+Majiteľ účtu:  Tester Test, Ing.
 Posledný výpis 31.05.2025           1,000.00
 02.06.2025  Prevod v prospech     02.06.2025          1,200.00
             Platiteľ: SK2211000000002612345678

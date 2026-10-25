@@ -37,13 +37,16 @@ claude plugin marketplace add <path or git URL of this repository>
 claude plugin install kingsmint@kingsmint
 ```
 
-Then, in an empty folder, start Claude Code and run `/kingsmint:setup`. It asks about your banks,
-company, and household, and creates your ledger repository from `template/`.
+Then, in an empty folder, start Claude Code and run `/kingsmint:setup`. It creates your ledger
+repository from `template/` and asks you to put your statements into `inbox/`. It reads the accounts,
+their owners, and currencies from the statements, and asks you to confirm them in one table; it asks
+a question only about what the statements cannot show.
 
 ## Commands (in the ledger repository)
 
 | Command | Does |
 |---|---|
+| `uv run kingsmint scan` | show what the files in `inbox/` are (bank, account, holder, period), without importing |
 | `uv run kingsmint import` | import new files from `inbox/` |
 | `uv run kingsmint reimport` | rebuild `ledger/` from `documents/` after changing rules |
 | `uv run kingsmint check` | validate the ledger, and that each transfer between own accounts has both sides |

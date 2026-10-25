@@ -4,7 +4,7 @@ import datetime as dt
 import re
 from decimal import Decimal
 
-from kingsmint.banks.common import Statement, Txn, date, iban, merchant, sk_num, squash
+from kingsmint.banks.common import Statement, Txn, date, header, iban, merchant, sk_num, squash
 
 VUB_AMT = re.compile(r"(-?\d{1,3}(?:\.\d{3})*,\d\d)\s*$")
 VUB_DATE = re.compile(r"^(\d\d)/(\d\d)\s")
@@ -18,6 +18,7 @@ def parse_pdf(text):
     m = re.search(r"Vlast\. použit\. prostr\. k (\S+).*?\n\s*(-?[\d.]+,\d\d)", text)
     end, closing = date(m[1]), sk_num(m[2])
     st = Statement(iban(re.search(r"Číslo:\s+(SK[\d ]+\d)", text)[1]), opening, closing, start, end)
+    st.holder, st.type = header(r"^Názov:\s+(.+)$", text), header(r"^Typ:\s+(.+)$", text)
 
     # Each record: line 1 = booking date, type or IBAN, amount;
     # line 2 = realization date (cards only), description, reference, fee;

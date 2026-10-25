@@ -1,4 +1,6 @@
 Tatra banka, a. s.
+Výpis z bežného účtu
+Majiteľ          Tester Test               Tester Test
 IBAN  SK5511000000002912345679
 Od 1.7.2025 Do 31.7.2025
 Počiatočný zostatok    500.00

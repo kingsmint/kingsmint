@@ -43,8 +43,6 @@ def test_import_every_bank(tmp_path):
     main = ledger / "main.beancount"  # what /kingsmint:setup fills in
     main.write_text(main.read_text(encoding="utf-8").replace("TITLE", "Test").replace("CURRENCY", "EUR")
                     .replace("LOCALE", "sk_SK"), encoding="utf-8")
-    with (ledger / "accounts.beancount").open("a", encoding="utf-8") as f:
-        f.write(ACCOUNTS)
     with (ledger / "rules.beancount").open("a", encoding="utf-8") as f:
         f.write('\n2000-01-01 custom "rule" "\\\\bLidl\\\\b" Expenses:Food:Groceries\n')
     for src in (HERE / "statements").iterdir():
@@ -52,6 +50,16 @@ def test_import_every_bank(tmp_path):
             text_pdf(ledger / "inbox" / f"{src.stem}.pdf", src.read_text(encoding="utf-8"))
         else:
             shutil.copy(src, ledger / "inbox")
+    scan = kingsmint(ledger, "scan").stdout  # what /kingsmint:setup proposes the accounts from, before they exist
+    for expected in ["fio.pdf  fio  SK2083300000002012345678  EUR  2025-06-01..2025-06-30  holder: Demo s.r.o.  "
+                     "type: BU - běžný účet  -> NEW\n",
+                     "tatra.pdf  tatra  SK5511000000002912345678  EUR  2025-06-01..2025-06-30  holder: Tester Test, Ing.  "
+                     "type: Osobný účet  -> NEW\n",
+                     "holder: Tester Test  type: bežný účet  -> NEW\n", "holder: TEST TESTER  type: BEŽNÝ ÚČET  -> NEW\n",
+                     "ibkr.csv  ibkr  U1234567  ", "SK6611000000002987654321.csv  tatra csv  SK6611000000002987654321  "]:
+        assert expected in scan, scan
+    with (ledger / "accounts.beancount").open("a", encoding="utf-8") as f:
+        f.write(ACCOUNTS)
 
     run = kingsmint(ledger, "import")
     assert run.returncode == 0, run.stderr

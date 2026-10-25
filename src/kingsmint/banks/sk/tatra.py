@@ -4,7 +4,7 @@ import datetime as dt
 import re
 from decimal import Decimal
 
-from kingsmint.banks.common import Statement, Txn, date, iban, squash
+from kingsmint.banks.common import Statement, Txn, date, header, iban, squash
 
 TB_START = re.compile(r"^(\d\d\.\d\d\.\d{4})\s+(.*?)\s{2,}.*?([\d,]+\.\d\d)(-?)$")
 
@@ -19,6 +19,7 @@ def parse_pdf(text):
     end = date(re.search(r"Dátum (\d\d\.\d\d\.\d{4})", text)[1])
     m = re.search(r"Zostatok na účte ku dňu vystavenia výpisu:\s+([\d,]+\.\d\d)(-?)", text)
     st = Statement(iban(re.search(r"IBAN (SK[\d ]+\d)", text)[1]), opening, tb_num(*m.groups()), start, end)
+    st.holder, st.type = header(r"^Majiteľ účtu:\s+(.+)$", text), header(r"^(\S.*?účet)\s{2,}\d", text)
 
     body = text[text.index("Posledný výpis"): text.index("SPOLU")]
     recs = []
@@ -65,6 +66,7 @@ def parse_pdf_2025(text):
     opening = Decimal(re.search(r"Počiatočný zostatok\s+(-?[\d ]+\.\d\d)", text)[1].replace(" ", ""))
     closing = Decimal(re.search(r"Koncový zostatok\s+(-?[\d ]+\.\d\d)", text)[1].replace(" ", ""))
     st = Statement(re.search(r"IBAN\s+(SK\d+)", text)[1], opening, closing, start, end)
+    st.holder, st.type = header(r"^Majiteľ\s+(.+?)(?:\s{2,}|$)", text), "bežný účet" if "Výpis z bežného účtu" in text else ""
 
     body = text[text.index("Dátum zúčtovania"): text.index("Týmto potvrdzujeme")]
     recs = []

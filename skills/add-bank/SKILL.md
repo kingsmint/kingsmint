@@ -28,7 +28,9 @@ their statements never go into the kingsmint repository.
    stays on pypdfium2 for speed.
 3. Register it in `banks/__init__.py`: `PARSERS` with a marker string found only in that bank's PDFs,
    `CSV_PARSERS` with a column only that bank's export has.
-4. Fill `payee`, `narration`, and the counterparty `iban`: the rules match on them.
+4. Fill `payee`, `narration`, and the counterparty `iban`: the rules match on them. Fill the statement's
+   `holder` and `type` from the header (`header()` in `banks/common.py`): `kingsmint scan` shows them, and
+   setup derives the accounts from them. Check that `uv run kingsmint scan` prints them for every layout.
 5. Import every statement of the bank, old and new layouts. Fix the parser until each one is `ok`.
    Typical misreads: a record split over two lines, a page break inside the table, a fee row, a
    reversal dated outside the period, a thousands separator.
