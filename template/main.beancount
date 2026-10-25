@@ -1,6 +1,8 @@
 option "title" "TITLE"
 option "operating_currency" "CURRENCY"
 option "documents" "documents"
+; links each transaction to its statement (`document` metadata); a missing statement is an error
+plugin "fava.plugins.link_documents"
 
 include "accounts.beancount"
 include "rules.beancount"

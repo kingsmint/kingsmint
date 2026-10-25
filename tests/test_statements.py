@@ -57,10 +57,13 @@ def test_import_every_bank(tmp_path):
     assert check.returncode == 0 and not check.stdout + check.stderr, check.stdout + check.stderr
 
     out = "".join(f.read_text(encoding="utf-8") for f in sorted((ledger / "ledger").rglob("*.beancount")))
-    for expected in ['"Lidl Bratislava" "Platba kartou"\n  Assets:Me:VUB:Current  -45.20 EUR\n  Expenses:Food:Groceries\n',  # VUB
+    for expected in ['"Lidl Bratislava" "Platba kartou"\n  document: "2025-06-30.vub.pdf"\n  Assets:Me:VUB:Current  -45.20 EUR\n'
+                     '  Expenses:Food:Groceries\n',  # VUB
                      '"Example s.r.o." "Mzda 05/2025"', '"Jana Testová" "Nájom 06/2025"',
                      '"Lidl 123"', '"Test Payer"', '"Kaufland"',  # Tatra
                      '"Client Ltd" "Faktura 2025-01"', '"Alza.sk"',  # FIO
                      "Assets:Me:IBKR:Securities  50 VWCE {{5000 EUR}}",  # IBKR
+                     '"Buy 50 VWCE"\n  document: "2025-12-31.ibkr.csv"',
+                     'document: "2025-02-05.SK6611000000002987654321.csv"',  # CSV
                      "Assets:Transit"]:  # transfers from an own account
         assert expected in out, expected
