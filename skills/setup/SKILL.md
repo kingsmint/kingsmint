@@ -18,7 +18,7 @@ The template is `template/` in this plugin's directory (`${CLAUDE_PLUGIN_ROOT}/t
      for the rest of the setup, and tell the user to open a new terminal.
    - jj and git missing: name the install page (https://jj-vcs.github.io/jj/latest/install-and-setup/
      or https://git-scm.com/downloads) and stop until one is installed.
-2. Check that the current directory is empty, or ask before using a non-empty one.
+2. Check that the current directory is empty (an `inbox/` with statements counts as empty), or ask before using a non-empty one.
 3. Copy the template: `cp -R "${CLAUDE_PLUGIN_ROOT}/template/." .`
 4. `pyproject.toml`: replace `{ git = "KINGSMINT_SOURCE" }`. When `${CLAUDE_PLUGIN_ROOT}` is a checkout the
    user develops (it is outside `~/.claude/plugins/`, for example from `claude --plugin-dir`), use
@@ -30,7 +30,8 @@ The template is `template/` in this plugin's directory (`${CLAUDE_PLUGIN_ROOT}/t
 6. Run `uv run kingsmint scan`. Propose, in one message for the user to confirm or correct:
    - The accounts, as "Accounts from statements" in the `import` skill describes, as a table: account,
      IBAN, holder, currency, period.
-   - The title: the personal holder's name (`Ján Novák`).
+   - The title: the personal holder's name as people write it, without degrees and capitals (`ING. JÁN NOVÁK`
+     and `Novák Ján, Ing.` are `Ján Novák`).
    - The main currency: the currency of most accounts.
    - The locale for Fava number formatting, from the IBAN country: `SK` is `sk_SK`, `CZ` is `cs_CZ`,
      `DE` is `de_DE`, and so on; `en_US` when the country is unclear.

@@ -39,7 +39,7 @@ description: Categorize transactions by writing rules in rules.beancount. Use fo
    monthly payments to an accounting firm (does an accountant keep the official books?), shops or
    restaurants paid from a company account (does the company pay personal costs?).
 5. Run `uv run kingsmint reimport` and `uv run kingsmint check`; it must print nothing that was not
-   there before your change (a Transit `FAIL` about a missing statement can stay). Diff the ledger (`jj diff --stat` or `git diff --stat`) and spot-check
+   there before your change (run `check` once before your first edit to know) (a Transit `FAIL` about a missing statement can stay). Diff the ledger (`jj diff --stat` or `git diff --stat`) and spot-check
    that each new rule moved only the intended transactions; a rule that also caught others is too broad.
 6. Commit, naming the categories that changed.
 

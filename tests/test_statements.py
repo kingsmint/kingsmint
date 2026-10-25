@@ -56,7 +56,7 @@ def test_import_every_bank(tmp_path):
                      "tatra.pdf  tatra  SK5511000000002912345678  EUR  2025-06-01..2025-06-30  holder: Tester Test, Ing.  "
                      "type: Osobný účet  -> NEW\n",
                      "holder: Tester Test  type: bežný účet  -> NEW\n", "holder: TEST TESTER  type: BEŽNÝ ÚČET  -> NEW\n",
-                     "ibkr.csv  ibkr  U1234567  ", "SK6611000000002987654321.csv  tatra csv  SK6611000000002987654321  "]:
+                     "ibkr.csv  ibkr  U1234567  EUR  2025-01-01..2025-12-31  holder: Tester Test  ", "SK6611000000002987654321.csv  tatra csv  SK6611000000002987654321  "]:
         assert expected in scan, scan
     with (ledger / "accounts.beancount").open("a", encoding="utf-8") as f:
         f.write(ACCOUNTS)

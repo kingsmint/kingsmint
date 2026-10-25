@@ -1,7 +1,9 @@
 Statement,Header,Field Name,Field Value
 Statement,Data,Period,"January 1, 2025 - December 31, 2025"
 Account Information,Header,Field Name,Field Value
+Account Information,Data,Name,Tester Test
 Account Information,Data,Account,U1234567
+Account Information,Data,Base Currency,EUR
 Account Information,Data,Master Name,Lynx B.V.
 Cash Report,Header,Currency Summary,Currency,Total
 Cash Report,Data,Starting Cash,EUR,1000
