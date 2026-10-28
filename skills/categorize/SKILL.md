@@ -29,7 +29,10 @@ description: Categorize transactions by writing rules in rules.beancount. Use fo
    the group comes back in the next run.
 4. A transaction is often not an expense:
    - own account → add an `open` with `iban` to `accounts.beancount` (it becomes a transfer)
-   - property, loans given or taken, funds → the `Assets:` or `Liabilities:` account
+   - property, loans given or taken, funds → `Assets:Me:Property:<Place>`, `Assets:Me:Loans`,
+     `Liabilities:<Bank>:Mortgage`, `Assets:Me:Investments:<Fund>`. What no statement shows (purchase
+     price, assessed value, a loan before the first statement, a closed fund's gain) goes to
+     `property.beancount`, as its examples show.
    - money from a partner who shares the assets → their `Equity:` account
 
    Facts about the household and the company come from the transactions, not from an interview. Ask
@@ -38,7 +41,9 @@ description: Categorize transactions by writing rules in rules.beancount. Use fo
    partner who shares the assets?), payments to the tax office for VAT (is the company VAT-registered?),
    monthly payments to an accounting firm (does an accountant keep the official books?), shops or
    restaurants paid from a company account (does the company pay personal costs?).
-5. Run `uv run kingsmint reimport` and `uv run kingsmint check`; it must print nothing that was not
+5. Run `uv run kingsmint rules`: it shows, by rule, which transactions the edited rules would move, from
+   which account to which, with examples. Fix a rule that moves more than intended before you go on.
+   Then run `uv run kingsmint reimport` and `uv run kingsmint check`; it must print nothing that was not
    there before your change (run `check` once before your first edit to know) (a Transit `FAIL` about a missing statement can stay). Diff the ledger (`jj diff --stat` or `git diff --stat`) and spot-check
    that each new rule moved only the intended transactions; a rule that also caught others is too broad.
 6. Commit, naming the categories that changed.

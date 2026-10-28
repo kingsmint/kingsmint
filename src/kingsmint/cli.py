@@ -2,6 +2,7 @@
 
   scan [PATH ...]              show what the statements in inbox/ (or PATHs) are, without importing
   import [--force] [PATH ...]  import new statements from inbox/ (or PATHs)
+  rules                        what reimport would change with the current rules, by rule, without writing
   reimport                     rebuild ledger/ from documents/, re-applying the rules
   check                        validate the ledger, and that transfers between own accounts have both sides
   coverage                     the periods each account's imported statements cover, and the gaps
@@ -133,7 +134,12 @@ def main():
         importer.main(args)
     elif cmd == "scan":
         importer.scan([Path(a) for a in args] or [importer.ROOT / "inbox"])
+    elif cmd == "rules":
+        importer.preview()
     elif cmd == "reimport":
+        if not any(f.is_file() for f in Path("documents").rglob("*") if f.name != ".keep"):
+            sys.exit("nothing in documents/ to reimport from; run in the ledger directory")
+        importer.clear_generated()
         importer.main(["--force", "documents"])
     elif cmd == "check":
         check()
