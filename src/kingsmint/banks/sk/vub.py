@@ -41,7 +41,7 @@ def parse_pdf(text):
             if a := VUB_AMT.search(line):
                 rec["fee"] = sk_num(a[1])
                 line = line[: a.start()]
-            rec["line2"] = squash(VUB_REF.sub("", re.sub(r"^\s*\d\d/\d\d\s", "", line)))
+            rec["line2"] = squash(VUB_REF.sub("", re.sub(r"^\s*\d\d/\d\d\s+", "", line)))
             continue
         if d := VUB_DATE.match(line):
             a = VUB_AMT.search(line)

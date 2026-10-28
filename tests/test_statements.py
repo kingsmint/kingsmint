@@ -81,6 +81,7 @@ def test_import_every_bank(tmp_path):
     for expected in ['"Lidl Bratislava" "Platba kartou"\n  document: "2025-06-30.vub.pdf"\n  Assets:Me:VUB:Current  -45.20 EUR\n'
                      '  Expenses:Food:Groceries\n',  # VUB
                      '"Example s.r.o." "Mzda 05/2025"', '"Jana Testová" "Nájom 06/2025"',
+                     '"Zeleninarstvo T Testovo"',  # a 13-letter merchant name is not the bank reference
                      '"Lidl 123"', '"Test Payer"', '"Kaufland"',  # Tatra
                      '"Client Ltd" "Faktura 2025-01"', '"Alza.sk"',  # FIO
                      "Assets:Me:IBKR:Securities  50 VWCE {{5000 EUR}}",  # IBKR

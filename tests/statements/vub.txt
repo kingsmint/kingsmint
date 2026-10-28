@@ -12,10 +12,12 @@ Dátum   Popis transakcie                           Suma     Poplatok
        Účel platby: Mzda 05/2025
 05/06  Platba kartou                                     -45,20
 04/06 Lidl Bratislava08:53           X1Y2Z3A4B5C6D
+06/06  PLATBA KARTOU A-PAY KARTA:*0000                  -10,00
+05/06        Zeleninarstvo T  Testovo            A9B8C7D6E5F4G
 15/06  SK1209000000005123456789                         -500,00
        Platba na iný účet            Q1W2E3R4T5Y6U      -0,30
        Názov: Jana Testová
        Účel platby: Nájom 06/2025
 Vlast. použit. prostr. k 30.06.2025
-  2.954,50
+  2.944,50
 ROZPIS POPLATKOV
