@@ -1,0 +1,20 @@
+; Facts that no statement shows: a property's purchase price and value, a loan before the first
+; statement, a closed fund. Statements and rules book the payments; this file adds what they cannot.
+; `pad` + `balance` set an account to a known value and book the difference to the other account.
+; The examples use made-up values.
+
+; 2010-01-01 * "Flat" "Purchase price"
+;   Assets:Me:Property:Flat  100000.00 EUR
+;   Equity:Opening-Balances
+;
+; A mortgage that started before the first statement and was paid off by a later loan:
+; 2010-01-01 pad Liabilities:Bank:Mortgage Equity:Opening-Balances
+; 2015-06-01 balance Liabilities:Bank:Mortgage  0.00 EUR
+;
+; An assessed value above the cost is a revaluation, not income (open Equity:Revaluation):
+; 2015-05-31 pad Assets:Me:Property:Flat Equity:Revaluation
+; 2015-06-01 balance Assets:Me:Property:Flat  150000.00 EUR
+;
+; A closed fund: what the payouts exceed the deposits by is the gain:
+; 2018-12-31 pad Assets:Me:Investments:Fund Income:Investments:Gains
+; 2019-01-01 balance Assets:Me:Investments:Fund  0.00 EUR

@@ -36,11 +36,11 @@ description: Import bank and broker statements from inbox/ into the ledger. Use 
 - Owner: `Assets:Co` when the holder is a company (`s.r.o.`, `a.s.`, `spol.`, `GmbH`, `Ltd`, `Inc`, ...),
   `Assets:Me` when it is a person. A joint holder ("A and B") is `Assets:Me`; the other person is a
   partner who shares the assets: propose `Equity:<First name>` for the money they send.
-- Name: `Assets:<Me|Co>:<Bank>:<Kind>`. `<Bank>` is the short name people use, in ASCII (`VUB`, `Tatra`,
-  `Fio`, `IBKR`, or the introducing broker such as `Lynx`). `<Kind>` comes from `type` and the currency:
-  `Current` for a current account, `Savings` for a savings account, the currency code (`USD`) for a
-  second currency at the same bank and owner. A broker is `<Broker>:Cash` with `ibkr` metadata, plus
-  `<Broker>:Securities "FIFO"`.
+- Name: `Assets:<Me|Co>:Bank:<Bank>:<Kind>`. `<Bank>` is the short name people use, in ASCII (`VUB`,
+  `Tatra`, `Fio`). `<Kind>` comes from `type` and the currency: `Current` for a current account,
+  `Savings` for a savings account, the currency code (`USD`) for a second currency at the same bank and
+  owner. A broker is `Assets:<Me|Co>:Investments:<Broker>:Cash` with `ibkr` metadata, plus
+  `:Securities "FIFO"` next to it; `<Broker>` is `IBKR` or the introducing broker such as `Lynx`.
 - An account history CSV has no holder. Import the PDFs first, then look for transfers to its IBAN:
   `uv run bean-query -q main.beancount "SELECT date, account, payee, narration, position WHERE entry_meta('iban') = '<IBAN>'"`.
   The user's own name or "Sporenie" from their account shows the owner and the kind.

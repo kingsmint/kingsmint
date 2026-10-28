@@ -3,10 +3,14 @@ option "operating_currency" "CURRENCY"
 option "documents" "documents"
 ; links each transaction to its statement (`document` metadata); a missing statement is an error
 plugin "fava.plugins.link_documents"
+; a price for each security on every trade; without it, a security has only the year-end prices from the
+; broker statement, and Fava shows units instead of value before the first one
+plugin "beancount.plugins.implicit_prices"
 
 include "accounts.beancount"
 include "rules.beancount"
 include "prices.beancount"
+include "property.beancount"
 include "ledger/*/*.beancount"
 
 ; Fava: number format of this locale (for example sk_SK: 1 098 707,95; en_US: 1,098,707.95)

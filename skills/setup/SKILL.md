@@ -44,7 +44,9 @@ The template is `template/` in this plugin's directory (`${CLAUDE_PLUGIN_ROOT}/t
      commented examples.
 8. Run `uv run kingsmint rates` and `uv run kingsmint doctor`.
 9. Create the repository (`jj git init` or `git init`), and commit `Initial ledger`. No remote: the
-   ledger is private.
+   ledger is private. With jj, first run `jj config set --repo snapshot.max-new-file-size 100MiB`:
+   account history exports are often larger than jj's 1 MiB default, and jj leaves larger files out of
+   commits with only a warning.
 10. Run the `import` skill, then the `categorize` skill.
 
 Done when `uv run kingsmint doctor` reports no `FAIL`, the first commit exists, and the import has run.

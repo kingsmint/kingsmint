@@ -2,3 +2,4 @@ inbox/*
 !inbox/.keep
 .venv/
 __pycache__/
+.*.picklecache

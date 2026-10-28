@@ -1,18 +1,19 @@
 ; Accounts. Assets are split by owner (Me / Co); income and expenses are not: all money is yours,
-; and the paying account already shows who paid.
+; and the paying account already shows who paid. Then by type: Assets:<Me|Co>:Bank:<Bank>:<Kind>,
+; Assets:Me:Investments:<Broker>:Cash and :Securities, Assets:Me:Property:<Place>, Assets:Me:Loans (money lent).
 ; `iban` metadata tells the importer which account a statement belongs to, and marks transfers
 ; between own accounts (they go through Assets:Transit, which must return to 0).
 ; `statements_until`: the last day with imported history; later transfers to it go through rules.
 ; `ibkr`: the Interactive Brokers account number; securities go to the sibling account `:Securities`.
 ; Record what you know about an account (who, why) as a comment next to it: it is the memory.
 
-; 2000-01-01 open Assets:Me:Bank:Current EUR
+; 2000-01-01 open Assets:Me:Bank:<Bank>:Current EUR
 ;   iban: "SK0000000000000000000000"
-; 2000-01-01 open Assets:Co:Bank:Current EUR
+; 2000-01-01 open Assets:Co:Bank:<Bank>:Current EUR
 ;   iban: "SK0000000000000000000000"
-; 2000-01-01 open Assets:Me:Broker:Cash
+; 2000-01-01 open Assets:Me:Investments:<Broker>:Cash
 ;   ibkr: "U0000000"
-; 2000-01-01 open Assets:Me:Broker:Securities "FIFO"
+; 2000-01-01 open Assets:Me:Investments:<Broker>:Securities "FIFO"
 ; 2000-01-01 open Income:Investments:Gains  ; the broker import posts to these four
 ; 2000-01-01 open Income:Investments:Interest
 ; 2000-01-01 open Expenses:Investments:Fees
