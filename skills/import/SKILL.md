@@ -5,6 +5,9 @@ description: Import bank and broker statements from inbox/ into the ledger. Use 
 
 # Import statements
 
+Write every message to the user, also short progress notes, in the language that `CLAUDE.md` names,
+or else in the language the user writes in.
+
 1. List `inbox/`. Remove exact duplicates (same checksum, or the same text from `kingsmint.pdf.pdf_text`) before importing.
 2. Run `uv run kingsmint import`. `nothing to import`: tell the user where to put statements and stop.
    Otherwise every file ends on one line:

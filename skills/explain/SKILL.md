@@ -5,6 +5,9 @@ description: Explain the money with numbers from the ledger. Use for net profit 
 
 # Explain the money
 
+Write every message to the user, also short progress notes, in the language that `CLAUDE.md` names,
+or else in the language the user writes in.
+
 Answer with tables of numbers from `bean-query`, then the causes in plain words. State what was not checked.
 
 `bean-query` gotchas:

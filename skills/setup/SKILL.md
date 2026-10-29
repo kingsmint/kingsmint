@@ -8,7 +8,8 @@ disable-model-invocation: true
 
 The template is `template/` in this plugin's directory (`${CLAUDE_PLUGIN_ROOT}/template`).
 
-Use the language the user writes in, also in the text after `/kingsmint:setup`, for every message.
+Use the language the user writes in, also in the text after `/kingsmint:setup`, for every message, also short
+progress notes between commands. The skills this one runs keep it too.
 
 1. Check the tools: `uv`, and `jj` or `git`.
    - uv not on PATH: the installer puts it in `~/.local/bin`, which a shell started before the

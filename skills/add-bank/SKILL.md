@@ -5,6 +5,9 @@ description: Add or fix a statement parser in the kingsmint importer. Use when i
 
 # Add a bank parser
 
+Write every message to the user, also short progress notes, in the language that `CLAUDE.md` names,
+or else in the language the user writes in.
+
 A parser turns one statement into a `Statement` (`src/kingsmint/banks/common.py` in the kingsmint repository): IBAN, opening and closing balance,
 period, and `Txn` rows. The reconciliation check in `import_pdf` (opening + transactions = closing)
 is the proof that a parser is right, so a parser is done only when every statement of that bank

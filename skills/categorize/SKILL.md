@@ -5,6 +5,9 @@ description: Categorize transactions by writing rules in rules.beancount. Use fo
 
 # Categorize
 
+Write every message to the user, also short progress notes, in the language that `CLAUDE.md` names,
+or else in the language the user writes in.
+
 1. List the uncategorized transactions, grouped by counterparty (IBAN, else payee), largest first.
    `amount` is what the account received (negative: paid), `account` is the bank account:
    ```
