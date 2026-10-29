@@ -72,5 +72,13 @@ The tree grows from the user's transactions; there is no default tree.
 - First match wins in file order, not date order. Specific rules go above general ones, such as a
   fallback for all payments to the state treasury.
 - Match a counterparty by IBAN when it has one; an amount match is a last resort.
+- A rule matches `payee | narration | iban | amount`, so `^` anchors the payee. To match the start of
+  the narration, use `\\| text`; when the payee is empty, the text starts with `| `.
+- Do not match a variable symbol that also appears in unrelated payments, such as the owner's birth
+  number or a customer number; match the IBAN.
+- A short name catches other shops (`HM` caught "HM TESCO" and ATM rows). Anchor it or add the city,
+  and read every example in `uv run kingsmint rules` before reimport.
+- Payments to a credit card with no statements (minimum payments, repayments) go to one
+  `Expenses:CreditCard` account, matched by the card account's IBAN.
 
 Done when every account the rules name is open and every group from step 1 has a rule or an answer from the user that leaves it uncategorized.

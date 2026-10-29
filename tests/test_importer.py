@@ -3,6 +3,7 @@ import re
 from decimal import Decimal
 
 from kingsmint.banks.common import Txn, sk_num
+from kingsmint.banks.sk import tatra
 from kingsmint.importer import categorize
 
 D = dt.date(2025, 6, 1)
@@ -34,3 +35,10 @@ def test_rules():
 def test_sk_num():
     assert sk_num("-5.989,27") == Decimal("-5989.27")
     assert sk_num("-2 500,00") == Decimal("-2500.00")
+
+
+def test_tatra_csv_card():
+    row = {"Dátum spracovania": "03.01.2025", "Suma": "12,50", "Typ": "Debet", "Popis": "Platba kartou", "IBAN": "",
+           "Informácia pre príjemcu": "123456******7890 BRATISLAVA JAN NOVAK 20250102 10:00:00 12.50EUR SHOP ONE"}
+    assert tatra.parse_csv([row])[0][0].payee == "SHOP ONE"
+    assert tatra.parse_csv([{**row, "Informácia pre príjemcu": "Vklad"}])[0][0].payee == ""

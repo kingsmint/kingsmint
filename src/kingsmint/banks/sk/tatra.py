@@ -82,12 +82,19 @@ def parse_pdf_2025(text):
     return st
 
 
+# a card payment in the CSV: "<card> <city> <holder> <yyyymmdd> <hh:mm:ss> <amount><currency> <merchant>"
+CSV_CARD = re.compile(r"^\d{6}\*{6}\d{4} .* \d{8} \d\d:\d\d:\d\d [\d.]+[A-Z]{3} (.+)$")
+
+
 def parse_csv(rows):
-    """Tatra banka download: newest first, unsigned amounts with Debet/Kredit, no balance."""
+    """Tatra banka download: newest first, unsigned amounts with Debet/Kredit, no balance; a card payment
+    has the merchant only in the text."""
     out = []
     for r in reversed(rows):
         amount = Decimal(r["Suma"].replace(" ", "").replace(",", "."))
+        narration = squash(r["Informácia pre príjemcu"]) or squash(r["Popis"])
+        card = CSV_CARD.match(narration)
         t = Txn(date(r["Dátum spracovania"].strip()), -amount if r["Typ"] == "Debet" else amount,
-                narration=squash(r["Informácia pre príjemcu"]) or squash(r["Popis"]), iban=r["IBAN"].strip())
+                payee=card[1] if card else "", narration=narration, iban=r["IBAN"].strip())
         out.append((t, None))
     return sorted(out, key=lambda x: x[0].date)
