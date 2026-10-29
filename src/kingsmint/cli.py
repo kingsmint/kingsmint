@@ -37,7 +37,7 @@ TOOLS = [  # (any of these programs, why, where to get it)
     (["claude"], "the kingsmint skills run in Claude Code", "https://claude.com/claude-code"),
 ]
 LEDGER = ["main.beancount", "accounts.beancount", "rules.beancount", "inbox", "documents"]
-PLACEHOLDERS = ["TITLE", "CURRENCY", "LOCALE"]  # in template/main.beancount, filled by /kingsmint:setup
+PLACEHOLDERS = ["TITLE", "CURRENCY", "LOCALE", "LANGUAGE_CODE"]  # in template/main.beancount, filled by /kingsmint:setup
 
 
 def coverage(entries):

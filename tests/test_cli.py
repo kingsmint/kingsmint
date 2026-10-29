@@ -21,7 +21,7 @@ def test_doctor_finds_unfilled_template(tmp_path, monkeypatch, capsys):
     with pytest.raises(SystemExit):
         cli.doctor()
     out = capsys.readouterr().out
-    assert "FAIL setup: TITLE, CURRENCY, LOCALE not replaced" in out
+    assert "FAIL setup: TITLE, CURRENCY, LOCALE, LANGUAGE_CODE not replaced" in out
     assert "ok   ledger\n" in out  # the core accounts load without errors
 
 

@@ -42,7 +42,7 @@ def test_import_every_bank(tmp_path):
     shutil.copytree(HERE.parent / "template", ledger)
     main = ledger / "main.beancount"  # what /kingsmint:setup fills in
     main.write_text(main.read_text(encoding="utf-8").replace("TITLE", "Test").replace("CURRENCY", "EUR")
-                    .replace("LOCALE", "sk_SK"), encoding="utf-8")
+                    .replace("LOCALE", "sk_SK").replace("LANGUAGE_CODE", "sk"), encoding="utf-8")
     with (ledger / "rules.beancount").open("a", encoding="utf-8") as f:
         f.write('\n2000-01-01 custom "rule" "\\\\bLidl\\\\b" Expenses:Food:Groceries\n')
     for src in (HERE / "statements").iterdir():

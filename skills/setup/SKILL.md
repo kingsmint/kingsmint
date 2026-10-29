@@ -41,7 +41,8 @@ progress notes between commands. The skills this one runs keep it too.
 
    Ask a short question only for what the statements cannot show; the `import` skill names these cases.
 7. Fill the template from the confirmed answers:
-   - `main.beancount`: replace `TITLE`, `CURRENCY` (also in the queries), and `LOCALE`.
+   - `main.beancount`: replace `TITLE`, `CURRENCY` (also in the queries), `LOCALE`, and `LANGUAGE_CODE`
+     with the user's language as a two-letter code (`sk`, `en`) for Fava's interface.
    - `CLAUDE.md`: replace `LANGUAGE` with the user's language, in English (`Slovak`), so later sessions
      keep it.
    - `accounts.beancount`: one `open` per account with its `iban` or `ibkr`, and the holder as a
