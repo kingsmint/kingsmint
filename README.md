@@ -42,6 +42,12 @@ repository from `template/` and asks you to put your statements into `inbox/`. I
 their owners, and currencies from the statements, and asks you to confirm them in one table; it asks
 a question only about what the statements cannot show.
 
+To work in another language, write it after the command, in that language; the ledger remembers it:
+
+```
+/kingsmint:setup po slovensky
+```
+
 ## Commands (in the ledger repository)
 
 | Command | Does |

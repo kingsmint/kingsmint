@@ -8,6 +8,8 @@ disable-model-invocation: true
 
 The template is `template/` in this plugin's directory (`${CLAUDE_PLUGIN_ROOT}/template`).
 
+Use the language the user writes in, also in the text after `/kingsmint:setup`, for every message.
+
 1. Check the tools: `uv`, and `jj` or `git`.
    - uv not on PATH: the installer puts it in `~/.local/bin`, which a shell started before the
      install does not have on PATH. If `~/.local/bin/uv` exists, use it. Otherwise ask the user for
@@ -39,6 +41,8 @@ The template is `template/` in this plugin's directory (`${CLAUDE_PLUGIN_ROOT}/t
    Ask a short question only for what the statements cannot show; the `import` skill names these cases.
 7. Fill the template from the confirmed answers:
    - `main.beancount`: replace `TITLE`, `CURRENCY` (also in the queries), and `LOCALE`.
+   - `CLAUDE.md`: replace `LANGUAGE` with the user's language, in English (`Slovak`), so later sessions
+     keep it.
    - `accounts.beancount`: one `open` per account with its `iban` or `ibkr`, and the holder as a
      comment. A broker also gets the four investment accounts from the commented example. Remove the
      commented examples.

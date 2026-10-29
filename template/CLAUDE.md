@@ -7,6 +7,9 @@ live as comments in `accounts.beancount` and `rules.beancount`: read them before
 about the money, and record new facts there, next to the account or rule they explain. Values that no
 statement shows (property, loans before the first statement) live in `property.beancount`.
 
+Talk to the owner in LANGUAGE, also when a skill is written in English. Ledger names (accounts, rules,
+comments) stay as they are.
+
 ## Model
 
 - Assets are split by owner (`Assets:Me`, `Assets:Co`); income and expenses are not: all money is the owner's.
