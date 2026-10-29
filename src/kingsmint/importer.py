@@ -4,17 +4,19 @@ usage: kingsmint import [--force] [PATH ...]     (default PATH: inbox)
 
 For each bank PDF: detect the bank, parse transactions, check that they sum to the
 statement's closing - opening balance, categorize them with rules.beancount,
-write ledger/<account>/<YYYY-MM>.beancount and move the PDF to documents/.
+write ledger/<account>/<YYYY-MM>.beancount and move the PDF to documents/<account>/<start>_<end>.<IBAN>.pdf
+(the IBKR account number instead of an IBAN for its CSVs).
 IBKR year-to-date activity statement CSVs always replace ledger/<broker account>/<year>.beancount; the cash
 account is the one whose `ibkr` metadata is the IBKR account number, securities are its sibling `:Securities`.
 Account history CSVs (VUB "export pohybov na účte", Tatra download; the file name must start with the
 account IBAN) are split by year into ledger/<account>/csv-<year>.beancount, including years without
 movements; years that already have PDF statements are skipped.
-Files already in documents/ stay where they are (used by `kingsmint import --force documents`).
+Files already in documents/ get the same name (used by `kingsmint import --force documents`).
 """
 
 import csv
 import datetime as dt
+import filecmp
 import re
 import shutil
 import sys
@@ -43,7 +45,7 @@ def read_csv(path):
 
 
 def import_account_csv(path, rows, accounts, own, rules, force):
-    iban = re.match(r"(?:\d{4}-\d\d-\d\d\.)*([A-Z]{2}\d{2}[A-Z0-9]{11,30})", path.name)
+    iban = re.match(r"(?:\d{4}-\d\d-\d\d[._])*([A-Z]{2}\d{2}[A-Z0-9]{11,30})", path.name)
     account = accounts.get(iban[1]) if iban else None
     if not account:
         return print(f"FAIL {path.name}: the name must start with an IBAN that is in accounts.beancount")
@@ -73,7 +75,9 @@ def import_account_csv(path, rows, accounts, own, rules, force):
         end = items[-1][0].date if year == years[-1] else dt.date(year, 12, 31)
         st = Statement(iban[1], opening, closing, start, end, [t for t, _ in items])
         folder.mkdir(parents=True, exist_ok=True)
-        doc = doc or archive(path, account, parsed[-1][0].date)
+        doc = doc or archive(path, account, iban[1], parsed[0][0].date, parsed[-1][0].date)
+        if not doc:
+            return
         out.write_text(render(st, account, own, rules, doc.name), encoding="utf-8")
         print(f"ok   {path.name} {year} -> {out.relative_to(ROOT)} ({len(items)} txns)")
 
@@ -177,12 +181,21 @@ def render(st, account, own, rules, source):
     return "\n".join(out) + "\n"
 
 
-def archive(src, account, end):
-    name = re.sub(r"^(\d{4}-\d\d-\d\d\.)+", "", src.name)  # already archived: keep one date prefix
-    doc = ROOT / "documents" / account.replace(":", "/") / f"{end}.{name}"
-    if src.resolve() != doc.resolve():
-        doc.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(src, doc)
+def archive(src, account, key, start, end):
+    """Move a statement to documents/<account>/<start>_<end>.<IBAN or broker account>.<ext>: a name that is
+    unique whatever the bank called the file; Beancount finds a document by the date at the start of its name.
+    None, after a FAIL line, when another file already has that name."""
+    doc = ROOT / "documents" / account.replace(":", "/") / f"{start}_{end}.{key}{src.suffix.lower()}"
+    if src.resolve() == doc.resolve():
+        return doc
+    if doc.exists():
+        if not filecmp.cmp(src, doc, shallow=False):
+            return print(f"FAIL {src.name}: {doc.relative_to(ROOT)} is another statement for the same account and "
+                         "period; compare the two, keep one, and delete the other")
+        src.unlink()  # the same statement downloaded twice
+        return doc
+    doc.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(src, doc)
     return doc
 
 
@@ -194,7 +207,9 @@ def with_document(text, account, name):
 
 def import_ibkr(path, ibkr):
     cash_acc, start, end, opening, year = parse_ibkr(path, ibkr)
-    doc = archive(path, cash_acc, end)
+    doc = archive(path, cash_acc, next(n for n, a in ibkr.items() if a == cash_acc), start, end)
+    if not doc:
+        return
     opening, year = (with_document(x, cash_acc, doc.name) for x in (opening, year))
     folder = ROOT / "ledger" / cash_acc.rsplit(":", 1)[0].replace(":", "-")
     folder.mkdir(parents=True, exist_ok=True)
@@ -226,8 +241,11 @@ def import_pdf(pdf, accounts, own, rules, force):
     out = ROOT / "ledger" / account.replace(":", "-") / f"{st.end:%Y-%m}.beancount"
     if out.exists() and not force:
         return print(f"skip {pdf.name}: {out.relative_to(ROOT)} exists (use --force)")
+    doc = archive(pdf, account, st.iban, st.start, st.end)
+    if not doc:
+        return
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(render(st, account, own, rules, archive(pdf, account, st.end).name), encoding="utf-8")
+    out.write_text(render(st, account, own, rules, doc.name), encoding="utf-8")
     print(f"ok   {pdf.name} -> {out.relative_to(ROOT)} ({len(st.txns)} txns)")
 
 
@@ -251,7 +269,7 @@ def scan_file(f, accounts, ibkr):
     else:
         rows = read_csv(f)
         parse = next((p for column, p in CSV_PARSERS if column in rows[0]), None)
-        iban = re.match(r"(?:\d{4}-\d\d-\d\d\.)*([A-Z]{2}\d{2}[A-Z0-9]{11,30})", f.name)
+        iban = re.match(r"(?:\d{4}-\d\d-\d\d[._])*([A-Z]{2}\d{2}[A-Z0-9]{11,30})", f.name)
         if not parse or not iban:
             return "unknown bank" if not parse else "the name must start with the account IBAN"
         dates = [t.date for t, _ in parse(rows)]

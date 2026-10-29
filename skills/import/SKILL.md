@@ -8,7 +8,9 @@ description: Import bank and broker statements from inbox/ into the ledger. Use 
 1. List `inbox/`. Remove exact duplicates (same checksum, or the same text from `kingsmint.pdf.pdf_text`) before importing.
 2. Run `uv run kingsmint import`. `nothing to import`: tell the user where to put statements and stop.
    Otherwise every file ends on one line:
-   - `ok`: imported and archived to `documents/`.
+   - `ok`: imported and archived to `documents/<account>/` as `<start>_<end>.<IBAN>`.
+   - `FAIL … another statement for the same account and period`: two different files for one period.
+     Compare them; delete the worse one (from `inbox/` or `documents/`) and import again.
    - `skip … exists`: the month is already imported. Compare the two statements; when the new one is
      the better source (full month, newer layout), rerun with `--force`.
    - `skip … unknown bank`: no parser matches. Use the `add-bank` skill.

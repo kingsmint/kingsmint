@@ -78,15 +78,15 @@ def test_import_every_bank(tmp_path):
     assert kingsmint(ledger, "import").stdout.startswith("nothing to import in ")
 
     out = "".join(f.read_text(encoding="utf-8") for f in sorted((ledger / "ledger").rglob("*.beancount")))
-    for expected in ['"Lidl Bratislava" "Platba kartou"\n  document: "2025-06-30.vub.pdf"\n  Assets:Me:VUB:Current  -45.20 EUR\n'
+    for expected in ['"Lidl Bratislava" "Platba kartou"\n  document: "2025-06-01_2025-06-30.SK3102000000001234567890.pdf"\n  Assets:Me:VUB:Current  -45.20 EUR\n'
                      '  Expenses:Food:Groceries\n',  # VUB
                      '"Example s.r.o." "Mzda 05/2025"', '"Jana Testová" "Nájom 06/2025"',
                      '"Zeleninarstvo T Testovo"',  # a 13-letter merchant name is not the bank reference
                      '"Lidl 123"', '"Test Payer"', '"Kaufland"',  # Tatra
                      '"Client Ltd" "Faktura 2025-01"', '"Alza.sk"',  # FIO
                      "Assets:Me:IBKR:Securities  50 VWCE {{5000 EUR}}",  # IBKR
-                     '"Buy 50 VWCE"\n  document: "2025-12-31.ibkr.csv"',
-                     'document: "2025-02-05.SK6611000000002987654321.csv"',  # CSV
+                     '"Buy 50 VWCE"\n  document: "2025-01-01_2025-12-31.U1234567.csv"',
+                     'document: "2025-01-03_2025-02-05.SK6611000000002987654321.csv"',  # CSV
                      'iban: "SK1209000000005123456789"',  # counterparty
                      "Assets:Transit"]:  # transfers from an own account
         assert expected in out, expected
@@ -104,3 +104,13 @@ def test_import_every_bank(tmp_path):
     assert kingsmint(ledger, "reimport").returncode == 0
     assert not stale.parent.exists() and (ledger / "ledger/README/README.beancount").exists()
     assert kingsmint(ledger, "rules").stdout == "no changes\n"
+
+    # the archive name comes from the statement: a second copy is dropped, another file for the period is refused
+    vub = ledger / "documents/Assets/Me/VUB/Current/2025-06-01_2025-06-30.SK3102000000001234567890.pdf"
+    shutil.copy(vub, ledger / "inbox/statement.pdf")
+    assert kingsmint(ledger, "import", "--force").stdout.startswith("ok   statement.pdf")
+    assert not (ledger / "inbox/statement.pdf").exists()
+    text_pdf(ledger / "inbox/statement.pdf", (HERE / "statements/vub.txt").read_text(encoding="utf-8") + "other text\n")
+    run = kingsmint(ledger, "import", "--force").stdout
+    assert run.startswith("FAIL statement.pdf: documents/") and "another statement for the same account" in run, run
+    assert (ledger / "inbox/statement.pdf").exists()
