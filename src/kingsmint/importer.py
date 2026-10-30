@@ -114,7 +114,7 @@ def match(t, own, rules, currency="EUR"):
         return ("Equity:Conversions" if other_currency not in (None, currency) else "Assets:Transit"), [], "own account"
     text = f"{t.payee} | {t.narration} | {t.iban} | {t.amount}"
     for since, rx, account, splits, *where in rules:
-        if since <= t.date and rx.search(text):
+        if since <= t.date and (rx.search(text) or t.vs and rx.search(f"VS{t.vs}")):
             return account, splits, where[0] if where else "rule"
     return "Income:Uncategorized" if t.amount > 0 else "Expenses:Uncategorized", [], "no rule"
 
@@ -131,7 +131,8 @@ def preview():
         if not auto or bank.account not in iban_of:
             continue  # IBKR, hand-written, and zero-amount entries are not categorized by rules
         fee = e.postings[1].units.number if e.postings[1] is not auto[0] and e.postings[1].account == "Expenses:Bank:Fees" else 0
-        t = Txn(e.date, bank.units.number + fee, e.payee or "", e.narration or "", e.meta.get("iban", ""))
+        t = Txn(e.date, bank.units.number + fee, e.payee or "", e.narration or "", e.meta.get("iban", ""),
+                vs=e.meta.get("vs", ""))
         others = {k: v for k, v in own.items() if k != iban_of[bank.account]}
         new, _, why = match(t, others, rules, bank.units.currency)
         old = auto[0].account
@@ -169,6 +170,8 @@ def render(st, account, own, rules, source):
         out.append(f"  document: {q(source)}")  # Fava opens the statement from the transaction
         if t.iban:
             out.append(f"  iban: {q(t.iban)}")  # counterparty; rules and transfer detection match on it
+        if t.vs:
+            out.append(f"  vs: {q(t.vs)}")
         out.append(f"  {account}  {t.amount + t.fee:.2f} {st.currency}")
         if t.fee:
             out.append(f"  Expenses:Bank:Fees  {-t.fee:.2f} {st.currency}")

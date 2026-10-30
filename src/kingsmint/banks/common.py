@@ -14,6 +14,7 @@ class Txn:
     narration: str = ""
     iban: str = ""  # counterparty
     fee: Decimal = Decimal(0)
+    vs: str = ""  # variable symbol (Slovak and Czech payments)
 
 
 @dataclass

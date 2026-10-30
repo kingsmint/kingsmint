@@ -74,7 +74,9 @@ The tree grows from the user's transactions; there is no default tree.
 - Match a counterparty by IBAN when it has one; an amount match is a last resort.
 - A rule matches `payee | narration | iban | amount`, so `^` anchors the payee. To match the start of
   the narration, use `\\| text`; when the payee is empty, the text starts with `| `.
-- Do not match a variable symbol that also appears in unrelated payments, such as the owner's birth
+- A rule also matches `VS<variable symbol>` when the statement shows one (the `vs` metadata). Use it
+  to split one counterparty, such as one utility IBAN for electricity and gas: `"^VS1234567890$"`.
+  Do not match a variable symbol that also appears in unrelated payments, such as the owner's birth
   number or a customer number; match the IBAN.
 - A short name catches other shops (`HM` caught "HM TESCO" and ATM rows). Anchor it or add the city,
   and read every example in `uv run kingsmint rules` before reimport.

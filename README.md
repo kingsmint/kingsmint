@@ -80,7 +80,8 @@ Rules (`rules.beancount`):
 ```
 
 The regex is matched against `payee | narration | counterparty IBAN | amount`. The first matching
-rule in file order wins; the date is the first day the rule applies.
+rule in file order wins; the date is the first day the rule applies. A rule also matches
+`VS<variable symbol>` (`VS1234567890`) when the statement shows one.
 
 ## Privacy
 

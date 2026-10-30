@@ -43,6 +43,8 @@ def tb_txn(t, lines):
         if k := re.match(r"(Príjemca|Platiteľ):\s+(\S+)", s):
             t.iban = k[2]
             t.payee = squash(deeper[0]) if deeper and lines.index(deeper[0]) == i + 1 else ""
+        elif k := re.match(r"Referencia platiteľa:\s+/VS(\d+)", s):
+            t.vs = k[1]
         elif k := re.match(r"Miesto [^:]+:\s+\S.*?\s{2,}(.*)", s):
             t.payee = squash(k[1])
         elif s.startswith("Detail:"):
@@ -95,6 +97,7 @@ def parse_csv(rows):
         narration = squash(r["Informácia pre príjemcu"]) or squash(r["Popis"])
         card = CSV_CARD.match(narration)
         t = Txn(date(r["Dátum spracovania"].strip()), -amount if r["Typ"] == "Debet" else amount,
-                payee=card[1] if card else "", narration=narration, iban=r["IBAN"].strip())
+                payee=card[1] if card else "", narration=narration, iban=r["IBAN"].strip(),
+                vs=r.get("Variabilný symbol", "").strip())
         out.append((t, None))
     return sorted(out, key=lambda x: x[0].date)
