@@ -26,6 +26,13 @@ For developers who want one view of their personal money and their one-person co
 
 Other banks: ask Claude to add one from a sample statement (`add-bank` skill).
 
+## Claude app
+
+To use kingsmint in the Claude app (chat or Cowork) instead of Claude Code, build the plugin with
+`uv run python desktop/build.py` and upload `desktop/dist/kingsmint.zip` in Claude: **Customize > Plugins >
+Add > Upload plugin**. It holds the skills and the kingsmint server, which runs on your computer; Claude
+installs its Python and dependencies. Connect the ledger folder to the chat. See `desktop/README.md`.
+
 ## Setup
 
 Requires [uv](https://docs.astral.sh/uv/) and [Claude Code](https://claude.com/claude-code). uv installs Python

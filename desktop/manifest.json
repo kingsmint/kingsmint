@@ -1,0 +1,82 @@
+{
+  "manifest_version": "0.4",
+  "name": "kingsmint",
+  "display_name": "Kingsmint",
+  "version": "0.1.0",
+  "description": "Personal and one-person-company accounting with Beancount and Fava: import bank statements, check the ledger, and open Fava.",
+  "author": {
+    "name": "kingsmint"
+  },
+  "user_config": {
+    "ledger_dir": {
+      "type": "directory",
+      "title": "Ledger folder",
+      "description": "The folder with main.beancount, or an empty folder for a new ledger",
+      "required": false,
+      "default": ""
+    }
+  },
+  "server": {
+    "type": "uv",
+    "entry_point": "server/main.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${__dirname}",
+        "server/main.py"
+      ],
+      "env": {
+        "LEDGER_DIR": "${user_config.ledger_dir}"
+      }
+    }
+  },
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32"
+    ],
+    "runtimes": {
+      "python": ">=3.13"
+    }
+  },
+  "tools": [
+    {
+      "name": "kingsmint_new_ledger",
+      "description": "Create a ledger in an empty folder"
+    },
+    {
+      "name": "kingsmint_scan",
+      "description": "Show what the statements in inbox/ are"
+    },
+    {
+      "name": "kingsmint_import",
+      "description": "Import statements from inbox/"
+    },
+    {
+      "name": "kingsmint_check",
+      "description": "Validate the ledger"
+    },
+    {
+      "name": "kingsmint_coverage",
+      "description": "Imported periods and gaps per account"
+    },
+    {
+      "name": "kingsmint_rules",
+      "description": "Preview what the rules would change"
+    },
+    {
+      "name": "kingsmint_reimport",
+      "description": "Rebuild ledger/ with the current rules"
+    },
+    {
+      "name": "kingsmint_query",
+      "description": "Run a bean-query SQL query"
+    },
+    {
+      "name": "kingsmint_fava",
+      "description": "Open Fava in the browser"
+    }
+  ]
+}
