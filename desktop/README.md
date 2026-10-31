@@ -2,14 +2,28 @@
 
 Personal and one-person-company accounting with Beancount and Fava, in the Claude app.
 
+## Install
+
+Install two files:
+
+1. `kingsmint.zip`, the skills: **Customize > Plugins > Add > Upload plugin**. It syncs to your other
+   computers.
+2. `kingsmint.mcpb`, the server that runs the accounting on your computer: drag it into **Settings >
+   Extensions** on each computer; extensions do not sync. The first start takes a minute or two: Claude
+   downloads Python and the packages.
+
 ## Use it
 
-Connect an empty folder with your bank statements in `inbox/` to a chat, and ask Claude to set up your
-accounting. Claude reads the statements, proposes the accounts, imports the transactions, asks you about
-the ones it cannot categorize, and writes the answers as rules. Ask it to open Fava to browse the ledger.
+Put your bank statements into `inbox/` in a new folder, connect the folder to a chat, and ask Claude to set
+up your accounting. Claude reads the statements, proposes the accounts, imports the transactions, asks you
+about the ones it cannot categorize, and writes the answers as rules. Ask it to open Fava to browse the
+ledger. Every change is saved as a version; ask Claude to undo one, or to show the versions.
 
-The plugin's server runs on your computer, so the chat must have the ledger folder connected (a session
-that runs on your computer). Supported statements: VÚB, Tatra banka, Fio banka, and Interactive Brokers.
+The folder must be on your computer's disk: Claude does not accept network folders. On Windows in a
+virtual machine, folders such as Documents may point to the host's disk; use a folder like
+`C:\Users\<you>\Ledger`.
+
+Supported statements: VÚB, Tatra banka, Fio banka, and Interactive Brokers.
 
 ## Data
 

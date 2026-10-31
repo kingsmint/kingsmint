@@ -1,8 +1,9 @@
 """Build the plugin for the Claude app (chat and Cowork): `uv run python desktop/build.py` -> desktop/dist/kingsmint.zip.
 
-The zip holds the skills and the kingsmint MCP server as an MCPB bundle (desktop/dist/kingsmint.mcpb). Upload it in
-Claude: Customize > Plugins > Add > Upload plugin. The server runs on the user's computer; Claude installs its Python
-and dependencies with its own uv.
+Two files, both installed on each computer: desktop/dist/kingsmint.zip holds the skills (Customize > Plugins > Add >
+Upload plugin), desktop/dist/kingsmint.mcpb the kingsmint MCP server (Settings > Extensions). The server is a separate
+extension because Claude starts an MCPB inside a plugin with the `uv` on PATH, which most users lack; an extension
+gets Claude's own uv, which installs Python and the dependencies.
 """
 
 import json
@@ -16,15 +17,15 @@ DESKTOP = Path(__file__).parent
 ROOT = DESKTOP.parent
 SKILLS = ["import", "categorize", "explain"]  # add-bank changes the parser code, which is inside the bundle
 NOTE = (
-    "> **In the Claude app** (chat or Cowork): the plugin's kingsmint server runs the commands on the user's computer. "
+    "> **In the Claude app** (chat or Cowork): the kingsmint extension runs the commands on the user's computer. "
     "Run `uv run kingsmint <command>` as the tool `kingsmint_<command>` (`kingsmint_scan`, `kingsmint_import`, "
     "`kingsmint_rules`, `kingsmint_reimport`, `kingsmint_check`, `kingsmint_coverage`), and "
     "`uv run bean-query -q main.beancount \"<query>\"` as `kingsmint_query`. Edit `accounts.beancount`, "
     "`rules.beancount` and `property.beancount` directly in the connected folder. Instead of a commit, save a version "
     "with `kingsmint_save`; skip the diff steps. The user can go back with `kingsmint_restore`. The first "
     "`kingsmint_*` call needs `ledger_dir`: the connected folder's path on the user's computer (not the /sessions/... sandbox path); later calls remember it. If you do not know that path, "
-    "ask the user. If the tools are missing, the session does not run on the user's computer: tell the user to "
-    "connect the ledger folder to the chat."
+    "ask the user. If the tools are missing: tell the user to install the kingsmint extension (`kingsmint.mcpb`) in "
+    "Settings > Extensions on this computer, and to connect the ledger folder to the chat."
 )
 
 
@@ -55,13 +56,12 @@ def build(out=DESKTOP / "dist"):
             z.write(f, name)
 
     plugin = {"name": "kingsmint", "displayName": "Kingsmint", "version": version, "description": manifest["description"],
-              "author": {"name": "kingsmint"}, "license": "MIT", "mcpServers": "./servers/kingsmint.mcpb"}
+              "author": {"name": "kingsmint"}, "license": "MIT"}
     zip_path = out / "kingsmint.zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr(".claude-plugin/plugin.json", json.dumps(plugin, indent=2))
         z.write(DESKTOP / "README.md", "README.md")
         z.write(ROOT / "LICENSE", "LICENSE")
-        z.write(mcpb, "servers/kingsmint.mcpb")
         z.write(DESKTOP / "setup.md", "skills/setup/SKILL.md")
         for s in SKILLS:
             z.writestr(f"skills/{s}/SKILL.md", desktop_skill((ROOT / "skills" / s / "SKILL.md").read_text(encoding="utf-8")))

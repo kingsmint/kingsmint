@@ -11,7 +11,7 @@ import build  # noqa: E402
 def test_build(tmp_path):
     plugin = zipfile.ZipFile(build.build(tmp_path))
     manifest = json.loads(plugin.read(".claude-plugin/plugin.json"))
-    assert manifest["name"] == "kingsmint" and manifest["mcpServers"] == "./servers/kingsmint.mcpb"
+    assert manifest["name"] == "kingsmint" and "mcpServers" not in manifest  # the server is a separate extension
     for s in ["setup", *build.SKILLS]:
         skill = plugin.read(f"skills/{s}/SKILL.md").decode()
         assert skill.startswith("---\nname: ") and "kingsmint_" in skill
