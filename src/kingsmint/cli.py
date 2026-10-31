@@ -1,5 +1,7 @@
 """usage: uv run kingsmint COMMAND   (in the ledger directory)
 
+  banks                        the supported banks and statement formats
+  text FILE                    the text of a statement, as the parsers see it
   scan [PATH ...]              show what the statements in inbox/ (or PATHs) are, without importing
   import [--force] [PATH ...]  import new statements from inbox/ (or PATHs)
   rules                        what reimport would change with the current rules, by rule, without writing
@@ -22,6 +24,8 @@ from beancount.core import data, inventory
 from beancount.parser import printer
 
 from kingsmint import importer, rates
+from kingsmint.banks import CSV_PARSERS, PARSERS
+from kingsmint.pdf import pdf_text
 
 
 def run(cmd):
@@ -107,6 +111,14 @@ def show_coverage():
         print(f"{account}  {spans[0][0]} .. {spans[-1][1]}" + "".join(f"  missing {a} .. {b}" for a, b in missing))
 
 
+def banks():
+    """One line per parser module: its name and the first line of its docstring."""
+    names = {p.__module__ for _, p in PARSERS + CSV_PARSERS} | {"kingsmint.banks.intl.ibkr"}
+    for name in sorted(names):
+        doc = (sys.modules[name].__doc__ or "").strip().splitlines() or [""]
+        print(f"{name.removeprefix('kingsmint.banks.').replace('kingsmint_local.', 'local.')}  {doc[0]}")
+
+
 def doctor():
     problems = 0
 
@@ -130,7 +142,12 @@ def doctor():
 def main():
     sys.stdout.reconfigure(encoding="utf-8")  # Windows pipes default to the ANSI code page
     cmd, args = (sys.argv[1], sys.argv[2:]) if len(sys.argv) > 1 else ("", [])
-    if cmd == "import":
+    if cmd == "banks":
+        banks()
+    elif cmd == "text" and len(args) == 1:
+        f = Path(args[0])
+        print(pdf_text(f) if f.suffix.lower() == ".pdf" else f.read_text(encoding="utf-8-sig"))
+    elif cmd == "import":
         importer.main(args)
     elif cmd == "scan":
         importer.scan([Path(a) for a in args] or [importer.ROOT / "inbox"])

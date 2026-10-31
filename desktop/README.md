@@ -14,8 +14,8 @@ Install two files:
 
 ## Use it
 
-Put your bank statements into `inbox/` in a new folder, connect the folder to a chat, and ask Claude to set
-up your accounting. Claude reads the statements, proposes the accounts, imports the transactions, asks you
+Start a chat and ask Claude to set up your accounting. It guides you: it creates a folder, tells you to
+connect it to the chat and to put your bank statements into it, and checks each file. Claude reads the statements, proposes the accounts, imports the transactions, asks you
 about the ones it cannot categorize, and writes the answers as rules. Ask it to open Fava to browse the
 ledger. Every change is saved as a version; ask Claude to undo one, or to show the versions.
 
@@ -23,7 +23,8 @@ The folder must be on your computer's disk: Claude does not accept network folde
 virtual machine, folders such as Documents may point to the host's disk; use a folder like
 `C:\Users\<you>\Ledger`.
 
-Supported statements: VÚB, Tatra banka, Fio banka, and Interactive Brokers.
+Supported statements: VÚB, Tatra banka, Fio banka, and Interactive Brokers. For another bank, Claude
+writes a parser into the folder's `banks/`, and offers to share it with other users.
 
 ## Data
 

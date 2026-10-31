@@ -24,6 +24,7 @@ Use these tools for every kingsmint command; they run on the user's computer, no
   ledger folder, then call kingsmint_rules (preview), kingsmint_reimport, and kingsmint_check.
 - A rule: `2000-01-01 custom "rule" "REGEX" Account`; the regex matches `payee | narration | iban | amount`
   (and `VS<variable symbol>`); the first matching rule in file order wins.
+- A new user: kingsmint_start creates the ledger folder and opens it. kingsmint_banks lists the supported banks.
 - New statements go to inbox/; then kingsmint_import. Ask the user only what the statements cannot show.
 - kingsmint_check must print nothing new after each change. Then save a version with kingsmint_save.
 - The user can go back: kingsmint_history lists the versions, kingsmint_restore undoes the last change.""")
@@ -56,13 +57,47 @@ def run(ledger_dir: str, *args: str) -> str:
     return f"{out}\n(exit {p.returncode})" if p.returncode else out or "(no output)"
 
 
+def reveal(p: Path):
+    """Open a folder in Finder, Explorer, or the Linux file manager."""
+    if os.name == "nt":
+        os.startfile(p)
+    else:
+        subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(p)])
+
+
+@mcp.tool()
+def kingsmint_start(folder: str = "") -> str:
+    """Create the ledger folder with inbox/ for the statements (default: Kingsmint in the user's home folder), remember
+    it, and open inbox/ on the user's screen so they can drop the statements in."""
+    d = Path(folder) if folder else Path.home() / "Kingsmint"
+    (d / "inbox").mkdir(parents=True, exist_ok=True)
+    ledger(str(d))
+    reveal(d / "inbox")
+    return f"Opened {d / 'inbox'} on the user's screen. The chat needs this folder connected: {d}."
+
+
+@mcp.tool()
+def kingsmint_banks(ledger_dir: str = "") -> str:
+    """The supported banks and statement formats, also the ones this ledger adds in banks/."""
+    return run(ledger_dir, "banks")
+
+
+@mcp.tool()
+def kingsmint_text(file: str, ledger_dir: str = "") -> str:
+    """The text of a statement in the ledger folder (e.g. inbox/x.pdf), as the parsers see it: to write a parser."""
+    d = ledger(ledger_dir).resolve()
+    if not (d / file).resolve().is_relative_to(d):
+        raise ValueError("Only files inside the ledger folder")
+    return run(ledger_dir, "text", file)
+
+
 @mcp.tool()
 def kingsmint_new_ledger(title: str, currency: str = "EUR", locale: str = "sk_SK", language: str = "Slovak",
                          language_code: str = "sk", ledger_dir: str = "") -> str:
     """Create a new ledger from the template in an empty ledger folder. title: the owner's name, e.g. "Ján Novák"."""
     d = ledger(ledger_dir)
-    if (d / "main.beancount").exists() or any(p.name not in ("inbox", ".DS_Store") for p in d.iterdir()):
-        raise ValueError(f"{d} is not empty; use an empty folder (an inbox/ with statements is fine)")
+    if (d / "main.beancount").exists() or any(p.name not in ("inbox", "banks", ".DS_Store") for p in d.iterdir()):
+        raise ValueError(f"{d} is not empty; use an empty folder (inbox/ with statements and banks/ with parsers are fine)")
     shutil.copytree(TEMPLATE, d, dirs_exist_ok=True)
     for name, values in {"main.beancount": {"TITLE": title, "CURRENCY": currency, "LOCALE": locale, "LANGUAGE_CODE": language_code},
                          "CLAUDE.md": {"LANGUAGE": language},

@@ -12,7 +12,7 @@ def test_build(tmp_path):
     plugin = zipfile.ZipFile(build.build(tmp_path))
     manifest = json.loads(plugin.read(".claude-plugin/plugin.json"))
     assert manifest["name"] == "kingsmint" and "mcpServers" not in manifest  # the server is a separate extension
-    for s in ["setup", *build.SKILLS]:
+    for s in ["setup", "add-bank", *build.SKILLS]:
         skill = plugin.read(f"skills/{s}/SKILL.md").decode()
         assert skill.startswith("---\nname: ") and "kingsmint_" in skill
     mcpb = zipfile.ZipFile(tmp_path / "kingsmint.mcpb")

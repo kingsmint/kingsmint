@@ -43,6 +43,18 @@
   },
   "tools": [
     {
+      "name": "kingsmint_start",
+      "description": "Create the ledger folder and open it for the statements"
+    },
+    {
+      "name": "kingsmint_banks",
+      "description": "List the supported banks and statement formats"
+    },
+    {
+      "name": "kingsmint_text",
+      "description": "Show the text of a statement, to write a parser"
+    },
+    {
       "name": "kingsmint_new_ledger",
       "description": "Create a ledger in an empty folder"
     },

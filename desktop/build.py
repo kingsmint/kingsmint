@@ -15,7 +15,7 @@ from pathlib import Path
 
 DESKTOP = Path(__file__).parent
 ROOT = DESKTOP.parent
-SKILLS = ["import", "categorize", "explain"]  # add-bank changes the parser code, which is inside the bundle
+SKILLS = ["import", "categorize", "explain"]  # setup and add-bank have their own versions for the app
 NOTE = (
     "> **In the Claude app** (chat or Cowork): the kingsmint extension runs the commands on the user's computer. "
     "Run `uv run kingsmint <command>` as the tool `kingsmint_<command>` (`kingsmint_scan`, `kingsmint_import`, "
@@ -62,7 +62,8 @@ def build(out=DESKTOP / "dist"):
         z.writestr(".claude-plugin/plugin.json", json.dumps(plugin, indent=2))
         z.write(DESKTOP / "README.md", "README.md")
         z.write(ROOT / "LICENSE", "LICENSE")
-        z.write(DESKTOP / "setup.md", "skills/setup/SKILL.md")
+        for s in ["setup", "add-bank"]:
+            z.write(DESKTOP / f"{s}.md", f"skills/{s}/SKILL.md")
         for s in SKILLS:
             z.writestr(f"skills/{s}/SKILL.md", desktop_skill((ROOT / "skills" / s / "SKILL.md").read_text(encoding="utf-8")))
     return zip_path
