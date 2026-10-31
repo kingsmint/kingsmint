@@ -28,11 +28,17 @@ Other banks: ask Claude to add one from a sample statement (`add-bank` skill).
 
 ## Claude app
 
-To use kingsmint in the Claude app (chat or Cowork) instead of Claude Code, build the plugin with
-`uv run python desktop/build.py`, then install both files on each computer: upload `desktop/dist/kingsmint.zip`
-(the skills) in **Customize > Plugins > Add > Upload plugin**, and drag `desktop/dist/kingsmint.mcpb` (the
-server, which runs on your computer; Claude installs its Python and dependencies) into **Settings >
-Extensions**. Connect the ledger folder to the chat. See `desktop/README.md`.
+To use kingsmint in the Claude app (chat or Cowork) instead of Claude Code, download two files from the
+[latest release](https://github.com/kingsmint/kingsmint/releases/latest):
+
+1. [`kingsmint.zip`](https://github.com/kingsmint/kingsmint/releases/latest/download/kingsmint.zip), the
+   skills: upload it in **Customize > Plugins > Add > Upload plugin**. It syncs to your other computers.
+2. [`kingsmint.mcpb`](https://github.com/kingsmint/kingsmint/releases/latest/download/kingsmint.mcpb), the
+   server, which runs on your computer (Claude installs its Python and dependencies): drag it into
+   **Settings > Extensions** on each computer.
+
+Then start a chat and ask Claude to set up your accounting. See `desktop/README.md`. To build both files
+from a checkout: `uv run python desktop/build.py`; a tag `v<version>` makes a release with them.
 
 ## Setup
 

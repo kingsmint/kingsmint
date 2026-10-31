@@ -1,0 +1,23 @@
+name: release
+
+# Push a tag v<version from pyproject.toml>: tests, then a GitHub release with the Claude app plugin and extension.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --locked pytest
+      - name: Tag matches the version
+        run: test "$GITHUB_REF_NAME" = "v$(uv run python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+      - run: uv run --locked python desktop/build.py
+      - run: gh release create "$GITHUB_REF_NAME" desktop/dist/kingsmint.zip desktop/dist/kingsmint.mcpb --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

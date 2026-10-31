@@ -4,7 +4,7 @@ Personal and one-person-company accounting with Beancount and Fava, in the Claud
 
 ## Install
 
-Install two files:
+Install two files from the [latest release](https://github.com/kingsmint/kingsmint/releases/latest):
 
 1. `kingsmint.zip`, the skills: **Customize > Plugins > Add > Upload plugin**. It syncs to your other
    computers.
