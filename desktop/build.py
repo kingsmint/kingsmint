@@ -20,9 +20,9 @@ NOTE = (
     "Run `uv run kingsmint <command>` as the tool `kingsmint_<command>` (`kingsmint_scan`, `kingsmint_import`, "
     "`kingsmint_rules`, `kingsmint_reimport`, `kingsmint_check`, `kingsmint_coverage`), and "
     "`uv run bean-query -q main.beancount \"<query>\"` as `kingsmint_query`. Edit `accounts.beancount`, "
-    "`rules.beancount` and `property.beancount` directly in the connected folder. There is no version control yet: "
-    "skip the commit and diff steps. The first `kingsmint_*` call needs `ledger_dir`: the connected folder's path on "
-    "the user's computer (not the /sessions/... sandbox path); later calls remember it. If you do not know that path, "
+    "`rules.beancount` and `property.beancount` directly in the connected folder. Instead of a commit, save a version "
+    "with `kingsmint_save`; skip the diff steps. The user can go back with `kingsmint_restore`. The first "
+    "`kingsmint_*` call needs `ledger_dir`: the connected folder's path on the user's computer (not the /sessions/... sandbox path); later calls remember it. If you do not know that path, "
     "ask the user. If the tools are missing, the session does not run on the user's computer: tell the user to "
     "connect the ledger folder to the chat."
 )
@@ -49,7 +49,8 @@ def build(out=DESKTOP / "dist"):
     with zipfile.ZipFile(mcpb, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False))
         z.write(DESKTOP / "pyproject.toml", "pyproject.toml")
-        z.write(DESKTOP / "server" / "main.py", "server/main.py")
+        for f in ["main.py", "versions.py"]:
+            z.write(DESKTOP / "server" / f, f"server/{f}")
         for name, f in files(ROOT / "src" / "kingsmint", "server/kingsmint") + files(ROOT / "template", "template"):
             z.write(f, name)
 

@@ -75,6 +75,18 @@
       "description": "Run a bean-query SQL query"
     },
     {
+      "name": "kingsmint_save",
+      "description": "Save a version of the ledger"
+    },
+    {
+      "name": "kingsmint_history",
+      "description": "List the saved versions"
+    },
+    {
+      "name": "kingsmint_restore",
+      "description": "Undo the last change or return to a version"
+    },
+    {
       "name": "kingsmint_fava",
       "description": "Open Fava in the browser"
     }

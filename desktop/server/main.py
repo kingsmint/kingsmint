@@ -12,6 +12,8 @@ from pathlib import Path
 
 from mcp.server.mcpserver import MCPServer
 
+import versions
+
 HERE = Path(__file__).parent  # in the bundle, holds the kingsmint package (desktop/build.py copies it)
 TEMPLATE = HERE.parent / "template"
 PORT = 5057
@@ -23,7 +25,8 @@ Use these tools for every kingsmint command; they run on the user's computer, no
 - A rule: `2000-01-01 custom "rule" "REGEX" Account`; the regex matches `payee | narration | iban | amount`
   (and `VS<variable symbol>`); the first matching rule in file order wins.
 - New statements go to inbox/; then kingsmint_import. Ask the user only what the statements cannot show.
-- kingsmint_check must print nothing new after each change.""")
+- kingsmint_check must print nothing new after each change. Then save a version with kingsmint_save.
+- The user can go back: kingsmint_history lists the versions, kingsmint_restore undoes the last change.""")
 fava = None
 
 
@@ -69,6 +72,7 @@ def kingsmint_new_ledger(title: str, currency: str = "EUR", locale: str = "sk_SK
         for k, v in values.items():
             text = re.sub(rf'\b{k}\b', v, text)
         f.write_text(text, encoding="utf-8")
+    versions.save(d, "New ledger")
     return f"Created a ledger in {d}. Put statements into {d / 'inbox'}, then call kingsmint_scan."
 
 
@@ -80,8 +84,10 @@ def kingsmint_scan(ledger_dir: str = "") -> str:
 
 @mcp.tool()
 def kingsmint_import(ledger_dir: str = "") -> str:
-    """Import new statements from inbox/; each file ends on an ok, skip, or FAIL line."""
-    return run(ledger_dir, "import")
+    """Import new statements from inbox/; each file ends on an ok, skip, or FAIL line. Saves a version."""
+    out = run(ledger_dir, "import")
+    versions.save(ledger(ledger_dir), "Import statements\n\n" + out)
+    return out
 
 
 @mcp.tool()
@@ -104,8 +110,31 @@ def kingsmint_rules(ledger_dir: str = "") -> str:
 
 @mcp.tool()
 def kingsmint_reimport(ledger_dir: str = "") -> str:
-    """Rebuild ledger/ from documents/ with the current rules."""
-    return run(ledger_dir, "reimport")
+    """Rebuild ledger/ from documents/ with the current rules. Saves a version."""
+    out = run(ledger_dir, "reimport")
+    versions.save(ledger(ledger_dir), "Reimport with the current rules")
+    return out
+
+
+@mcp.tool()
+def kingsmint_save(message: str, ledger_dir: str = "") -> str:
+    """Save a version of the ledger folder after a change, e.g. "Rules: SSE gas and electricity by variable symbol"."""
+    v = versions.save(ledger(ledger_dir), message)
+    return f"Saved version {v}." if v else "Nothing changed since the last version."
+
+
+@mcp.tool()
+def kingsmint_history(limit: int = 20, ledger_dir: str = "") -> str:
+    """The saved versions of the ledger, newest first: id, date, what changed."""
+    rows = versions.history(ledger(ledger_dir), limit)
+    return "\n".join(f"{v}  {date}  {title}" for v, date, title in rows) or "No versions yet."
+
+
+@mcp.tool()
+def kingsmint_restore(version: str = "", ledger_dir: str = "") -> str:
+    """Go back: without version, undo the last change; with a version id from kingsmint_history, return to it.
+    The restore is saved as a new version, so it can be undone too. Run kingsmint_check afterwards."""
+    return versions.restore(ledger(ledger_dir), version)
 
 
 @mcp.tool()
