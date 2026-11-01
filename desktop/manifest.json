@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "kingsmint",
   "display_name": "Kingsmint",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Personal and one-person-company accounting with Beancount and Fava: import bank statements, check the ledger, and open Fava.",
   "author": {
     "name": "kingsmint"

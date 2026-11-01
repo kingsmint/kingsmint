@@ -1,6 +1,6 @@
 {
   "name": "kingsmint",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Personal and one-person-company accounting with Beancount and Fava: import statements, categorize, explain the money.",
   "license": "MIT"
 }

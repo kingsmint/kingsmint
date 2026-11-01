@@ -31,7 +31,7 @@ Other banks: ask Claude to add one from a sample statement (`add-bank` skill).
 To use kingsmint in the Claude app (chat or Cowork) instead of Claude Code, download two files from the
 [latest release](https://github.com/kingsmint/kingsmint/releases/latest):
 
-1. [`kingsmint.zip`](https://github.com/kingsmint/kingsmint/releases/latest/download/kingsmint.zip), the
+1. [`kingsmint.plugin`](https://github.com/kingsmint/kingsmint/releases/latest/download/kingsmint.plugin), the
    skills: upload it in **Customize > Plugins > Add > Upload plugin**. It syncs to your other computers.
 2. [`kingsmint.mcpb`](https://github.com/kingsmint/kingsmint/releases/latest/download/kingsmint.mcpb), the
    server, which runs on your computer (Claude installs its Python and dependencies): drag it into
@@ -47,7 +47,7 @@ and all packages into `.venv/` of the ledger; `/kingsmint:setup` installs uv whe
 Works on macOS, Linux, and Windows.
 
 ```
-claude plugin marketplace add <path or git URL of this repository>
+claude plugin marketplace add kingsmint/kingsmint
 claude plugin install kingsmint@kingsmint
 ```
 

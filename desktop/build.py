@@ -1,6 +1,6 @@
-"""Build the plugin for the Claude app (chat and Cowork): `uv run python desktop/build.py` -> desktop/dist/kingsmint.zip.
+"""Build the plugin for the Claude app (chat and Cowork): `uv run python desktop/build.py` -> desktop/dist/kingsmint.plugin.
 
-Two files, both installed on each computer: desktop/dist/kingsmint.zip holds the skills (Customize > Plugins > Add >
+Two files, both installed on each computer: desktop/dist/kingsmint.plugin holds the skills (Customize > Plugins > Add >
 Upload plugin), desktop/dist/kingsmint.mcpb the kingsmint MCP server (Settings > Extensions). The server is a separate
 extension because Claude starts an MCPB inside a plugin with the `uv` on PATH, which most users lack; an extension
 gets Claude's own uv, which installs Python and the dependencies.
@@ -57,7 +57,7 @@ def build(out=DESKTOP / "dist"):
 
     plugin = {"name": "kingsmint", "displayName": "Kingsmint", "version": version, "description": manifest["description"],
               "author": {"name": "kingsmint"}, "license": "MIT"}
-    zip_path = out / "kingsmint.zip"
+    zip_path = out / "kingsmint.plugin"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr(".claude-plugin/plugin.json", json.dumps(plugin, indent=2))
         z.write(DESKTOP / "README.md", "README.md")
