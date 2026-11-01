@@ -42,8 +42,11 @@ and end it with the one thing the user does next. Never ask for what a tool or t
    from the commented example. Remove the commented examples. Run the `import` skill, then the
    `categorize` skill. Then call `kingsmint_fava`.
 
-End with what comes next, in three lines: each month, drop the new statements into `inbox` and say
-"import"; ask anything about their money; say "undo" to go back to an earlier version.
+End with what comes next. First, one step to do now: create a project (Projects > New, e.g. "Accounting"),
+connect the ledger folder to it, and from now on start a new chat in that project for each task; the ledger
+files remember what this chat learned, and one long chat only gets slower. Then, in three lines: each month,
+drop the new statements into `inbox` and say "import"; ask anything about their money; say "undo" to go back
+to an earlier version.
 
 Done when `kingsmint_check` prints nothing but a Transit FAIL that the user was told about, the import
 has run, and Fava is open.

@@ -19,6 +19,14 @@ connect it to the chat and to put your bank statements into it, and checks each 
 about the ones it cannot categorize, and writes the answers as rules. Ask it to open Fava to browse the
 ledger. Every change is saved as a version; ask Claude to undo one, or to show the versions.
 
+After the setup, create a project (**Projects > New**), connect the ledger folder to it, and start a new
+chat in the project for each task: "import" each month, a question about your money, "open Fava". The
+ledger remembers what Claude learned (rules, notes about your accounts) in its files, so a new chat
+continues where the last one stopped; one long chat only gets slower.
+
+A ledger made with Claude Code works as it is: connect its folder, and Claude continues with it. Use it
+from one app only, or from a copy (`git clone`): the extension saves versions with its own git.
+
 The folder must be on your computer's disk: Claude does not accept network folders. On Windows in a
 virtual machine, folders such as Documents may point to the host's disk; use a folder like
 `C:\Users\<you>\Ledger`.
