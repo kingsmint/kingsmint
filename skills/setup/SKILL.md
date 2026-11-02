@@ -26,7 +26,8 @@ progress notes between commands. The skills this one runs keep it too.
 4. `pyproject.toml`: replace `{ git = "KINGSMINT_SOURCE" }`. When `${CLAUDE_PLUGIN_ROOT}` is a checkout the
    user develops (it is outside `~/.claude/plugins/`, for example from `claude --plugin-dir`), use
    `{ path = "${CLAUDE_PLUGIN_ROOT}", editable = true }`; otherwise `{ git = "https://github.com/kingsmint/kingsmint" }`.
-   Run `uv sync` (it installs the Python version in `.python-version` when missing).
+   Run `uv sync` (it installs the Python version in `.python-version` when missing), then
+   `uv run kingsmint upgrade --done`: the ledger matches this kingsmint's template.
 5. Ask the user to download their statements into `inbox/`, as far back as each bank allows, for every
    account (personal and company, also closed ones), and to say when they are done. Ask nothing else:
    the rest comes from the statements.

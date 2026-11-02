@@ -108,6 +108,7 @@ def kingsmint_new_ledger(title: str, currency: str = "EUR", locale: str = "sk_SK
         for k, v in values.items():
             text = re.sub(rf'\b{k}\b', v, text)
         f.write_text(text, encoding="utf-8")
+    run(str(d), "upgrade", "--done")
     versions.save(d, "New ledger")
     return f"Created a ledger in {d}. Put statements into {d / 'inbox'}, then call kingsmint_scan."
 
@@ -124,6 +125,13 @@ def kingsmint_import(ledger_dir: str = "") -> str:
     out = run(ledger_dir, "import")
     versions.save(ledger(ledger_dir), "Import statements\n\n" + out)
     return out
+
+
+@mcp.tool()
+def kingsmint_upgrade(done: bool = False, ledger_dir: str = "") -> str:
+    """What to change in a ledger made with an older kingsmint, and why. done=True after the changes are applied:
+    the ledger then matches this kingsmint."""
+    return run(ledger_dir, "upgrade", *(["--done"] if done else []))
 
 
 @mcp.tool()

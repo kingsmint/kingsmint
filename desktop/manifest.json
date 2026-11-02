@@ -67,6 +67,10 @@
       "description": "Import statements from inbox/"
     },
     {
+      "name": "kingsmint_upgrade",
+      "description": "What to change in a ledger made with an older kingsmint"
+    },
+    {
       "name": "kingsmint_check",
       "description": "Validate the ledger"
     },

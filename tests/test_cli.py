@@ -44,3 +44,20 @@ def test_local_parser(tmp_path, monkeypatch, capsys):
     cli.banks()
     out = capsys.readouterr().out
     assert "local.demo  Demo banka: PDF statements." in out and "sk.vub  VÚB banka" in out and "intl.ibkr" in out
+
+
+def test_upgrade(tmp_path, monkeypatch, capsys):
+    log = tmp_path / "CHANGELOG.md"
+    log.write_text("# Changelog\n\n## Unreleased\n\n### Ledger\n\n- not yet\n\n## 0.3.0\n\n- user note\n\n### Ledger\n\n"
+                   "- add rule C\n\n## 0.2.0\n\n- no ledger change\n\n## 0.1.1\n\n### Ledger\n\n- add rule B\n\n"
+                   "### Other\n\n- not ledger\n\n## 0.1.0\n\n### Ledger\n\n- old\n", encoding="utf-8")
+    monkeypatch.setattr(cli, "CHANGELOG", log)
+    monkeypatch.chdir(tmp_path)
+    cli.upgrade([])  # no .kingsmint-version: a ledger from 0.1.0
+    out = capsys.readouterr().out
+    assert out.index("- add rule B") < out.index("- add rule C")  # oldest first
+    assert "not yet" not in out and "not ledger" not in out and "- old" not in out and "0.2.0" not in out
+    cli.upgrade(["--done"])
+    assert (tmp_path / ".kingsmint-version").read_text() == "0.3.0\n"
+    cli.upgrade([])
+    assert "nothing to change" in capsys.readouterr().out.splitlines()[-1]

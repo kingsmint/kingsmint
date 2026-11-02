@@ -1,12 +1,24 @@
 # Changelog
 
-Changes a user notices, newest first. A release takes its notes from the section of its version.
+Changes a user notices, newest first. A release takes its notes from the section of its version. Under
+`### Ledger`, a version lists what to change in a ledger made with an older version, and why; `kingsmint
+upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
+here is the installed version.
 
 ## Unreleased
 
 - Commit messages and saved versions say why a change was made, not only what changed; in the Claude app,
   `kingsmint_history` shows it, and `kingsmint_reimport` takes a message.
 - Releases have notes from this file.
+- `kingsmint upgrade` lists what to change in a ledger made with an older kingsmint; `kingsmint doctor` warns
+  about it, and the import skill applies it with you. The ledger records its version in `.kingsmint-version`.
+
+### Ledger
+
+- `CLAUDE.md`, under Invariants, after the line about `check` and commit: add "A commit message says what
+  changed in the first line, and in the body why: what the user said, which statement or transaction showed
+  it, what was wrong before, and what was checked. Later sessions read the history (`jj log`, `git log`) to
+  learn why the ledger looks as it does." Why: the history then explains the ledger.
 
 ## 0.1.2
 

@@ -11,9 +11,11 @@
   fava [FAVA OPTIONS]          open Fava on http://localhost:5050
   rates                        refresh month-end USD/EUR rates from the ECB
   doctor                       check the tools and the ledger files
+  upgrade [--done]             what to change in a ledger made with an older kingsmint; --done: it is changed
 """
 
 import datetime as dt
+import re
 import shutil
 import subprocess
 import sys
@@ -119,6 +121,43 @@ def banks():
         print(f"{name.removeprefix('kingsmint.banks.').replace('kingsmint_local.', 'local.')}  {doc[0]}")
 
 
+CHANGELOG = Path(__file__).with_name("CHANGELOG.md")
+VERSION_FILE = Path(".kingsmint-version")  # in the ledger: the kingsmint version whose template it matches
+
+
+def releases():
+    """[(version, its `### Ledger` text)] from CHANGELOG.md, newest first; the first is the installed version."""
+    out = []
+    for section in re.split(r"^## ", CHANGELOG.read_text(encoding="utf-8"), flags=re.M)[1:]:
+        head, _, body = section.partition("\n")
+        if re.fullmatch(r"\d+(\.\d+)*", head.strip()):
+            m = re.search(r"^### Ledger\n(.*?)(?=^### |\Z)", body, re.M | re.S)
+            out.append((head.strip(), m.group(1).strip() if m else ""))
+    return out
+
+
+def pending():
+    """The ledger changes of the versions newer than the ledger's, oldest first. No file: made before 0.1.1."""
+    have = VERSION_FILE.read_text(encoding="utf-8").strip() if VERSION_FILE.exists() else "0.1.0"
+    key = lambda v: tuple(int(x) for x in v.split("."))
+    return have, [(v, text) for v, text in reversed(releases()) if key(v) > key(have) and text]
+
+
+def upgrade(args):
+    installed = releases()[0][0]
+    if args == ["--done"]:
+        VERSION_FILE.write_text(installed + "\n", encoding="utf-8")
+        print(f"ledger is at kingsmint {installed}")
+        return
+    have, todo = pending()
+    if not todo:
+        print(f"nothing to change: the ledger is at kingsmint {have}, installed {installed}")
+    for v, text in todo:
+        print(f"## {v}\n\n{text}\n")
+    if todo:
+        print("Apply these to the ledger (they keep the owner's own edits), then run `kingsmint upgrade --done`.")
+
+
 def doctor():
     problems = 0
 
@@ -136,6 +175,9 @@ def doctor():
         report(not left, "setup", f"{', '.join(left)} not replaced in main.beancount; see the setup skill")
         errors = loader.load_file("main.beancount")[1]
         report(not errors, "ledger", f"{len(errors)} errors; see `uv run kingsmint check`")
+        have, todo = pending()
+        if todo:
+            print(f"WARN ledger made with kingsmint {have}, installed {releases()[0][0]}: run `uv run kingsmint upgrade`")
     sys.exit(1 if problems else 0)
 
 
@@ -168,5 +210,7 @@ def main():
         rates.main()
     elif cmd == "doctor":
         doctor()
+    elif cmd == "upgrade" and args in ([], ["--done"]):
+        upgrade(args)
     else:
         sys.exit(__doc__)

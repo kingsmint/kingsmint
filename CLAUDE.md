@@ -11,6 +11,7 @@ their own directory (`ROOT = Path.cwd()`).
   ledger that uses this checkout, where every statement must reconcile, and the output must be unchanged
   for the statements that worked before.
 - A commit message says what changed in the first line, and in the body why: the problem, what the user
-  reported, what was tested. `CHANGELOG.md` gets a line for each change a user notices.
+  reported, what was tested. `src/kingsmint/CHANGELOG.md` gets a line for each change a user notices; a change to `template/` also gets
+  a line under `### Ledger`, saying what to change in an existing ledger and why.
 - Skills follow the writing rules for agent documents: steps with a clear end condition, reference only
   where a branch needs it.

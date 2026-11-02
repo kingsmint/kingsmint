@@ -39,7 +39,7 @@ To use kingsmint in the Claude app (chat or Cowork) instead of Claude Code, down
 
 Then start a chat and ask Claude to set up your accounting. See `desktop/README.md`. To build both files
 from a checkout: `uv run python desktop/build.py`; a tag `v<version>` makes a release with them, with the
-notes from the `## <version>` section of `CHANGELOG.md`.
+notes from the `## <version>` section of [`CHANGELOG.md`](src/kingsmint/CHANGELOG.md).
 
 ## Setup
 

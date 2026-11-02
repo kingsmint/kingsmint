@@ -19,7 +19,7 @@ SKILLS = ["import", "categorize", "explain"]  # setup and add-bank have their ow
 NOTE = (
     "> **In the Claude app** (chat or Cowork): the kingsmint extension runs the commands on the user's computer. "
     "Run `uv run kingsmint <command>` as the tool `kingsmint_<command>` (`kingsmint_scan`, `kingsmint_import`, "
-    "`kingsmint_rules`, `kingsmint_reimport`, `kingsmint_check`, `kingsmint_coverage`), and "
+    "`kingsmint_rules`, `kingsmint_reimport`, `kingsmint_check`, `kingsmint_coverage`, `kingsmint_upgrade`), and "
     "`uv run bean-query -q main.beancount \"<query>\"` as `kingsmint_query`. Edit `accounts.beancount`, "
     "`rules.beancount` and `property.beancount` directly in the connected folder. Instead of a commit, save a version "
     "with `kingsmint_save`; skip the diff steps. The user can go back with `kingsmint_restore`. The first "
