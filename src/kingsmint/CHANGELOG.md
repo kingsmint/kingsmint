@@ -5,7 +5,7 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
-## Unreleased
+## 0.1.3
 
 - Commit messages and saved versions say why a change was made, not only what changed; in the Claude app,
   `kingsmint_history` shows it, and `kingsmint_reimport` takes a message.
