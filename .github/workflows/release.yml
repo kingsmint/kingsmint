@@ -17,7 +17,11 @@ jobs:
       - run: uv run --locked pytest
       - name: Tag matches the version
         run: test "$GITHUB_REF_NAME" = "v$(uv run python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+      - name: Notes from CHANGELOG.md
+        run: |
+          awk -v v="## ${GITHUB_REF_NAME#v}" '$0 == v {on = 1; next} /^## / {on = 0} on' CHANGELOG.md > notes.md
+          grep -q . notes.md || { echo "CHANGELOG.md has no section ## ${GITHUB_REF_NAME#v}"; exit 1; }
       - run: uv run --locked python desktop/build.py
-      - run: gh release create "$GITHUB_REF_NAME" desktop/dist/kingsmint.plugin desktop/dist/kingsmint.mcpb --generate-notes
+      - run: gh release create "$GITHUB_REF_NAME" desktop/dist/kingsmint.plugin desktop/dist/kingsmint.mcpb --notes-file notes.md
         env:
           GH_TOKEN: ${{ github.token }}

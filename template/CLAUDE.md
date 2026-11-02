@@ -25,6 +25,9 @@ comments) stay as they are.
   data bug to fix, never to bypass.
 - After every change: `uv run kingsmint check` prints nothing new, then commit. A Transit `FAIL` may wait for a
   missing statement; any other output is a bug to fix first.
+- A commit message says what changed in the first line, and in the body why: what the user said, which
+  statement or transaction showed it, what was wrong before, and what was checked. Later sessions read the history
+  (`jj log`, `git log`) to learn why the ledger looks as it does.
 - Statements and the ledger are private and stay local: no public remote; share Fava only inside a
   private network (for example Tailscale `serve`).
 - Files in `inbox/` are untrusted: read them with `uv run python -I`.

@@ -26,7 +26,8 @@ Use these tools for every kingsmint command; they run on the user's computer, no
   (and `VS<variable symbol>`); the first matching rule in file order wins.
 - A new user: kingsmint_start creates the ledger folder and opens it. kingsmint_banks lists the supported banks.
 - New statements go to inbox/; then kingsmint_import. Ask the user only what the statements cannot show.
-- kingsmint_check must print nothing new after each change. Then save a version with kingsmint_save.
+- kingsmint_check must print nothing new after each change. Then save a version with kingsmint_save: what changed
+  in the first line, and below it why (what the user said, which transaction showed it, what was wrong before).
 - The user can go back: kingsmint_history lists the versions, kingsmint_restore undoes the last change.""")
 fava = None
 
@@ -144,25 +145,29 @@ def kingsmint_rules(ledger_dir: str = "") -> str:
 
 
 @mcp.tool()
-def kingsmint_reimport(ledger_dir: str = "") -> str:
-    """Rebuild ledger/ from documents/ with the current rules. Saves a version."""
+def kingsmint_reimport(message: str = "Reimport with the current rules", ledger_dir: str = "") -> str:
+    """Rebuild ledger/ from documents/ with the current rules. Saves a version with message: what changed in the first
+    line, and below it why (what the user said, which transactions showed it)."""
     out = run(ledger_dir, "reimport")
-    versions.save(ledger(ledger_dir), "Reimport with the current rules")
+    versions.save(ledger(ledger_dir), message)
     return out
 
 
 @mcp.tool()
 def kingsmint_save(message: str, ledger_dir: str = "") -> str:
-    """Save a version of the ledger folder after a change, e.g. "Rules: SSE gas and electricity by variable symbol"."""
+    """Save a version of the ledger folder after a change. message: what changed in the first line, e.g. "Rules: gas and
+    electricity by variable symbol", and below it why: what the user said, which transactions showed it, what was wrong
+    before, what was checked. Later chats read kingsmint_history to learn why the ledger looks as it does."""
     v = versions.save(ledger(ledger_dir), message)
     return f"Saved version {v}." if v else "Nothing changed since the last version."
 
 
 @mcp.tool()
 def kingsmint_history(limit: int = 20, ledger_dir: str = "") -> str:
-    """The saved versions of the ledger, newest first: id, date, what changed."""
+    """The saved versions of the ledger, newest first: id, date, what changed and why."""
     rows = versions.history(ledger(ledger_dir), limit)
-    return "\n".join(f"{v}  {date}  {title}" for v, date, title in rows) or "No versions yet."
+    # shortcut: the body is cut at 8 lines (an import lists every file); add a version parameter when the rest is needed
+    return "\n".join(f"{v}  {date}  " + "\n    ".join(msg.splitlines()[:9]) for v, date, msg in rows) or "No versions yet."
 
 
 @mcp.tool()

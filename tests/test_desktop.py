@@ -41,3 +41,6 @@ def test_versions(tmp_path):
     assert (tmp_path / "inbox" / "s.pdf").read_bytes() == b"pdf" and "s.pdf" in out  # the statement is never lost
     titles = [t for _, _, t in versions.history(tmp_path)]
     assert titles[0] == f"Restore {first}: New ledger" and titles[2:] == ["Unsaved changes", "Import statements", "New ledger"]
+    (tmp_path / "rules.beancount").write_text("v4\n")
+    versions.save(tmp_path, "Rules: gas by variable symbol\n\nThe user has two properties on one gas contract.")
+    assert versions.history(tmp_path)[0][2].endswith("two properties on one gas contract.")  # the why stays readable

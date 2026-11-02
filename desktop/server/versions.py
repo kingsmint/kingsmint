@@ -21,12 +21,12 @@ def save(d: Path, message: str) -> str | None:
 
 
 def history(d: Path, limit: int = 20) -> list[tuple[str, str, str]]:
-    """(id, ISO date, first line of the message), newest first."""
+    """(id, ISO date, message), newest first."""
     import datetime as dt
     if not (d / ".git").exists():
         return []
     return [(e.commit.id.decode()[:7], dt.datetime.fromtimestamp(e.commit.commit_time).isoformat(" ", "minutes"),
-             e.commit.message.decode().splitlines()[0]) for e in Repo(str(d)).get_walker(max_entries=limit)]
+             e.commit.message.decode().strip()) for e in Repo(str(d)).get_walker(max_entries=limit)]
 
 
 def restore(d: Path, version: str = "") -> str:
