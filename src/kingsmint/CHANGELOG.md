@@ -5,7 +5,7 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
-## Unreleased
+## 0.1.4
 
 - Transactions get the variable symbol (`vs`) and the payment reference (`ref`) from VÚB and Fio statements and
   from the Tatra reference, and rules match the reference. The add-bank skill fills both in a new parser.
