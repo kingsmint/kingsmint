@@ -78,6 +78,8 @@ The tree grows from the user's transactions; there is no default tree.
   to split one counterparty, such as one utility IBAN for electricity and gas: `"^VS1234567890$"`.
   Do not match a variable symbol that also appears in unrelated payments, such as the owner's birth
   number or a customer number; match the IBAN.
+- A rule also matches the payment reference (the `ref` metadata), such as a contract number that the
+  counterparty puts into every payment: `"^RF18 5390"`.
 - A short name catches other shops (`HM` caught "HM TESCO" and ATM rows). Anchor it or add the city,
   and read every example in `uv run kingsmint rules` before reimport.
 - Payments to a credit card with no statements (minimum payments, repayments) go to one

@@ -4,7 +4,7 @@ import datetime as dt
 import re
 from decimal import Decimal
 
-from kingsmint.banks.common import Statement, Txn, date, header, iban, merchant, sk_num, squash
+from kingsmint.banks.common import Statement, Txn, date, header, iban, merchant, reference, sk_num, squash
 
 VUB_AMT = re.compile(r"(-?\d{1,3}(?:\.\d{3})*,\d\d)\s*$")
 VUB_DATE = re.compile(r"^(\d\d)/(\d\d)\s")
@@ -60,8 +60,9 @@ def parse_pdf(text):
         name = r["details"].get("Názov", "").replace("Neuvedené", "")  # "not given"
         payee = name or merchant(r["line2"])
         narration = r["details"].get("Účel platby") or (r["line2"] if name else desc)
+        vs = re.match(r"\s{2,}(\d+)(?!\S)", r["line1"][ib.end():]) if ib else None  # the first number after the IBAN
         st.txns[i] = Txn(dt.date(year, r["month"], r["day"]), r["amount"], payee, narration,
-                         iban(ib[1]) if ib else "", r["fee"])
+                         iban(ib[1]) if ib else "", r["fee"], vs[1] if vs else "")
     return st
 
 
@@ -79,5 +80,6 @@ def parse_csv(rows):
         else:
             ref = r["Referencia partnera"].strip()
             t.payee, t.narration = name, info or ("" if ref == "NOTPROVIDED" else ref)
+            reference(t, ref)
         out.append((t, sk_num(r["Účtovný zostatok"])))
     return out

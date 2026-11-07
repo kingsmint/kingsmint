@@ -2,7 +2,7 @@
 
 import re
 
-from kingsmint.banks.common import Statement, Txn, date, header, sk_num, squash
+from kingsmint.banks.common import Statement, Txn, date, header, reference, sk_num, squash
 
 FIO_AMT = r"(-?\d{1,3}(?:[  ]\d{3})*,\d\d)"
 FIO_START = re.compile(r"^ ?(\d{1,2}\.\d{1,2}\.\d{4})\s{2,}(\S.*?)(?:\s{2,}(\S+))?\s{2,}" + FIO_AMT + "$")
@@ -37,6 +37,11 @@ def parse_pdf(text):
         t = Txn(date(m[1]), sk_num(m[4]), narration=squash(m[2]))
         if m[3] and "/" in m[3]:
             t.iban = m[3].split("/")[0]
+        for x in lines:
+            if v := re.search(r"\bVS:\s*(\d+)", x):
+                t.vs = v[1]
+            if r := re.search(r"\bREF:\s*(\S.*?)(?:\s{2,}|$)", x):
+                reference(t, r[1])
         # before the operation ID line: continuation of the type, or "date  detail  counterparty name";
         # after it: card details or messages for the recipient.
         # Statements before ~2021 put VS/SS/KS in a right column and a message on the ID line.

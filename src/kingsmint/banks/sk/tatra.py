@@ -4,7 +4,7 @@ import datetime as dt
 import re
 from decimal import Decimal
 
-from kingsmint.banks.common import Statement, Txn, date, header, iban, squash
+from kingsmint.banks.common import Statement, Txn, date, header, iban, reference, squash
 
 TB_START = re.compile(r"^(\d\d\.\d\d\.\d{4})\s+(.*?)\s{2,}.*?([\d,]+\.\d\d)(-?)$")
 
@@ -43,8 +43,8 @@ def tb_txn(t, lines):
         if k := re.match(r"(Príjemca|Platiteľ):\s+(\S+)", s):
             t.iban = k[2]
             t.payee = squash(deeper[0]) if deeper and lines.index(deeper[0]) == i + 1 else ""
-        elif k := re.match(r"Referencia platiteľa:\s+/VS(\d+)", s):
-            t.vs = k[1]
+        elif k := re.match(r"Referencia platiteľa:\s+(.*)", s):
+            reference(t, k[1])
         elif k := re.match(r"Miesto [^:]+:\s+\S.*?\s{2,}(.*)", s):
             t.payee = squash(k[1])
         elif s.startswith("Detail:"):

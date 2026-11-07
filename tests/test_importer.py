@@ -2,7 +2,7 @@ import datetime as dt
 import re
 from decimal import Decimal
 
-from kingsmint.banks.common import Txn, sk_num
+from kingsmint.banks.common import Txn, reference, sk_num
 from kingsmint.banks.sk import tatra
 from kingsmint.importer import categorize
 
@@ -36,6 +36,20 @@ def test_rule_vs():
     rules = [(dt.date(2000, 1, 1), re.compile(r"^VS123$"), "Expenses:Gas", [])]
     assert categorize(Txn(D, Decimal("-5"), vs="123"), {}, rules)[0] == "Expenses:Gas"
     assert categorize(Txn(D, Decimal("-5"), vs="1234"), {}, rules)[0] == "Expenses:Uncategorized"
+
+
+def test_rule_ref():
+    rules = [(dt.date(2000, 1, 1), re.compile(r"^RF18"), "Expenses:Gas", [])]
+    assert categorize(Txn(D, Decimal("-5"), ref="RF18 5390"), {}, rules)[0] == "Expenses:Gas"
+    assert categorize(Txn(D, Decimal("-5"), narration="RF18 5390"), {}, rules)[0] == "Expenses:Uncategorized"
+
+
+def test_reference():
+    assert (reference(Txn(D, 0), " /VS123/SS/KS0308 ").vs, reference(Txn(D, 0), "/VS123").ref) == ("123", "")
+    assert reference(Txn(D, 0, vs="9"), "/VS/SS/KS").vs == "9"  # an empty VS keeps the one from a column
+    assert reference(Txn(D, 0), "RF18 5390").ref == "RF18 5390"
+    assert [reference(Txn(D, 0), s).vs for s in ["?/VS12/SS0046/KS0046", "VS12/SS/KS"]] == ["12", "12"]
+    assert [reference(Txn(D, 0), s).ref for s in ["NOTPROVIDED", "Not provided", "NOT PROVIDED"]] == ["", "", ""]
 
 
 def test_sk_num():

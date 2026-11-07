@@ -15,6 +15,7 @@ class Txn:
     iban: str = ""  # counterparty
     fee: Decimal = Decimal(0)
     vs: str = ""  # variable symbol (Slovak and Czech payments)
+    ref: str = ""  # payment reference, when it is not only the symbols, e.g. "RF18 5390 0754 7034"
 
 
 @dataclass
@@ -34,6 +35,16 @@ def header(rx, text):
     """First group of `rx` in the statement header, or ""."""
     m = re.search(rx, text, re.M)
     return squash(m[1]) if m else ""
+
+
+def reference(t, s):
+    """Fill `t.vs` from a "/VS123/SS/KS0308" payment reference (also "?/VS123/..." and "VS123/..."), or else `t.ref`."""
+    s = squash(s)
+    if m := re.match(r"\??/?VS(\d*)(?:/SS\d*)?(?:/KS\d*)?$", s):
+        t.vs = m[1] or t.vs
+    elif s.upper().replace(" ", "") not in ("", "NOTPROVIDED"):
+        t.ref = s
+    return t
 
 
 def squash(s):

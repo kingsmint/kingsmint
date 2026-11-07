@@ -5,6 +5,17 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
+## Unreleased
+
+- Transactions get the variable symbol (`vs`) and the payment reference (`ref`) from VÚB and Fio statements and
+  from the Tatra reference, and rules match the reference. The add-bank skill fills both in a new parser.
+
+### Ledger
+
+- Run `uv run kingsmint reimport`, so that imported transactions get the `vs` and `ref` metadata. Then check
+  `uv run kingsmint rules`: a rule that matches a VS can now match VÚB and Fio payments too. Why: rules can
+  split one counterparty by its variable symbol or reference.
+
 ## 0.1.3
 
 - Commit messages and saved versions say why a change was made, not only what changed; in the Claude app,
