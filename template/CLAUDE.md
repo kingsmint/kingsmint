@@ -5,7 +5,8 @@ plugin: skills `import`, `categorize`, `explain`, `add-bank`). Commands: `uv run
 rules, reimport, check, coverage, fava, rates, doctor). Facts about the owner (people, arrangements, which IBAN belongs to whom)
 live as comments in `accounts.beancount` and `rules.beancount`: read them before answering questions
 about the money, and record new facts there, next to the account or rule they explain. Values that no
-statement shows (property, loans before the first statement) live in `property.beancount`.
+statement shows (property, loans before the first statement) live in `property.beancount`; cash payments
+the owner names live in `cash.beancount`.
 
 Talk to the owner in LANGUAGE, also when a skill is written in English. Ledger names (accounts, rules,
 comments) stay as they are.

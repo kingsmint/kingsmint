@@ -37,6 +37,9 @@ or else in the language the user writes in.
      price, assessed value, a loan before the first statement, a closed fund's gain) goes to
      `property.beancount`, as its examples show.
    - money from a partner who shares the assets → their `Equity:` account
+   - a payment in cash that the user names (what, when, how much) → an entry in `cash.beancount`
+     that moves the amount from `Expenses:Cash` to its category, as its example shows. Never into
+     `ledger/`: `reimport` deletes the generated files there.
 
    Facts about the household and the company come from the transactions, not from an interview. Ask
    about one in the same numbered list when a group shows it, and record the answer as a comment in

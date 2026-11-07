@@ -5,6 +5,18 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
+## Unreleased
+
+- Cash payments: `cash.beancount` holds the cash payments you name, each moved from `Expenses:Cash` to its
+  category. `reimport` does not touch it, and the categorize skill writes there.
+
+### Ledger
+
+- Create `cash.beancount` as in the kingsmint template (`template/cash.beancount`: the header comment and the
+  commented example), add `include "cash.beancount"` after `include "property.beancount"` in `main.beancount`,
+  and in `CLAUDE.md` after "live in `property.beancount`" add "; cash payments the owner names live in
+  `cash.beancount`". Why: hand-written cash entries need a file that `reimport` keeps and that Claude knows.
+
 ## 0.1.5
 
 - Claude app: the install steps follow the new settings. Upload the plugin in **Settings > Customize > Plugins >
