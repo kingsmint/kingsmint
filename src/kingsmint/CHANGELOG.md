@@ -5,7 +5,7 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
-## Unreleased
+## 0.1.5
 
 - Claude app: the install steps follow the new settings. Upload the plugin in **Settings > Customize > Plugins >
   Add > Upload plugin**, and install the extension by double-clicking `kingsmint.mcpb`; Settings has no
