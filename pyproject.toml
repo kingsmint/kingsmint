@@ -1,6 +1,6 @@
 [project]
 name = "kingsmint"
-version = "0.1.5"
+version = "0.1.6"
 description = "Personal and one-person-company accounting with Beancount, Fava, and Claude Code"
 readme = "README.md"
 license = "MIT"
