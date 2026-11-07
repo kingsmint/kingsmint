@@ -32,10 +32,10 @@ To use kingsmint in the Claude app (chat or Cowork) instead of Claude Code, down
 [latest release](https://github.com/kingsmint/kingsmint/releases/latest):
 
 1. [`kingsmint.plugin`](https://github.com/kingsmint/kingsmint/releases/latest/download/kingsmint.plugin), the
-   skills: upload it in **Customize > Plugins > Add > Upload plugin**. It syncs to your other computers.
+   skills: upload it in **Settings > Customize > Plugins > Add > Upload plugin**. It syncs to your other computers.
 2. [`kingsmint.mcpb`](https://github.com/kingsmint/kingsmint/releases/latest/download/kingsmint.mcpb), the
-   server, which runs on your computer (Claude installs its Python and dependencies): drag it into
-   **Settings > Extensions** on each computer.
+   server, which runs on your computer (Claude installs its Python and dependencies): double-click it
+   on each computer, and Claude asks to install it.
 
 Then start a chat and ask Claude to set up your accounting. See [`desktop/README.md`](desktop/README.md). To build both files
 from a checkout: `uv run python desktop/build.py`; a tag `v<version>` makes a release with them, with the

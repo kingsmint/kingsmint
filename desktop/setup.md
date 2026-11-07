@@ -10,7 +10,7 @@ Beancount, or this plugin: guide them. Start each message of steps 1-4 with the 
 and end it with the one thing the user does next. Never ask for what a tool or the statements can show.
 
 0. Check: the `kingsmint_*` tools are missing → tell the user to install the kingsmint extension
-   (`kingsmint.mcpb`) in Settings > Extensions, and to start a new chat; stop. A connected folder that
+   (double-click `kingsmint.mcpb`), and to start a new chat; stop. A connected folder that
    already holds `main.beancount` is a ledger: use the `import` skill instead.
 1. Introduce kingsmint in three short sentences: it builds a ledger of all their accounts, personal and
    company, from the statements their banks give them, and shows it in Fava, a web page on their computer;

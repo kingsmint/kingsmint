@@ -1,7 +1,7 @@
 """Build the plugin for the Claude app (chat and Cowork): `uv run python desktop/build.py` -> desktop/dist/kingsmint.plugin.
 
-Two files, both installed on each computer: desktop/dist/kingsmint.plugin holds the skills (Customize > Plugins > Add >
-Upload plugin), desktop/dist/kingsmint.mcpb the kingsmint MCP server (Settings > Extensions). The server is a separate
+Two files, both installed on each computer: desktop/dist/kingsmint.plugin holds the skills (Settings > Customize > Plugins >
+Add > Upload plugin), desktop/dist/kingsmint.mcpb the kingsmint MCP server (double-click it to install). The server is a separate
 extension because Claude starts an MCPB inside a plugin with the `uv` on PATH, which most users lack; an extension
 gets Claude's own uv, which installs Python and the dependencies.
 """
@@ -25,7 +25,7 @@ NOTE = (
     "with `kingsmint_save`; skip the diff steps. The user can go back with `kingsmint_restore`. The first "
     "`kingsmint_*` call needs `ledger_dir`: the connected folder's path on the user's computer (not the /sessions/... sandbox path); later calls remember it. If you do not know that path, "
     "ask the user. If the tools are missing: tell the user to install the kingsmint extension (`kingsmint.mcpb`) in "
-    "Settings > Extensions on this computer, and to connect the ledger folder to the chat."
+    "by double-clicking it on this computer, and to connect the ledger folder to the chat."
 )
 
 

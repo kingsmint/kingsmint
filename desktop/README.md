@@ -6,10 +6,10 @@ Personal and one-person-company accounting with Beancount and Fava, in the Claud
 
 Install two files from the [latest release](https://github.com/kingsmint/kingsmint/releases/latest):
 
-1. `kingsmint.plugin`, the skills: **Customize > Plugins > Add > Upload plugin**. It syncs to your other
+1. `kingsmint.plugin`, the skills: **Settings > Customize > Plugins > Add > Upload plugin**. It syncs to your other
    computers.
-2. `kingsmint.mcpb`, the server that runs the accounting on your computer: drag it into **Settings >
-   Extensions** on each computer; extensions do not sync. The first start takes a minute or two: Claude
+2. `kingsmint.mcpb`, the server that runs the accounting on your computer: double-click it on each
+   computer, and Claude asks to install it; extensions do not sync. The first start takes a minute or two: Claude
    downloads Python and the packages.
 
 ## Use it
