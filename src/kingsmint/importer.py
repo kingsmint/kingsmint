@@ -296,7 +296,8 @@ def scan(paths):
             print(f"{f.name}  FAIL {type(e).__name__}: {e}")
 
 
-def main(args):
+def main(args, clear=False):
+    """Import statements; `clear`: delete the generated files first (reimport)."""
     force = "--force" in args
     paths = [Path(a) for a in args if a != "--force"] or [ROOT / "inbox"]
     # PDFs first: an account history CSV skips the years that PDF statements already cover
@@ -304,13 +305,18 @@ def main(args):
                    key=lambda f: (f.suffix.lower() == ".csv", f.name))
     if not files:
         return print(f"nothing to import in {', '.join(map(str, paths))}")
-    accounts, own, rules, ibkr = load()
+    accounts, own, rules, ibkr = load()  # before `clear`: without the generated files, the ledger shows false errors
+    if clear:
+        clear_generated()
     for f in files:
-        if f.suffix.lower() == ".pdf":
-            import_pdf(f, accounts, own, rules, force)
-        elif f.read_bytes()[:20].lstrip(b"\xef\xbb\xbf").startswith(b"Statement,"):
-            import_ibkr(f, ibkr)
-        else:
-            import_account_csv(f, read_csv(f), accounts, own, rules, force)
+        try:  # one file that cannot be read must not stop a reimport, which has already deleted ledger/
+            if f.suffix.lower() == ".pdf":
+                import_pdf(f, accounts, own, rules, force)
+            elif f.read_bytes()[:20].lstrip(b"\xef\xbb\xbf").startswith(b"Statement,"):
+                import_ibkr(f, ibkr)
+            else:
+                import_account_csv(f, read_csv(f), accounts, own, rules, force)
+        except Exception as e:
+            print(f"FAIL {f.name}: {type(e).__name__}: {e}")
 
 

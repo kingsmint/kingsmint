@@ -8,7 +8,12 @@ here is the installed version.
 ## Unreleased
 
 - Cash payments: `cash.beancount` holds the cash payments you name, each moved from `Expenses:Cash` to its
-  category. `reimport` does not touch it, and the categorize skill writes there.
+  category. `reimport` does not touch it, and the categorize skill writes there. A receipt in
+  `documents/Expenses/Cash/` links to the entry.
+- `reimport` skips a file it cannot read (a damaged PDF, a receipt) with `FAIL`; before, it stopped and left
+  `ledger/` half rebuilt. It no longer prints false `ledger error` lines.
+- The categorize skill writes a rule for one transaction and a split by amounts; `property.beancount` names
+  tax accruals and accounts without statements.
 
 ### Ledger
 

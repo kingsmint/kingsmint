@@ -85,6 +85,12 @@ The tree grows from the user's transactions; there is no default tree.
   counterparty puts into every payment: `"^RF18 5390"`.
 - A short name catches other shops (`HM` caught "HM TESCO" and ATM rows). Anchor it or add the city,
   and read every example in `uv run kingsmint rules` before reimport.
+- One transaction (a refund, a gift, a payment the general rule gets wrong): a rule dated on that
+  day that matches the counterparty and the exact amount, above the general rule:
+  `2025-03-04 custom "rule" "SK3112000000001987654321 \\| -250\\.00$" Expenses:Gifts`. It has no end
+  date, so `uv run kingsmint rules` must show that it moves only that transaction.
+- One transaction split by amounts: the share is part / total with 8 decimals, e.g. 90 of 250:
+  `... Expenses:Sport Expenses:Kids:Education 0.36`. Amounts are rounded to cents.
 - Payments to a credit card with no statements (minimum payments, repayments) go to one
   `Expenses:CreditCard` account, matched by the card account's IBAN.
 

@@ -1,5 +1,7 @@
 ; Facts that no statement shows: a property's purchase price and value, a loan before the first
-; statement, a closed fund. Statements and rules book the payments; this file adds what they cannot.
+; statement, a closed fund, money lent to a person, an account without statements (a meal card, a
+; pension fund, building savings), a tax accrued in the year of the income. Statements and rules book
+; the payments; this file adds what they cannot.
 ; `pad` + `balance` set an account to a known value and book the difference to the other account.
 ; The examples use made-up values.
 
@@ -14,6 +16,11 @@
 ; An assessed value above the cost is a revaluation, not income (open Equity:Revaluation):
 ; 2015-05-31 pad Assets:Me:Property:Flat Equity:Revaluation
 ; 2015-06-01 balance Assets:Me:Property:Flat  150000.00 EUR
+;
+; A tax paid later, accrued in the year of the income (a rule books the payment to the liability):
+; 2025-12-31 * "Income tax accrued for 2025"
+;   Expenses:Taxes:Income  1500.00 EUR
+;   Liabilities:Taxes:Income
 ;
 ; A closed fund: what the payouts exceed the deposits by is the gain:
 ; 2018-12-31 pad Assets:Me:Investments:Fund Income:Investments:Gains

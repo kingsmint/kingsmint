@@ -198,8 +198,7 @@ def main():
     elif cmd == "reimport":
         if not any(f.is_file() for f in Path("documents").rglob("*") if f.name != ".keep"):
             sys.exit("nothing in documents/ to reimport from; run in the ledger directory")
-        importer.clear_generated()
-        importer.main(["--force", "documents"])
+        importer.main(["--force", "documents"], clear=True)
     elif cmd == "check":
         check()
     elif cmd == "coverage":

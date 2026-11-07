@@ -1,7 +1,9 @@
 ; Cash payments the owner names. A withdrawal is spent when withdrawn (`Expenses:Cash`); an entry here moves
 ; a cash payment from `Expenses:Cash` to its real category, so `Expenses:Cash` keeps only the cash nobody
 ; categorized. `kingsmint reimport` does not touch this file. The example uses made-up values.
+; A receipt goes to documents/Expenses/Cash/<date>.<name>.pdf; `document:` links it in Fava.
 
 ; 2025-06-10 * "Building supplies" "Bathroom tiles, paid in cash"
+;   document: "2025-06-10.tiles.pdf"
 ;   Expenses:Home:Repairs   1200.00 EUR
 ;   Expenses:Cash          -1200.00 EUR
