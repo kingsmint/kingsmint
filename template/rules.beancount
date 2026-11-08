@@ -7,7 +7,8 @@
 ; First matching rule wins, so put specific rules before general ones.
 ; A rule applies only to transactions on or after its DATE.
 ; After changing rules, run `uv run kingsmint reimport`.
+; A rule is for a counterparty that comes again. One transaction is changed in ledger/ instead:
+; `reimport` keeps edits to a transaction there.
 
 ; 2000-01-01 custom "rule" "\\bLidl\\b|\\bTesco\\b" Expenses:Food:Groceries
 
-; Unknown: counterparties the user could not explain; the categorize skill does not ask about them again.

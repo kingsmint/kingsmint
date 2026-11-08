@@ -25,7 +25,9 @@ progress notes between commands. The skills this one runs keep it too.
 3. Copy the template: `cp -R "${CLAUDE_PLUGIN_ROOT}/template/." .`
 4. `pyproject.toml`: replace `{ git = "KINGSMINT_SOURCE" }`. When `${CLAUDE_PLUGIN_ROOT}` is a checkout the
    user develops (it is outside `~/.claude/plugins/`, for example from `claude --plugin-dir`), use
-   `{ path = "${CLAUDE_PLUGIN_ROOT}", editable = true }`; otherwise `{ git = "https://github.com/kingsmint/kingsmint" }`.
+   `{ path = "${CLAUDE_PLUGIN_ROOT}", editable = true }`; otherwise `{ git = "https://github.com/kingsmint/kingsmint",
+   tag = "v<version>" }` with the `version` from `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`: the ledger
+   runs the kingsmint release that matches these skills.
    Run `uv sync` (it installs the Python version in `.python-version` when missing), then
    `uv run kingsmint upgrade --done`: the ledger matches this kingsmint's template.
 5. Ask the user to download their statements into `inbox/`, as far back as each bank allows, for every

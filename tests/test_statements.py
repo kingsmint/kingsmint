@@ -1,4 +1,5 @@
 """End to end: fake statements of every supported bank -> `kingsmint import` -> a valid ledger."""
+import re
 import shutil
 import subprocess
 import sys
@@ -78,6 +79,7 @@ def test_import_every_bank(tmp_path):
     assert kingsmint(ledger, "import").stdout.startswith("nothing to import in ")
 
     out = "".join(f.read_text(encoding="utf-8") for f in sorted((ledger / "ledger").rglob("*.beancount")))
+    out = re.sub(r'\n  id: "km-[0-9a-f]{12}"', "", out)  # ids are hashes
     for expected in ['"Lidl Bratislava" "Platba kartou"\n  document: "2025-06-01_2025-06-30.SK3102000000001234567890.pdf"\n  Assets:Me:VUB:Current  -45.20 EUR\n'
                      '  Expenses:Food:Groceries\n',  # VUB
                      '"Example s.r.o." "Mzda 05/2025"', '"Jana Testová" "Nájom 06/2025"',

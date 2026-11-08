@@ -5,6 +5,45 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
+## Unreleased
+
+- `reimport` keeps what you change in a transaction in `ledger/`: its account or a split, narration, tags,
+  metadata such as `note:`, and comments. Each transaction gets an `id` (its account, date, amount and order
+  that day), and `.kingsmint/base/` keeps what kingsmint wrote last time, to tell your edits from new rules.
+  When both changed the same part, your edit stays and `reimport` says so. An edited transaction that a new
+  import no longer writes goes to `.kingsmint/orphans.beancount`, and `check` fails until it is resolved.
+- One transaction is categorized by editing it, not by a rule; the categorize skill does this.
+  `Expenses:Uncategorized:Unidentified` and `Income:Uncategorized:Unidentified` hold what you could not
+  explain, so Claude does not ask about it again.
+- `check` fails when two statements hold the same movements (overlapping periods), naming both files.
+- `kingsmint rules` lists transactions whose postings you edited and where a rule now says another account;
+  `kingsmint reset ID` gives one back the postings and flag kingsmint wrote, so the rules apply again.
+- A ledger runs the kingsmint release that matches the plugin: the import and categorize skills pin it with
+  `uv add … --tag v<version>` when the plugin is newer.
+- `reimport` stops before it deletes anything when it cannot read a file in `ledger/`, and `check` fails on
+  it, naming the line; a comment after a metadata value (`key: "x" ; text`) is such a line: move the comment
+  to its own line.
+
+### Ledger
+
+- Add after `2000-01-01 open Income:Uncategorized` in `accounts.beancount`:
+  `2000-01-01 open Income:Uncategorized:Unidentified`, and after `Expenses:Uncategorized` (with its `need`):
+  `2000-01-01 open Expenses:Uncategorized:Unidentified` with `need: "unknown"`. Then turn each comment under
+  the "Unknown" heading at the end of `rules.beancount` into a rule for that counterparty to
+  `Expenses:Uncategorized:Unidentified` (or `Income:…`), keeping the comment above it, and delete the heading.
+  Why: the categorize skill no longer reads that heading; the account keeps these out of its list.
+- In `CLAUDE.md`, replace the invariant that starts with "`ledger/` is generated" by the one in the kingsmint
+  template (`template/CLAUDE.md`). Why: edits to transactions in `ledger/` now survive `reimport`.
+- `uv run kingsmint upgrade --done` reimports the statements: every transaction gets an `id` line and the first
+  line of each generated file changes. Check that nothing else changed in `ledger/` beyond the rules of the steps
+  above, then commit, including the new `.kingsmint/` folder. Why: the ids and `.kingsmint/base/` make later edits
+  survive; `check` fails until then.
+- Optional, after `upgrade --done`: move rules for one transaction into the transaction. A rule is one when it is
+  dated on the day of its only transaction and matches an exact amount. Delete these rules, run
+  `uv run kingsmint reimport` once, then set each rule's account in its transaction and move the rule's own comment
+  into its `note:` (see "Editing one transaction" in the categorize skill). Leave other rules. Why: fewer rules, and the
+  explanation shows in Fava next to the transaction.
+
 ## 0.1.6
 
 - Cash payments: `cash.beancount` holds the cash payments you name, each moved from `Expenses:Cash` to its

@@ -19,13 +19,14 @@ SKILLS = ["import", "categorize", "explain"]  # setup and add-bank have their ow
 NOTE = (
     "> **In the Claude app** (chat or Cowork): the kingsmint extension runs the commands on the user's computer. "
     "Run `uv run kingsmint <command>` as the tool `kingsmint_<command>` (`kingsmint_scan`, `kingsmint_import`, "
-    "`kingsmint_rules`, `kingsmint_reimport`, `kingsmint_check`, `kingsmint_coverage`, `kingsmint_upgrade`), and "
+    "`kingsmint_rules`, `kingsmint_reimport`, `kingsmint_reset`, `kingsmint_check`, `kingsmint_coverage`, `kingsmint_upgrade`), and "
     "`uv run bean-query -q main.beancount \"<query>\"` as `kingsmint_query`. Edit `accounts.beancount`, "
     "`rules.beancount`, `property.beancount` and `cash.beancount` directly in the connected folder. Instead of a commit, save a version "
     "with `kingsmint_save`; skip the diff steps. The user can go back with `kingsmint_restore`. The first "
     "`kingsmint_*` call needs `ledger_dir`: the connected folder's path on the user's computer (not the /sessions/... sandbox path); later calls remember it. If you do not know that path, "
     "ask the user. If the tools are missing: tell the user to install the kingsmint extension (`kingsmint.mcpb`) in "
-    "by double-clicking it on this computer, and to connect the ledger folder to the chat."
+    "by double-clicking it on this computer, and to connect the ledger folder to the chat. Skip matching the "
+    "ledger's kingsmint to the plugin in `pyproject.toml`: the extension brings its own kingsmint; run `kingsmint_upgrade`."
 )
 
 

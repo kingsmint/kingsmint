@@ -63,6 +63,10 @@ To work in another language, write it after the command, in that language; the l
 /kingsmint:setup po slovensky
 ```
 
+Updates: in Claude Code, `/plugin` > Marketplaces > kingsmint > Enable auto-update, or run
+`claude plugin marketplace update kingsmint` and `claude plugin update kingsmint`. The next import in a ledger
+moves it to the package of the new plugin version.
+
 ## Commands (in the ledger repository)
 
 | Command | Does |
