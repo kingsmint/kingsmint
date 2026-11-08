@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "kingsmint",
-      "source": "./",
+      "source": {"source": "github", "repo": "kingsmint/kingsmint", "ref": "v0.1.7"},
       "description": "Personal and one-person-company accounting with Beancount and Fava."
     }
   ]

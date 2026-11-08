@@ -5,7 +5,7 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
-## Unreleased
+## 0.1.7
 
 - `reimport` keeps what you change in a transaction in `ledger/`: its account or a split, narration, tags,
   metadata such as `note:`, and comments. Each transaction gets an `id` (its account, date, amount and order

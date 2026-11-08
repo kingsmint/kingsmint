@@ -17,6 +17,8 @@ jobs:
       - run: uv run --locked pytest
       - name: Tag matches the version
         run: test "$GITHUB_REF_NAME" = "v$(uv run python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+      - name: The plugin installs from this tag
+        run: test "$(jq -r '.plugins[0].source.ref' .claude-plugin/marketplace.json)" = "$GITHUB_REF_NAME"
       - name: Notes from CHANGELOG.md
         run: |
           awk -v v="## ${GITHUB_REF_NAME#v}" '$0 == v {on = 1; next} /^## / {on = 0} on' src/kingsmint/CHANGELOG.md > notes.md
