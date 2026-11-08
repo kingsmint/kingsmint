@@ -20,8 +20,9 @@ PORT = 5057
 
 mcp = MCPServer("kingsmint", instructions="""Kingsmint keeps a Beancount ledger in a folder on the user's computer.
 Use these tools for every kingsmint command; they run on the user's computer, not in your sandbox.
-- `ledger/` is generated: change categories by editing rules.beancount and accounts.beancount in the
-  ledger folder, then call kingsmint_rules (preview), kingsmint_reimport, and kingsmint_check.
+- `ledger/` is generated: change the categories of a recurring counterparty by editing rules.beancount and
+  accounts.beancount in the ledger folder, then call kingsmint_rules (preview), kingsmint_reimport, and
+  kingsmint_check. Change one transaction directly in its ledger/ file: reimport keeps edits to a transaction.
 - A rule: `2000-01-01 custom "rule" "REGEX" Account`; the regex matches `payee | narration | iban | amount`
   (and `VS<variable symbol>`); the first matching rule in file order wins.
 - A new user: kingsmint_start creates the ledger folder and opens it. kingsmint_banks lists the supported banks.
@@ -162,6 +163,13 @@ def kingsmint_reimport(message: str = "Reimport with the current rules", ledger_
 
 
 @mcp.tool()
+def kingsmint_reset(id: str, ledger_dir: str = "") -> str:
+    """Give one transaction (by its `id` metadata) the postings and flag kingsmint wrote, dropping hand edits to them;
+    notes, tags and narration stay. Then call kingsmint_reimport to apply the current rules."""
+    return run(ledger_dir, "reset", id)
+
+
+@mcp.tool()
 def kingsmint_save(message: str, ledger_dir: str = "") -> str:
     """Save a version of the ledger folder after a change. message: what changed in the first line, e.g. "Rules: gas and
     electricity by variable symbol", and below it why: what the user said, which transactions showed it, what was wrong
@@ -188,7 +196,7 @@ def kingsmint_restore(version: str = "", ledger_dir: str = "") -> str:
 @mcp.tool()
 def kingsmint_query(query: str, ledger_dir: str = "") -> str:
     """Run a bean-query (BQL) query on main.beancount, e.g. uncategorized transactions:
-    SELECT date, payee, narration, position WHERE account ~ 'Uncategorized'"""
+    SELECT date, payee, narration, position WHERE account ~ '^(Expenses|Income):Uncategorized$'"""
     exe = Path(sys.executable).parent / ("bean-query.exe" if os.name == "nt" else "bean-query")
     p = subprocess.run([str(exe), "-q", "main.beancount", query], cwd=ledger(ledger_dir),
                        capture_output=True, text=True, encoding="utf-8", timeout=300)

@@ -8,7 +8,10 @@ description: Import bank and broker statements from inbox/ into the ledger. Use 
 Write every message to the user, also short progress notes, in the language that `CLAUDE.md` names,
 or else in the language the user writes in.
 
-0. Run `uv run kingsmint upgrade`. When it lists changes, the ledger was made with an older kingsmint: propose
+0. Match the ledger's kingsmint to this plugin: read `version` in `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`.
+   When `pyproject.toml` takes kingsmint from `git` without `tag = "v<version>"`, run
+   `uv add "git+https://github.com/kingsmint/kingsmint" --tag v<version>`; a `path` source is a checkout the user
+   develops, leave it. Then run `uv run kingsmint upgrade`. When it lists changes, the ledger was made with an older kingsmint: propose
    them to the user in one message, in plain words, with the why. After the user agrees, apply them so that the
    owner's own edits stay, run `uv run kingsmint upgrade --done`, and commit `Upgrade the ledger to kingsmint
    <version>` with the changes and their why in the body. When the user declines, go on without them.

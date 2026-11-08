@@ -1,6 +1,6 @@
 ---
 name: categorize
-description: Categorize transactions by writing rules in rules.beancount. Use for Uncategorized transactions, a wrong category, or a new payee.
+description: Categorize transactions: rules in rules.beancount for recurring counterparties, edits in ledger/ for one transaction. Use for Uncategorized transactions, a wrong category, or a new payee.
 ---
 
 # Categorize
@@ -8,15 +8,16 @@ description: Categorize transactions by writing rules in rules.beancount. Use fo
 Write every message to the user, also short progress notes, in the language that `CLAUDE.md` names,
 or else in the language the user writes in.
 
+0. Do step 0 of the import skill first: a ledger on an older kingsmint loses edits to transactions.
 1. List the uncategorized transactions, grouped by counterparty (IBAN, else payee), largest first.
    `amount` is what the account received (negative: paid), `account` is the bank account:
    ```
    uv run bean-query -q main.beancount "SELECT coalesce(str(entry_meta('iban')), payee) AS counterparty,
      -sum(number) AS amount, currency, count(position) AS n, min(date) AS first, max(date) AS last,
      first(other_accounts) AS account, first(payee) AS payee, first(narration) AS example
-     WHERE account ~ 'Uncategorized' GROUP BY counterparty, currency ORDER BY abs(sum(number)) DESC"
+     WHERE account ~ '^(Expenses|Income):Uncategorized$' GROUP BY counterparty, currency ORDER BY abs(sum(number)) DESC"
    ```
-   Skip the groups listed under "Unknown" in `rules.beancount`, unless the user asks about them.
+   `Uncategorized:Unidentified` holds what the user already could not explain; it is not in this list.
    No rows left: report that nothing is uncategorized and stop. Otherwise read the transactions of a
    group (`WHERE entry_meta('iban') = '…'` or `payee = '…'`) when the example is not enough.
 2. Categorize what is clear from the text (a shop, a utility, a known client). For each group that is
@@ -24,10 +25,16 @@ or else in the language the user writes in.
    numbered list. Accept "I don't know": the group stays uncategorized, and step 3 records it.
    When no account in `accounts.beancount` fits a group, propose a new one, and list the proposed
    accounts with the questions so the user can rename or merge them. See "New accounts" below.
-3. Write one rule per answer in the matching section of `rules.beancount`, following its header and the
-   rule gotchas below. Put what the user explained into the rule's comment: the comment is the memory
-   for the next session. For each "I don't know" the user said, add a comment under the "Unknown" heading at the end
-   of `rules.beancount`: `; <counterparty>  <payee>, <amount>, <first date>: asked <today>, unknown`.
+3. Record each answer where it belongs:
+   - A counterparty that comes again (a shop, a utility, a client, a salary, a yearly insurance): one rule
+     in the matching section of `rules.beancount`, following its header and the rule gotchas below. Put
+     what the user explained into the rule's comment: the comment is the memory for the next session.
+   - One transaction (a refund, a gift, a one-time purchase, a payment the general rule gets wrong): an
+     edit of that transaction in `ledger/`, as "Editing one transaction" below shows. What the user
+     explained goes into its `note:`.
+   - "I don't know": the same choice, with the account `Expenses:Uncategorized:Unidentified` (or
+     `Income:Uncategorized:Unidentified`): a rule with the comment `; asked <today>, unknown` for a
+     counterparty that comes again, else an edit with `note: "asked <today>, unknown"`.
    A question nobody answered (no user, the user skipped it) is not an answer: record nothing, and
    the group comes back in the next run.
 4. A transaction is often not an expense:
@@ -38,8 +45,9 @@ or else in the language the user writes in.
      `property.beancount`, as its examples show.
    - money from a partner who shares the assets → their `Equity:` account
    - a payment in cash that the user names (what, when, how much) → an entry in `cash.beancount`
-     that moves the amount from `Expenses:Cash` to its category, as its example shows. Never into
-     `ledger/`: `reimport` deletes the generated files there.
+     that moves the amount from `Expenses:Cash` to its category, as its example shows. `ledger/` holds
+     only what the statements show: an entry added there by hand moves to `.kingsmint/orphans.beancount`
+     on the next `reimport`.
 
    Facts about the household and the company come from the transactions, not from an interview. Ask
    about one in the same numbered list when a group shows it, and record the answer as a comment in
@@ -50,8 +58,12 @@ or else in the language the user writes in.
 5. Run `uv run kingsmint rules`: it shows, by rule, which transactions the edited rules would move, from
    which account to which, with examples. Fix a rule that moves more than intended before you go on.
    Then run `uv run kingsmint reimport` and `uv run kingsmint check`; it must print nothing that was not
-   there before your change (run `check` once before your first edit to know) (a Transit `FAIL` about a missing statement can stay). Diff the ledger (`jj diff --stat` or `git diff --stat`) and spot-check
+   there before your change (run `check` once before your first edit to know) (a Transit `FAIL` about a missing statement can stay). Diff the ledger (`jj diff --stat ledger/` or `git diff --stat ledger/`; `.kingsmint/` repeats it) and spot-check
    that each new rule moved only the intended transactions; a rule that also caught others is too broad.
+   `kingsmint rules` also lists transactions whose postings were edited by hand and where a rule now says
+   another account: ask the user which one is right; to take the rule, run the `reset` it prints.
+   `reimport` prints a `conflict` line when a hand edit and kingsmint changed the same part; it keeps the
+   edit. Ask the user about each one the same way.
 6. Commit, naming the categories that changed.
 
 ## New accounts
@@ -67,6 +79,35 @@ The tree grows from the user's transactions; there is no default tree.
 - Taxes the user pays go to `Expenses:Taxes:<Kind>`; a company's costs to `Expenses:Business:<Item>`
   with `need: "income-linked"`: they stop when the company stops. Bank fees stay in `Expenses:Bank:Fees`
   for every account: the importer posts fees there, and the paying account shows whose they are.
+
+## Editing one transaction
+
+Find its file and line by date and amount, then change it in place:
+```
+uv run bean-query -q main.beancount "SELECT date, filename, lineno, entry_meta('id') AS id, account, number
+  WHERE date = 2025-03-04 AND number = -99.00"
+```
+`reimport` keeps the account and the postings, the flag, payee, narration, tags and links, metadata, and
+comments:
+
+```
+2025-03-04 * "City Museum" "Annual pass" #family
+  id: "km-3f2a9c01b7e4"
+  note: "annual pass for the family, paid once a year"
+  document: "2025-03-01_2025-03-31.SK3112000000001987654321.pdf"
+  Assets:Me:Bank:Current  -99.00 EUR
+  Expenses:Leisure:Culture
+```
+
+- Keep the `id` and the bank account posting as kingsmint wrote them: the id ties the edit to the
+  statement row. Set the flag to `*` once the transaction has its category.
+- A split: one posting per category with its amount; one posting may stay without an amount.
+- Postings edited by hand stay when the rules change later; `kingsmint rules` lists those where a rule
+  now says another account.
+- Put a comment on its own line or after a posting; `check` fails on a comment after a metadata value
+  (`key: "x" ; text`), which `reimport` cannot read.
+- `uv run kingsmint reset <id>` gives a transaction back the postings and flag kingsmint wrote; notes, tags
+  and narration stay. Then `reimport` applies the current rules.
 
 ## Rule gotchas
 
@@ -85,13 +126,10 @@ The tree grows from the user's transactions; there is no default tree.
   counterparty puts into every payment: `"^RF18 5390"`.
 - A short name catches other shops (`HM` caught "HM TESCO" and ATM rows). Anchor it or add the city,
   and read every example in `uv run kingsmint rules` before reimport.
-- One transaction (a refund, a gift, a payment the general rule gets wrong): a rule dated on that
-  day that matches the counterparty and the exact amount, above the general rule:
-  `2025-03-04 custom "rule" "SK3112000000001987654321 \\| -250\\.00$" Expenses:Gifts`. It has no end
-  date, so `uv run kingsmint rules` must show that it moves only that transaction.
-- One transaction split by amounts: the share is part / total with 8 decimals, e.g. 90 of 250:
-  `... Expenses:Sport Expenses:Kids:Education 0.36`. Amounts are rounded to cents.
+- A recurring payment split by shares: the share is part / total with 8 decimals, e.g. 90 of 250:
+  `... Expenses:Sport Expenses:Kids:Education 0.36`. Amounts are rounded to cents. Split one
+  transaction by editing it instead.
 - Payments to a credit card with no statements (minimum payments, repayments) go to one
   `Expenses:CreditCard` account, matched by the card account's IBAN.
 
-Done when every account the rules name is open and every group from step 1 has a rule or an answer from the user that leaves it uncategorized.
+Done when every account the rules and edits name is open and every group from step 1 has a rule, edited transactions, or no answer from the user yet.

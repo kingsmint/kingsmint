@@ -27,7 +27,9 @@
 
 ; Income and expense accounts grow from your transactions: the `categorize` skill adds one when
 ; no existing account fits, as `Income:<Area>` or `Expenses:<Area>:<Item>`.
+; Uncategorized: no rule and nobody looked yet. Uncategorized:Unidentified: the owner was asked and does not know.
 2000-01-01 open Income:Uncategorized
+2000-01-01 open Income:Uncategorized:Unidentified
 
 ; `need` on expense accounts groups spending for the baseline queries in Fava:
 ; essential (fixed by contract or law), flexible (needed, can be reduced), optional (luxury, can stop),
@@ -39,4 +41,6 @@
 2000-01-01 open Expenses:Bank:Fees
   need: "essential"
 2000-01-01 open Expenses:Uncategorized
+  need: "unknown"
+2000-01-01 open Expenses:Uncategorized:Unidentified
   need: "unknown"

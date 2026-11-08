@@ -2,7 +2,7 @@
 
 Beancount + Fava ledger of one person and their company, built with kingsmint (the `kingsmint` Claude Code
 plugin: skills `import`, `categorize`, `explain`, `add-bank`). Commands: `uv run kingsmint` (scan, import,
-rules, reimport, check, coverage, fava, rates, doctor). Facts about the owner (people, arrangements, which IBAN belongs to whom)
+rules, reimport, reset, check, coverage, fava, rates, doctor). Facts about the owner (people, arrangements, which IBAN belongs to whom)
 live as comments in `accounts.beancount` and `rules.beancount`: read them before answering questions
 about the money, and record new facts there, next to the account or rule they explain. Values that no
 statement shows (property, loans before the first statement) live in `property.beancount`; cash payments
@@ -21,7 +21,10 @@ comments) stay as they are.
 
 ## Invariants
 
-- `ledger/` is generated. Change behaviour through `rules.beancount`, then `uv run kingsmint reimport`.
+- `ledger/` is generated from `documents/` and `rules.beancount`; change recurring behaviour through rules, then
+  `uv run kingsmint reimport`. Edits to one transaction there (account, postings, narration, tags, metadata,
+  comments) survive `reimport`; new entries and other lines do not. `.kingsmint/` holds what kingsmint generated
+  last time, to tell edits from changes: commit it, never edit it.
 - Every imported statement reconciles (opening + transactions = closing); a `FAIL` line is a parser or
   data bug to fix, never to bypass.
 - After every change: `uv run kingsmint check` prints nothing new, then commit. A Transit `FAIL` may wait for a
