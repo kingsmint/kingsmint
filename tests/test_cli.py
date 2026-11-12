@@ -63,6 +63,22 @@ def test_upgrade(tmp_path, monkeypatch, capsys):
     assert "nothing to change" in capsys.readouterr().out.splitlines()[-1]
 
 
+
+def test_upgrade_pins_the_package(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "releases", lambda: [("0.3.0", "")])
+    monkeypatch.setattr(cli, "old_files", lambda: [])
+    src = '[tool.uv.sources]\nkingsmint = {{ {} }}  # set by /kingsmint:setup\n'
+    (tmp_path / "pyproject.toml").write_text(src.format('git = "https://example.org/k", tag = "v0.2.0"'))
+    cli.upgrade(["--done"])
+    assert (tmp_path / "pyproject.toml").read_text() == src.format('git = "https://example.org/k", tag = "v0.3.0"')
+    (tmp_path / "co").mkdir()
+    (tmp_path / "co" / "pyproject.toml").write_text('[project]\nversion = "0.1.0"\n')
+    (tmp_path / "pyproject.toml").write_text(src.format(f'path = "{(tmp_path / "co").as_posix()}", editable = true'))
+    capsys.readouterr()
+    cli.upgrade(["--done"])
+    assert "WARN pyproject.toml takes kingsmint 0.1.0" in capsys.readouterr().out
+
 TXN = '{date} * "Shop" "Card"\n  id: "km-000000000001"\n  Assets:Me:Bank:Current  -10.00 EUR\n  Expenses:Uncategorized\n'
 
 

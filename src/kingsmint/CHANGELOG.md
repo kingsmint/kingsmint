@@ -5,6 +5,18 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
+## Unreleased
+
+- `kingsmint upgrade --done` sets the ledger's kingsmint tag in `pyproject.toml` to the upgraded version, also
+  in the Claude app, whose own kingsmint did not change the ledger's. When the ledger takes kingsmint from a
+  local checkout (`path`) of another version, it warns.
+
+### Ledger
+
+- When `pyproject.toml` takes kingsmint from a `path` that you do not develop in (an older setup wrote one),
+  take the release instead: `uv add "git+https://github.com/kingsmint/kingsmint" --tag v<version>`. A checkout
+  does not update itself, so `uv run kingsmint` ran an older kingsmint than the plugin.
+
 ## 0.1.7
 
 - `reimport` keeps what you change in a transaction in `ledger/`: its account or a split, narration, tags,
