@@ -190,11 +190,30 @@ def pending():
     return have, [(v, text) for v, text in reversed(releases()) if key(v) > key(have) and text]
 
 
+def pin(installed):
+    """pyproject.toml of the ledger takes the kingsmint it was upgraded with: a git source gets its tag, so the
+    Claude app's own kingsmint and `uv run` agree; a path source is the user's checkout, only checked."""
+    p = Path("pyproject.toml")
+    text = p.read_text(encoding="utf-8") if p.exists() else ""
+    if m := re.search(r'^kingsmint = \{ *git = "([^"]+)"[^}\n]*\}', text, re.M):
+        line = f'kingsmint = {{ git = "{m[1]}", tag = "v{installed}" }}'
+        if m[0] != line:
+            p.write_text(text.replace(m[0], line), encoding="utf-8")
+            print(f"pyproject.toml: kingsmint from tag v{installed}; commit it with uv.lock")
+    elif m := re.search(r'^kingsmint = \{ *path = "([^"]+)"', text, re.M):
+        src = Path(m[1]).expanduser() / "pyproject.toml"
+        v = re.search(r'^version = "([^"]+)"', src.read_text(encoding="utf-8"), re.M)[1] if src.exists() else "?"
+        if v != installed:
+            print(f"WARN pyproject.toml takes kingsmint {v} from {m[1]}, the ledger is at {installed}: update that "
+                  f"checkout, or take the release: `uv add \"git+https://github.com/kingsmint/kingsmint\" --tag v{installed}`")
+
+
 def upgrade(args):
     installed = releases()[0][0]
     if args == ["--done"]:
         VERSION_FILE.write_text(installed + "\n", encoding="utf-8")
         print(f"ledger is at kingsmint {installed}")
+        pin(installed)
         if old_files():
             print("reimport: the statements in ledger/ get transaction ids, so edits there survive later reimports")
             reimport()
