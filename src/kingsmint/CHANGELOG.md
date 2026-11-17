@@ -7,6 +7,8 @@ here is the installed version.
 
 ## Unreleased
 
+- With one transaction in two overlapping statements, `reimport` keeps your edit of it whichever file it
+  reads first, and an unedited transaction no longer goes to `.kingsmint/orphans.beancount`.
 - `kingsmint upgrade --done` sets the ledger's kingsmint tag in `pyproject.toml` to the upgraded version, also
   in the Claude app, whose own kingsmint did not change the ledger's. When the ledger takes kingsmint from a
   local checkout (`path`) of another version, it warns.

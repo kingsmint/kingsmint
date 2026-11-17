@@ -1,5 +1,7 @@
 import datetime as dt
 from decimal import Decimal
+from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -77,8 +79,12 @@ def test_collect_keeps_the_edited_copy_of_a_duplicate(tmp_path):
         for name in ("1.beancount", "2.beancount"):
             (tmp_path / folder / name).write_text(head + BASE, encoding="utf-8")
     (tmp_path / "ledger/A/1.beancount").write_text(head + txn("!", "Museum"), encoding="utf-8")
-    kept, _ = collect(tmp_path)
-    assert '"Museum"' in kept["km-1"][3]  # whichever file is read last
+    for first in ("1.beancount", "2.beancount"):  # the file header is not an edit, whichever file is read first
+        real = Path.rglob
+        order = lambda self, pattern: sorted(real(self, pattern), key=lambda f: f.name != first)
+        with mock.patch.object(Path, "rglob", order):
+            kept, _ = collect(tmp_path)
+        assert '"Museum"' in kept["km-1"][3]
 
 
 
