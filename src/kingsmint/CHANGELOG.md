@@ -5,7 +5,7 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
-## Unreleased
+## 0.1.8
 
 - With one transaction in two overlapping statements, `reimport` keeps your edit of it whichever file it
   reads first, and an unedited transaction no longer goes to `.kingsmint/orphans.beancount`.
