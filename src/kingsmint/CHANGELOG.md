@@ -5,6 +5,11 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
+## Unreleased
+
+- Claude app: the install steps follow the new layout: upload the plugin in **Plugins** in the sidebar,
+  then **Add > Upload plugin**.
+
 ## 0.1.8
 
 - With one transaction in two overlapping statements, `reimport` keeps your edit of it whichever file it
