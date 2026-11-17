@@ -1,6 +1,6 @@
 """Build the plugin for the Claude app (chat and Cowork): `uv run python desktop/build.py` -> desktop/dist/kingsmint.plugin.
 
-Two files, both installed on each computer: desktop/dist/kingsmint.plugin holds the skills (Settings > Customize > Plugins >
+Two files, both installed on each computer: desktop/dist/kingsmint.plugin holds the skills (Plugins in the sidebar >
 Add > Upload plugin), desktop/dist/kingsmint.mcpb the kingsmint MCP server (double-click it to install). The server is a separate
 extension because Claude starts an MCPB inside a plugin with the `uv` on PATH, which most users lack; an extension
 gets Claude's own uv, which installs Python and the dependencies.
