@@ -1,0 +1,6 @@
+/* The app's design tokens: Web Awesome's default theme, with the fonts Fava uses. The app's page and Fava load it, so a
+   token changed here changes both. */
+:root {
+  --wa-font-family-body: "Fira Sans", -apple-system, system-ui, sans-serif;
+  --wa-font-family-code: "Fira Mono", "SF Mono", Menlo, Consolas, monospace;
+}

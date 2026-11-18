@@ -1,0 +1,53 @@
+// The app's keyboard shortcuts, on its page and in Fava's frames (fava.js).
+import { pane } from "./rail.js";
+import { active, dock, tabs } from "./state.js";
+import { defaultAgent, newTab, showTab } from "./terminal.js";
+import { zoom } from "./zoom.js";
+
+export function shortcut(e) {
+  if (!e.metaKey) return;
+  if (e.key === "+" || e.key === "=" || e.code === "Equal") {
+    e.preventDefault();
+    return zoom(1);
+  }
+  if (e.key === "-" || e.code === "Minus") {
+    e.preventDefault();
+    return zoom(-1);
+  }
+  if (e.key === "0" || e.code === "Digit0") {
+    e.preventDefault();
+    return zoom(0);
+  }
+  // ⌘1-3 in the order of the rail: inbox, Fava, agent
+  if (e.key === "1") {
+    e.preventDefault();
+    pane("inbox");
+  }
+  if (e.key === "2") {
+    e.preventDefault();
+    pane("fava");
+  }
+  if (e.key === "3" || e.key === "j") {
+    e.preventDefault();
+    pane("side");
+  }
+  if (e.code === "KeyT" && dock) {
+    e.preventDefault();
+    newTab(active ? active.agent : defaultAgent());
+  }
+  // ⌘[ and ⌘]: back and forward in Fava; the window's history holds the frame's pages
+  if (!e.shiftKey && (e.code === "BracketLeft" || e.code === "BracketRight")) {
+    e.preventDefault();
+    e.code === "BracketLeft" ? history.back() : history.forward();
+  }
+  if (e.shiftKey && (e.code === "BracketLeft" || e.code === "BracketRight") && active) {
+    e.preventDefault();
+    const i = tabs.indexOf(active) + (e.code === "BracketRight" ? 1 : -1);
+    showTab(tabs[(i + tabs.length) % tabs.length]);
+  }
+}
+
+// The shortcuts on the app's page (Fava's frames get them in fava.js).
+export function initShortcuts() {
+  addEventListener("keydown", shortcut);
+}
