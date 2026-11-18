@@ -3,7 +3,7 @@
   "name": "kingsmint",
   "display_name": "Kingsmint",
   "version": "0.1.9",
-  "description": "Personal and one-person-company accounting with Beancount and Fava: import bank statements, check the ledger, and open Fava.",
+  "description": "Ask about your money from any chat: reads the Kingsmint ledger on this computer (Beancount), answers with numbers, and opens Fava. Changes go through the Kingsmint app.",
   "author": {
     "name": "kingsmint"
   },
@@ -11,7 +11,7 @@
     "ledger_dir": {
       "type": "directory",
       "title": "Ledger folder",
-      "description": "The folder with main.beancount, or an empty folder for a new ledger",
+      "description": "The folder with main.beancount; empty: the ledger the Kingsmint app opened last",
       "required": false,
       "default": ""
     }
@@ -43,32 +43,8 @@
   },
   "tools": [
     {
-      "name": "kingsmint_start",
-      "description": "Create the ledger folder and open it for the statements"
-    },
-    {
-      "name": "kingsmint_banks",
-      "description": "List the supported banks and statement formats"
-    },
-    {
-      "name": "kingsmint_text",
-      "description": "Show the text of a statement, to write a parser"
-    },
-    {
-      "name": "kingsmint_new_ledger",
-      "description": "Create a ledger in an empty folder"
-    },
-    {
-      "name": "kingsmint_scan",
-      "description": "Show what the statements in inbox/ are"
-    },
-    {
-      "name": "kingsmint_import",
-      "description": "Import statements from inbox/"
-    },
-    {
-      "name": "kingsmint_upgrade",
-      "description": "What to change in a ledger made with an older kingsmint"
+      "name": "kingsmint_query",
+      "description": "Run a bean-query SQL query on the ledger"
     },
     {
       "name": "kingsmint_check",
@@ -79,32 +55,16 @@
       "description": "Imported periods and gaps per account"
     },
     {
-      "name": "kingsmint_rules",
-      "description": "Preview what the rules would change"
-    },
-    {
-      "name": "kingsmint_reimport",
-      "description": "Rebuild ledger/ with the current rules"
-    },
-    {
-      "name": "kingsmint_query",
-      "description": "Run a bean-query SQL query"
-    },
-    {
-      "name": "kingsmint_save",
-      "description": "Save a version of the ledger"
-    },
-    {
       "name": "kingsmint_history",
-      "description": "List the saved versions"
+      "description": "The saved versions of the ledger and why it changed"
     },
     {
-      "name": "kingsmint_restore",
-      "description": "Undo the last change or return to a version"
+      "name": "kingsmint_banks",
+      "description": "List the supported banks and statement formats"
     },
     {
       "name": "kingsmint_fava",
-      "description": "Open Fava in the browser"
+      "description": "Open Fava (read-only) in the browser"
     }
   ]
 }

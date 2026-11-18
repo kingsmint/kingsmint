@@ -14,6 +14,10 @@ here is the installed version.
   (`2000-01-01 custom "payee" "^LIDL\\b" "Lidl"` in `rules.beancount`). Fava and queries then group
   its payments under one payee. The bank's text stays in the transaction's `bank_payee:`, and the category rules
   still match it. `kingsmint rules` shows the payees a rule would rename.
+- The Claude app extension only reads the ledger: ask about your money from any chat (`kingsmint_query`,
+  `check`, `coverage`, `history`, `fava`, which opens Fava read-only). Importing, categorizing and undoing
+  changes move to the Kingsmint app, so the two never write the same ledger at once. The extension finds the
+  ledger the Kingsmint app opened last; the plugin keeps only the `explain` skill.
 
 ### Ledger
 

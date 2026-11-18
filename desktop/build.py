@@ -15,18 +15,15 @@ from pathlib import Path
 
 DESKTOP = Path(__file__).parent
 ROOT = DESKTOP.parent
-SKILLS = ["import", "categorize", "explain"]  # setup and add-bank have their own versions for the app
+SKILLS = ["explain"]  # the Claude app only reads the ledger; the Kingsmint app changes it
 NOTE = (
-    "> **In the Claude app** (chat or Cowork): the kingsmint extension runs the commands on the user's computer. "
-    "Run `uv run kingsmint <command>` as the tool `kingsmint_<command>` (`kingsmint_scan`, `kingsmint_import`, "
-    "`kingsmint_rules`, `kingsmint_reimport`, `kingsmint_reset`, `kingsmint_check`, `kingsmint_coverage`, `kingsmint_upgrade`), and "
-    "`uv run bean-query -q main.beancount \"<query>\"` as `kingsmint_query`. Edit `accounts.beancount`, "
-    "`rules.beancount`, `property.beancount` and `cash.beancount` directly in the connected folder. Instead of a commit, save a version "
-    "with `kingsmint_save`; skip the diff steps. The user can go back with `kingsmint_restore`. The first "
-    "`kingsmint_*` call needs `ledger_dir`: the connected folder's path on the user's computer (not the /sessions/... sandbox path); later calls remember it. If you do not know that path, "
-    "ask the user. If the tools are missing: tell the user to install the kingsmint extension (`kingsmint.mcpb`) in "
-    "by double-clicking it on this computer, and to connect the ledger folder to the chat. Skip matching the "
-    "ledger's kingsmint to the plugin in `pyproject.toml`: the extension brings its own kingsmint; run `kingsmint_upgrade`."
+    "> **In the Claude app** (chat or Cowork): the kingsmint extension reads the ledger on the user's computer. Run "
+    "`uv run bean-query -q main.beancount \"<query>\"` as the tool `kingsmint_query`, and `uv run kingsmint check` and "
+    "`coverage` as `kingsmint_check` and `kingsmint_coverage`. Do not change the ledger's files: the user changes "
+    "the ledger in the Kingsmint app. The first `kingsmint_*` call needs `ledger_dir` when the Kingsmint app has not "
+    "opened a ledger on this computer: the ledger folder's path on the user's computer (not the /sessions/... sandbox "
+    "path); later calls remember it. If you do not know that path, ask the user. If the tools are missing: tell the "
+    "user to install the kingsmint extension (`kingsmint.mcpb`) by double-clicking it on this computer."
 )
 
 
@@ -53,7 +50,7 @@ def build(out=DESKTOP / "dist"):
         z.write(DESKTOP / "pyproject.toml", "pyproject.toml")
         for f in ["main.py", "versions.py"]:
             z.write(DESKTOP / "server" / f, f"server/{f}")
-        for name, f in files(ROOT / "src" / "kingsmint", "server/kingsmint") + files(ROOT / "template", "template"):
+        for name, f in files(ROOT / "src" / "kingsmint", "server/kingsmint"):
             z.write(f, name)
 
     plugin = {"name": "kingsmint", "displayName": "Kingsmint", "version": version, "description": manifest["description"],
@@ -63,8 +60,6 @@ def build(out=DESKTOP / "dist"):
         z.writestr(".claude-plugin/plugin.json", json.dumps(plugin, indent=2))
         z.write(DESKTOP / "README.md", "README.md")
         z.write(ROOT / "LICENSE", "LICENSE")
-        for s in ["setup", "add-bank"]:
-            z.write(DESKTOP / f"{s}.md", f"skills/{s}/SKILL.md")
         for s in SKILLS:
             z.writestr(f"skills/{s}/SKILL.md", desktop_skill((ROOT / "skills" / s / "SKILL.md").read_text(encoding="utf-8")))
     return zip_path
