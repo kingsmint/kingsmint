@@ -13,6 +13,7 @@
   rates                        refresh month-end USD/EUR rates from the ECB
   doctor                       check the tools and the ledger files
   upgrade [--done]             what to change in a ledger made with an older kingsmint; --done: it is changed
+  skills                       copy this kingsmint's skills into .claude/skills/ of the ledger, for any agent
 """
 
 import datetime as dt
@@ -227,6 +228,33 @@ def upgrade(args):
         print("Apply these to the ledger (they keep the owner's own edits), then run `kingsmint upgrade --done`.")
 
 
+SKILLS = Path(".claude/skills")
+SKILLS_PREFIX = "kingsmint-"  # the copies; other skills in .claude/skills/ are the owner's
+
+
+def skills_source():
+    """The skills of this kingsmint: in the package (a wheel), or beside it in a checkout."""
+    here = Path(__file__).parent
+    return next(p for p in [here / "skills", here.parent.parent / "skills"] if p.is_dir())
+
+
+def skills():
+    """Copies the skills an agent needs in a ledger (not setup: the ledger exists) into .claude/skills/kingsmint-*,
+    replacing older copies and removing skills this version no longer has. They match the kingsmint the ledger runs,
+    so any agent (Claude Code without the plugin, Codex, Cursor through AGENTS.md) follows the same steps."""
+    src = skills_source()
+    names = sorted(p.name for p in src.iterdir() if (p / "SKILL.md").exists() and p.name != "setup")
+    SKILLS.mkdir(parents=True, exist_ok=True)
+    for old in SKILLS.glob(SKILLS_PREFIX + "*"):
+        if old.name.removeprefix(SKILLS_PREFIX) not in names:
+            shutil.rmtree(old)
+    for name in names:
+        dest = SKILLS / (SKILLS_PREFIX + name)
+        shutil.rmtree(dest, ignore_errors=True)
+        shutil.copytree(src / name, dest)
+    print(f"skills in {SKILLS}: {', '.join(names)}")
+
+
 def doctor():
     problems = 0
 
@@ -280,5 +308,7 @@ def main():
         doctor()
     elif cmd == "upgrade" and args in ([], ["--done"]):
         upgrade(args)
+    elif cmd == "skills" and not args:
+        skills()
     else:
         sys.exit(__doc__)

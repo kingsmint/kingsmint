@@ -7,8 +7,19 @@ here is the installed version.
 
 ## Unreleased
 
+- `kingsmint skills` copies the skills (`import`, `categorize`, `explain`, `add-bank`) into the ledger's
+  `.claude/skills/kingsmint-*`, from the kingsmint the ledger runs. Claude Code without the plugin, Codex and
+  Cursor (through `AGENTS.md`) then follow the same steps.
 - Claude app: the install steps follow the new layout: upload the plugin in **Plugins** in the sidebar,
   then **Add > Upload plugin**.
+
+### Ledger
+
+- Add `AGENTS.md` from the template: agents other than Claude Code read it, and it sends them to `CLAUDE.md`
+  and the skills.
+- Add to `.gitignore` the two lines below `# copies of kingsmint's skills` from the template: the copies come from
+  kingsmint and the agent settings belong to one computer, so neither belongs in the ledger's versions.
+- In `CLAUDE.md`, say where the skills come from as the template's first paragraph does.
 
 ## 0.1.8
 
