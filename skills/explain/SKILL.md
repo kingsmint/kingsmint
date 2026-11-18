@@ -17,6 +17,19 @@ Answer with tables of numbers from `bean-query`, then the causes in plain words.
 - Saved queries: `bean-query main.beancount '.run "Baseline"'`.
 - In the Fava filter, quote numbers: `"1234567890"`.
 
+## Links to Fava
+
+In the Kingsmint app, `KINGSMINT_FAVA_URL` holds the address of the ledger in Fava; a click on a link that starts
+with it opens the page in the app's Fava. Read the variable (`echo $KINGSMINT_FAVA_URL`) and write the full URL,
+not the variable. When it is empty, the agent runs outside the app: give no links. After a table, link the
+pages that show its numbers, for example:
+- `<URL>account/Expenses:Food/?time=2026-03`: an account's transactions and balance;
+- `<URL>income_statement/?time=2025`, `<URL>journal/?time=month-1&account=Expenses:Uncategorized`.
+
+Parameters: `time` (`2025`, `2026-03`, `2025-Q2`, `2025 - 2026`, `month-1` = last month, `year`), `account` (only
+that account and its children), `filter` (Fava's query: `payee:"Shell"`, `#tag`, `^link`, `"1234567890"`).
+Encode spaces as `%20` and quotes as `%22`, else the terminal ends the link there.
+
 ## The month close
 
 The month is the last full calendar month. Done when the user has the summary below and no question is open.
