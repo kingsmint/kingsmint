@@ -3,3 +3,6 @@ inbox/*
 .venv/
 __pycache__/
 .*.picklecache
+# copies of kingsmint's skills (`kingsmint skills`) and this computer's agent settings
+.claude/skills/kingsmint-*/
+.claude/settings.local.json

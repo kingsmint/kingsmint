@@ -133,3 +133,17 @@ def test_ledger_from_an_older_kingsmint(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(cli, "reimport", lambda: calls.append(1))
     cli.upgrade(["--done"])
     assert calls == [1] and "reimport: the statements in ledger/ get transaction ids" in capsys.readouterr().out
+
+
+def test_skills(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    stale = tmp_path / ".claude/skills/kingsmint-gone"
+    own = tmp_path / ".claude/skills/mine"
+    stale.mkdir(parents=True)
+    own.mkdir()
+    cli.skills()
+    got = sorted(p.name for p in (tmp_path / ".claude/skills").iterdir())
+    assert got == ["kingsmint-add-bank", "kingsmint-categorize", "kingsmint-explain", "kingsmint-import", "mine"]
+    assert (tmp_path / ".claude/skills/kingsmint-import/SKILL.md").read_text().startswith("---\nname: import")
+    cli.skills()  # again: replaces the copies
+    assert "add-bank, categorize, explain, import" in capsys.readouterr().out

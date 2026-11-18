@@ -1,7 +1,8 @@
 # Ledger
 
-Beancount + Fava ledger of one person and their company, built with kingsmint (the `kingsmint` Claude Code
-plugin: skills `import`, `categorize`, `explain`, `add-bank`). Commands: `uv run kingsmint` (scan, import,
+Beancount + Fava ledger of one person and their company, built with kingsmint (skills `import`,
+`categorize`, `explain`, `add-bank`: from the `kingsmint` Claude Code plugin, or copied into
+`.claude/skills/kingsmint-*` by `uv run kingsmint skills`). Commands: `uv run kingsmint` (scan, import,
 rules, reimport, reset, check, coverage, fava, rates, doctor). Facts about the owner (people, arrangements, which IBAN belongs to whom)
 live as comments in `accounts.beancount` and `rules.beancount`: read them before answering questions
 about the money, and record new facts there, next to the account or rule they explain. Values that no
