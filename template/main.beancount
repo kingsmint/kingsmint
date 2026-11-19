@@ -20,6 +20,8 @@ include "ledger/*/*.beancount"
 2000-01-01 custom "fava-option" "language" "LANGUAGE_CODE"
 ; Fava: show income, liabilities and equity as positive numbers
 2000-01-01 custom "fava-option" "invert-income-liabilities-equity" "true"
+; Fava: the Trends report, expenses by year with the change against the year before (in kingsmint)
+2000-01-01 custom "fava-extension" "kingsmint.fava"
 
 ; Baseline: average monthly spending over the last 12 months, by the `need` and `cut` metadata in
 ; accounts.beancount. Loan repayments count when the liability has need: "essential". today = everything except income-linked,

@@ -7,6 +7,18 @@ here is the installed version.
 
 ## Unreleased
 
+- Fava has a **Trends** report: expenses per account and year with the change against the year before, red
+  for a rise and green for a fall, so a jump shows at a glance. The last year, when its statements end before
+  December, is compared with the same days of the year before. A click on an amount opens the account's
+  transactions of that period. Switches above the table show months instead of years (each against the same
+  month a year before) or fewer account levels, and a slider hides the rows without a
+  marked change of at least the chosen size in the newest period, or in the one whose heading you click.
+- The `explain` skill does the **month close**: it checks that each account has its statement for the last
+  month, imports and categorizes it, and sums up the month against the 12 months before it.
+- `kingsmint runway` prints the liquid money, the monthly baseline and how many months the money covers, from
+  the saved queries; the month close reports it.
+- `kingsmint sample` fills a new ledger with three years of made-up statements, to try kingsmint before
+  adding your own.
 - `kingsmint skills` copies the skills (`import`, `categorize`, `explain`, `add-bank`) into the ledger's
   `.claude/skills/kingsmint-*`, from the kingsmint the ledger runs. Claude Code without the plugin, Codex and
   Cursor (through `AGENTS.md`) then follow the same steps.
@@ -15,6 +27,8 @@ here is the installed version.
 
 ### Ledger
 
+- In `main.beancount`, add the line `2000-01-01 custom "fava-extension" "kingsmint.fava"` with its comment
+  from the template, below the other `fava-option` lines: it turns on the Trends report in Fava.
 - Add `AGENTS.md` from the template: agents other than Claude Code read it, and it sends them to `CLAUDE.md`
   and the skills.
 - Add to `.gitignore` the two lines below `# copies of kingsmint's skills` from the template: the copies come from
