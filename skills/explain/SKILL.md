@@ -1,6 +1,6 @@
 ---
 name: explain
-description: Explain the money with numbers from the ledger. Use for net profit or spending changes between periods, a year forecast, tax rate, or the baseline and runway without income.
+description: Explain the money with numbers from the ledger. Use for the month close, net profit or spending changes between periods, a year forecast, tax rate, or the baseline and runway without income.
 ---
 
 # Explain the money
@@ -16,6 +16,23 @@ Answer with tables of numbers from `bean-query`, then the causes in plain words.
   null, so wrap it in `coalesce()`.
 - Saved queries: `bean-query main.beancount '.run "Baseline"'`.
 - In the Fava filter, quote numbers: `"1234567890"`.
+
+## The month close
+
+The month is the last full calendar month. Done when the user has the summary below and no question is open.
+
+1. Run `uv run kingsmint coverage`. When an account's last imported day is before the month's last day, list
+   those accounts and stop: the user downloads their statements, drops them into the inbox, and closes the month
+   again. An account with `statements_until` is not missing.
+2. When `inbox/` holds statements, import them with the `import` skill, which also categorizes them. When
+   `Uncategorized` transactions of the month remain, categorize them with the user first.
+3. Summarize the month, against the average of the 12 months before it:
+   - income, expenses, and the difference (what was saved);
+   - per `root(account, 2)` expense account, the month and the average; name the 3 largest changes, up and down;
+   - one-off transactions above 10% of the month's expenses, and payees that appear for the first time;
+   - runway: `uv run kingsmint runway` (months of the baseline that the liquid money covers).
+   Give the causes in plain words, as in "A change between periods". End with what to watch next month.
+4. Commit: `Close <month>`, with the three main numbers of the summary in the body.
 
 ## A change between periods
 

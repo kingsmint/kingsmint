@@ -14,6 +14,8 @@
   doctor                       check the tools and the ledger files
   upgrade [--done]             what to change in a ledger made with an older kingsmint; --done: it is changed
   skills                       copy this kingsmint's skills into .claude/skills/ of the ledger, for any agent
+  runway                       liquid money, monthly baseline and runway in months, as JSON (saved queries in main.beancount)
+  sample                       fill a new ledger with made-up statements, to try kingsmint
 """
 
 import datetime as dt
@@ -27,7 +29,7 @@ from beancount import loader
 from beancount.core import data, inventory
 from beancount.parser import printer
 
-from kingsmint import importer, merge, rates
+from kingsmint import importer, merge, rates, sample
 from kingsmint.banks import CSV_PARSERS, PARSERS
 from kingsmint.pdf import pdf_text
 
@@ -125,6 +127,27 @@ def check():
     for f in fails:
         print(f"FAIL {f}")
     sys.exit(1 if errors or fails else 0)
+
+
+def runway():
+    """The runway from the saved queries `Liquid money` and `Baseline` (its `today` column), in the operating currency.
+    null where a query is missing (a ledger older than the queries) or the baseline is 0 (no expenses yet)."""
+    import json
+
+    import beanquery
+
+    entries, errors, options = loader.load_file("main.beancount")
+    queries = {e.name: e.query_string for e in entries if isinstance(e, data.Query)}
+    currency = (options["operating_currency"] or ["EUR"])[0]
+    conn = beanquery.connect("beancount:", entries=entries, errors=errors, options=options)
+    liquid = baseline = None
+    if "Liquid money" in queries:
+        liquid = sum(inv.get_currency_units(currency).number for _, inv in conn.execute(queries["Liquid money"]).fetchall())
+    if "Baseline" in queries:
+        baseline = (conn.execute(queries["Baseline"]).fetchone() or [None])[0]
+    months = liquid / baseline if liquid is not None and baseline else None
+    print(json.dumps({"currency": currency, "liquid": liquid and round(float(liquid)), "baseline": baseline and round(float(baseline)),
+                      "months": months and round(float(months), 1)}))
 
 
 def reimport():
@@ -310,5 +333,9 @@ def main():
         upgrade(args)
     elif cmd == "skills" and not args:
         skills()
+    elif cmd == "runway" and not args:
+        runway()
+    elif cmd == "sample" and not args:
+        sample.main()
     else:
         sys.exit(__doc__)

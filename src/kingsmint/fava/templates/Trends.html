@@ -1,0 +1,71 @@
+{% set sk = ledger.fava_options.language in ("sk", "cs") %}
+{% set by = "month" if request.args.get("by") == "month" else "year" %}
+{% set depth = request.args.get("depth") %}
+{% set t = extension.table(by=by, depth=depth|int if depth in ("1", "2") else none) %}
+<style>
+  .km-trends { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .km-trends th, .km-trends td { padding: 2px 8px; white-space: nowrap; }
+  .km-trends th { position: sticky; top: 0; background: var(--background); text-align: right; }
+  .km-trends td { text-align: right; border-top: 1px solid var(--border, #eee); }
+  .km-trends td:first-child, .km-trends th:first-child { text-align: left; }
+  .km-trends tr.top td { font-weight: 600; }
+  .km-trends small { display: inline-block; min-width: 4.5em; margin-left: 4px; padding: 0 4px; border-radius: 3px; text-align: right; }
+  .km-trends .up2 { background: #d93f3f; color: #fff; }
+  .km-trends .up1 { color: #c0392b; }
+  .km-trends .down1 { color: #2e8b57; }
+  .km-trends .down2 { background: #2e8b57; color: #fff; }
+  .km-trends .small, .km-trends small:not([class]) { color: var(--text-color-lighter, #999); }
+  .km-trends a.km-cell { color: inherit; }
+  .km-trends a.km-cell:hover { color: var(--link-color); text-decoration: underline; }
+  .km-controls { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; margin: 0 0 10px; }
+  .km-controls a { padding: 2px 8px; border-radius: 3px; }
+  .km-controls a.on { background: var(--link-color); color: var(--background); }
+  .km-slider { display: inline-flex; align-items: center; gap: 8px; }
+  .km-slider input { width: 160px; }
+  #km-min-label { min-width: 4em; }
+  .km-trends tr.km-hidden { display: none; }
+  .km-trends th[data-col] { cursor: pointer; }
+  .km-trends th[data-col]:hover { text-decoration: underline; }
+  .km-trends .km-col { background: var(--summary-background, rgba(0, 0, 0, .04)); }
+  .km-trends th.km-col { box-shadow: inset 0 -2px var(--link-color); }
+  .km-note { color: var(--text-color-lighter, #777); }
+</style>
+<p class="km-controls">
+  <span>{% for v, label in [("year", "Roky" if sk else "Years"), ("month", "Mesiace" if sk else "Months")] %}<a href="{{ extension.link(by=none if v == "year" else v) }}"{% if by == v %} class="on"{% endif %}>{{ label }}</a>{% endfor %}</span>
+  <span>{{ "Úroveň" if sk else "Level" }}: {% for v, label in [("1", "1"), ("2", "2"), (none, "všetko" if sk else "all")] %}<a href="{{ extension.link(depth=v) }}"{% if depth == v or (v is none and depth not in ("1", "2")) %} class="on"{% endif %}>{{ label }}</a>{% endfor %}</span>
+  <label class="km-slider">{{ "Zmena aspoň" if sk else "Change at least" }}
+    <input type="range" id="km-min" min="0" max="6" step="1" value="0">
+    <span id="km-min-label" data-all="{{ "všetko" if sk else "all" }}"></span></label>
+</p>
+{% if not t.rows %}
+<p>{{ "Žiadne výdavky." if sk else "No expenses." }}</p>
+{% else %}
+<p class="km-note">
+  {% if sk %}
+  Kliknutím na sumu sa otvoria transakcie účtu za to obdobie. Výdavky v {{ t.currency }} a zmena oproti roku predtým: červená rast, zelená pokles, sivá malé sumy (zmena pod 0,5 % všetkých výdavkov). Posuvník skryje riadky bez vyznačenej zmeny aspoň takej veľkosti vo zvýraznenom období; iné obdobie vyberiete kliknutím na jeho hlavičku.
+  {% if by == "month" %}Každý mesiac sa porovnáva s rovnakým mesiacom minulého roka.{% endif %}
+  {% if t.partial %}Obdobie {{ t.periods[0][0] }} je do {{ t.partial.strftime("%-d. %-m.") }} a porovnáva sa s rovnakými dňami o rok skôr.{% endif %}
+  {% else %}
+  Click an amount for the account's transactions in that period. Expenses in {{ t.currency }}, and the change against a year before: red a rise, green a fall, grey small amounts (a change under 0.5% of all expenses). The slider hides the rows without a marked change of at least that size in the highlighted period; click a heading to pick another.
+  {% if by == "month" %}Each month is compared with the same month a year before.{% endif %}
+  {% if t.partial %}{{ t.periods[0][0] }} runs to {{ t.partial.strftime("%b %-d") }} and is compared with the same days a year before.{% endif %}
+  {% endif %}
+</p>
+<table class="km-trends">
+  <thead><tr><th></th>{% for label, _ in t.periods %}<th data-col="{{ label }}" title="{{ "Posuvník filtruje podľa tohto obdobia" if sk else "The slider filters by this period" }}">{{ label }}{% if loop.first and t.partial %}*{% endif %}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for account, depth, cells in t.rows %}
+    <tr data-account="{{ account }}"{% if depth == 0 %} class="top"{% endif %}>
+      <td style="padding-left: {{ 8 + depth * 14 }}px"><a href="{{ url_for('account', name=account) }}">{{ account.split(":")[-1] }}</a></td>
+      {% for amount, change, cls, peak in cells %}
+      <td data-peak="{{ peak }}">{% if amount or change %}<a class="km-cell" href="{{ url_for('account', name=account, time=t.periods[loop.index0][1]) }}">{{ amount|format_currency(t.currency) }}</a>{% endif %}
+        {%- if change == "new" %}<small class="{{ cls }}">{{ "nové" if sk else "new" }}</small>
+        {%- elif change == "-" %}<small class="small">–</small>
+        {%- elif change is not none %}<small class="{{ cls }}">{{ "%+.0f"|format(change * 100) }} %</small>
+        {%- else %}<small></small>{% endif %}</td>
+      {% endfor %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
