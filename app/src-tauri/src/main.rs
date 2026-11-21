@@ -454,9 +454,14 @@ fn make_ledger(d: &Path, title: &str, language: &str, handle: &tauri::AppHandle)
         format!("{{ path = \"{}\", editable = true }}", checkout.display().to_string().replace('\\', "/"))
     } else {
         // the release's wheel, not a git source: uv then needs no git, which a Mac without the Command Line Tools and
-        // Windows lack; and its bytes stay as uv.lock's hash says, which GitHub does not promise for its archives
+        // Windows lack; and its bytes stay as uv.lock's hash says, which GitHub does not promise for its archives.
+        // KINGSMINT_REV: a test build of an unreleased commit (workflow app.yml), which has no wheel: the commit's
+        // archive, which `kingsmint upgrade --done` leaves as it is
         let v = env!("CARGO_PKG_VERSION");
-        format!("{{ url = \"{KINGSMINT_GIT}/releases/download/v{v}/kingsmint-{v}-py3-none-any.whl\" }}")
+        match option_env!("KINGSMINT_REV") {
+            Some(rev) => format!("{{ url = \"{KINGSMINT_GIT}/archive/{rev}.tar.gz\" }}"),
+            None => format!("{{ url = \"{KINGSMINT_GIT}/releases/download/v{v}/kingsmint-{v}-py3-none-any.whl\" }}"),
+        }
     };
     edit("pyproject.toml", &[("{ git = \"KINGSMINT_SOURCE\" }", &source)])
 }
