@@ -44,11 +44,11 @@
   {% if sk %}
   Kliknutím na sumu sa otvoria transakcie účtu za to obdobie. Výdavky v {{ t.currency }} a zmena oproti roku predtým: červená rast, zelená pokles, sivá malé sumy (zmena pod 0,5 % všetkých výdavkov). Posuvník skryje riadky bez vyznačenej zmeny aspoň takej veľkosti vo zvýraznenom období; iné obdobie vyberiete kliknutím na jeho hlavičku.
   {% if by == "month" %}Každý mesiac sa porovnáva s rovnakým mesiacom minulého roka.{% endif %}
-  {% if t.partial %}Obdobie {{ t.periods[0][0] }} je do {{ t.partial.strftime("%-d. %-m.") }} a porovnáva sa s rovnakými dňami o rok skôr.{% endif %}
+  {% if t.partial %}Obdobie {{ t.periods[0][0] }} je do {{ t.partial.day }}. {{ t.partial.month }}. a porovnáva sa s rovnakými dňami o rok skôr.{% endif %}
   {% else %}
   Click an amount for the account's transactions in that period. Expenses in {{ t.currency }}, and the change against a year before: red a rise, green a fall, grey small amounts (a change under 0.5% of all expenses). The slider hides the rows without a marked change of at least that size in the highlighted period; click a heading to pick another.
   {% if by == "month" %}Each month is compared with the same month a year before.{% endif %}
-  {% if t.partial %}{{ t.periods[0][0] }} runs to {{ t.partial.strftime("%b %-d") }} and is compared with the same days a year before.{% endif %}
+  {% if t.partial %}{{ t.periods[0][0] }} runs to {{ t.partial.strftime("%b") }} {{ t.partial.day }} and is compared with the same days a year before.{% endif %}
   {% endif %}
 </p>
 <table class="km-trends">
