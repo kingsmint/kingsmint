@@ -215,8 +215,9 @@ def pending():
 
 
 def pin(installed):
-    """pyproject.toml of the ledger takes the kingsmint it was upgraded with: a git source gets its tag, so the
-    Claude app's own kingsmint and `uv run` agree; a path source is the user's checkout, only checked."""
+    """pyproject.toml of the ledger takes the kingsmint it was upgraded with: a git source or a release archive (a
+    ledger of the Kingsmint app) gets its tag, so the Claude app's own kingsmint and `uv run` agree; a path source is
+    the user's checkout, only checked."""
     p = Path("pyproject.toml")
     text = p.read_text(encoding="utf-8") if p.exists() else ""
     if m := re.search(r'^kingsmint = \{ *git = "([^"]+)"[^}\n]*\}', text, re.M):
@@ -224,6 +225,11 @@ def pin(installed):
         if m[0] != line:
             p.write_text(text.replace(m[0], line), encoding="utf-8")
             print(f"pyproject.toml: kingsmint from tag v{installed}; commit it with uv.lock")
+    elif m := re.search(r'^kingsmint = \{ *url = "([^"]+/archive/refs/tags/)v[^"/]+\.tar\.gz" *\}', text, re.M):
+        line = f'kingsmint = {{ url = "{m[1]}v{installed}.tar.gz" }}'
+        if m[0] != line:
+            p.write_text(text.replace(m[0], line), encoding="utf-8")
+            print(f"pyproject.toml: kingsmint from tag v{installed}")
     elif m := re.search(r'^kingsmint = \{ *path = "([^"]+)"', text, re.M):
         src = Path(m[1]).expanduser() / "pyproject.toml"
         v = re.search(r'^version = "([^"]+)"', src.read_text(encoding="utf-8"), re.M)[1] if src.exists() else "?"

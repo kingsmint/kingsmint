@@ -453,7 +453,9 @@ fn make_ledger(d: &Path, title: &str, language: &str, handle: &tauri::AppHandle)
         // forward slashes: a backslash is an escape in a TOML string, and uv takes C:/... too
         format!("{{ path = \"{}\", editable = true }}", checkout.display().to_string().replace('\\', "/"))
     } else {
-        format!("{{ git = \"{KINGSMINT_GIT}\", tag = \"v{}\" }}", env!("CARGO_PKG_VERSION"))
+        // an archive, not a git source: uv then needs no git, which a Mac without the Command Line Tools and Windows
+        // lack
+        format!("{{ url = \"{KINGSMINT_GIT}/archive/refs/tags/v{}.tar.gz\" }}", env!("CARGO_PKG_VERSION"))
     };
     edit("pyproject.toml", &[("{ git = \"KINGSMINT_SOURCE\" }", &source)])
 }

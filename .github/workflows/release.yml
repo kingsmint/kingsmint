@@ -1,6 +1,9 @@
 name: release
 
-# Push a tag v<version from pyproject.toml>: tests, then a GitHub release with the Claude app plugin and extension.
+# Push a tag v<version from pyproject.toml>: tests, then a GitHub release with the Claude app plugin and extension,
+# and the Kingsmint app for macOS, signed and notarized. Its secrets: APPLE_CERTIFICATE (the Developer ID Application
+# .p12, base64), APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY ("Developer ID Application: <name> (<team>)"),
+# and an App Store Connect API key for the notarization: APPLE_API_ISSUER, APPLE_API_KEY (its ID), APPLE_API_KEY_P8.
 on:
   push:
     tags: ["v*"]
@@ -30,5 +33,31 @@ jobs:
           grep -q . notes.md || { echo "src/kingsmint/CHANGELOG.md has no section ## ${GITHUB_REF_NAME#v}"; exit 1; }
       - run: uv run --locked python desktop/build.py
       - run: gh release create "$GITHUB_REF_NAME" desktop/dist/kingsmint.plugin desktop/dist/kingsmint.mcpb --notes-file notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  macos:
+    needs: release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - run: sh app/scripts/fetch-sidecars.sh
+      - name: Build, sign and notarize
+        working-directory: app/src-tauri
+        run: |
+          printf '%s' "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/notary.p8"
+          APPLE_API_KEY_PATH="$RUNNER_TEMP/notary.p8" npx --yes @tauri-apps/cli@2 build --bundles app,dmg
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+      - run: gh release upload "$GITHUB_REF_NAME" app/src-tauri/target/release/bundle/dmg/*.dmg
         env:
           GH_TOKEN: ${{ github.token }}

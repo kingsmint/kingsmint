@@ -72,6 +72,10 @@ def test_upgrade_pins_the_package(tmp_path, monkeypatch, capsys):
     (tmp_path / "pyproject.toml").write_text(src.format('git = "https://example.org/k", tag = "v0.2.0"'))
     cli.upgrade(["--done"])
     assert (tmp_path / "pyproject.toml").read_text() == src.format('git = "https://example.org/k", tag = "v0.3.0"')
+    archive = 'url = "https://example.org/k/archive/refs/tags/v{}.tar.gz"'
+    (tmp_path / "pyproject.toml").write_text(src.format(archive.format("0.2.0")))
+    cli.upgrade(["--done"])
+    assert (tmp_path / "pyproject.toml").read_text() == src.format(archive.format("0.3.0"))
     (tmp_path / "co").mkdir()
     (tmp_path / "co" / "pyproject.toml").write_text('[project]\nversion = "0.1.0"\n')
     (tmp_path / "pyproject.toml").write_text(src.format(f'path = "{(tmp_path / "co").as_posix()}", editable = true'))
