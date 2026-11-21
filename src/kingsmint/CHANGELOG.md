@@ -5,7 +5,7 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
-## Unreleased
+## 0.1.9
 
 - Fava has a **Trends** report: expenses per account and year with the change against the year before, red
   for a rise and green for a fall, so a jump shows at a glance. The last year, when its statements end before
