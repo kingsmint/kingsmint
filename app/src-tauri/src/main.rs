@@ -102,6 +102,19 @@ fn sidecar(name: &str) -> PathBuf {
     if exe.is_file() { exe } else { name.into() }
 }
 
+/// A child process without a console window: on Windows, a windowed app opens one for each console program it starts
+/// (uv, Python, kingsmint); their own children share the hidden console.
+fn quiet(name: impl AsRef<std::ffi::OsStr>) -> Command {
+    #[allow(unused_mut)]
+    let mut cmd = Command::new(name);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    }
+    cmd
+}
+
 fn uv() -> PathBuf {
     sidecar("uv")
 }
@@ -172,15 +185,15 @@ fn start_server(l: &Arc<Ledger>, start: Start, resources: &Path) {
         }
     };
     eprintln!("kingsmint: {} sync in {}", uv().display(), l.dir.display());
-    if let Err(e) = run(Command::new(uv()).arg("sync"), "uv sync") {
+    if let Err(e) = run(quiet(uv()).arg("sync"), "uv sync") {
         return fail(e);
     }
     if start != Start::Existing {
-        if let Err(e) = run(Command::new(venv_bin(&l.dir, "kingsmint")).args(["upgrade", "--done"]), "kingsmint upgrade --done") {
+        if let Err(e) = run(quiet(venv_bin(&l.dir, "kingsmint")).args(["upgrade", "--done"]), "kingsmint upgrade --done") {
             return fail(e);
         }
         if start == Start::Sample {
-            if let Err(e) = run(Command::new(venv_bin(&l.dir, "kingsmint")).arg("sample"), "kingsmint sample") {
+            if let Err(e) = run(quiet(venv_bin(&l.dir, "kingsmint")).arg("sample"), "kingsmint sample") {
                 return fail(e);
             }
         }
@@ -190,7 +203,7 @@ fn start_server(l: &Arc<Ledger>, start: Start, resources: &Path) {
     if l.closed.load(Ordering::SeqCst) {
         return; // another ledger was opened meanwhile
     }
-    match Command::new(uv())
+    match quiet(uv())
         // the ledger's own packages only (Fava brings werkzeug), so a ledger of any kingsmint version runs the server
         .args(["run", "--no-sync", "python"])
         .arg(resources.join("server").join("server.py"))
@@ -221,7 +234,7 @@ fn start_server(l: &Arc<Ledger>, start: Start, resources: &Path) {
 /// kingsmint has no `kingsmint skills`; its agent goes without), and the Claude Code plugin of kingsmint off in this
 /// ledger, so Claude Code does not see a second set of skills from another version.
 fn agent_files(dir: &Path) {
-    let _ = Command::new(venv_bin(dir, "kingsmint")).arg("skills").current_dir(dir).status();
+    let _ = quiet(venv_bin(dir, "kingsmint")).arg("skills").current_dir(dir).status();
     if !dir.join(".claude/skills/kingsmint-import").exists() {
         return; // no copies: the plugin stays the only source
     }
@@ -406,15 +419,18 @@ fn new_ledger(dir: String, title: String, language: String, app: State<App>, han
     open(&app, &d, Start::New)
 }
 
-/// The sample ledger, in the app's data folder: made once per language, then opened again as it is.
+/// The sample ledger, in the app's data folder: made once per language, then opened again as it is. One whose
+/// statements were never imported (its first start failed, for example in `uv sync`) is made again.
 #[tauri::command]
 fn sample_ledger(language: String, app: State<App>, handle: tauri::AppHandle) -> Result<String, String> {
     let d = handle.path().app_data_dir().map_err(|e| e.to_string())?.join(format!("sample-{language}"));
-    if d.join("main.beancount").is_file() {
+    if d.join("documents").is_dir() {
         return open(&app, &d, Start::Existing);
     }
-    std::fs::create_dir_all(&d).map_err(|e| format!("{}: {e}", d.display()))?;
-    make_ledger(&d, if language == "sk" { "Ukážka" } else { "Sample" }, &language, &handle)?;
+    if !d.join("main.beancount").is_file() {
+        std::fs::create_dir_all(&d).map_err(|e| format!("{}: {e}", d.display()))?;
+        make_ledger(&d, if language == "sk" { "Ukážka" } else { "Sample" }, &language, &handle)?;
+    }
     open(&app, &d, Start::Sample)
 }
 
@@ -683,6 +699,12 @@ fn main() {
     // kingsmint's UTF-8 text; the server, kingsmint and the terminals inherit this
     #[cfg(windows)]
     std::env::set_var("PYTHONUTF8", "1");
+    // Beancount has no wheel for Windows on ARM, and building it needs a C compiler; Windows 11 on ARM runs x64 Python,
+    // whose wheels exist. The ledger's environment, the server and `uv run` in the terminals all take it.
+    #[cfg(all(windows, target_arch = "aarch64"))]
+    if std::env::var_os("UV_PYTHON").is_none() {
+        std::env::set_var("UV_PYTHON", "cpython-3.13-windows-x86_64-none");
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
