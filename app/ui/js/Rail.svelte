@@ -1,4 +1,4 @@
-<!-- The rail: the ledger's badge (its menu, and a dot for its check), Inbox, Reports, Fava, the agent, Settings and
+<!-- The rail: the ledger's badge (its menu, and a dot for its check), Inbox, Overview, Reports, Fava, the agent, Settings and
      History. A button shows its panel, and one that was closed comes back; it is "on" while its panel shows. -->
 <script>
   import { app } from "./app.svelte.js";
@@ -51,6 +51,10 @@
     />
   </svg>
   <span>{t("inbox")}</span>{#if waiting}<b id="inbox-badge" class="count">{waiting}</b>{/if}
+</button>
+<button id="show-dashboard" class="pane" class:on={app.shown.dashboard} title={t("overviewTitle")} onclick={() => pane("dashboard")}>
+  <svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1" /><rect x="13" y="4" width="7" height="7" rx="1" /><rect x="4" y="13" width="7" height="7" rx="1" /><rect x="13" y="13" width="7" height="7" rx="1" /></svg>
+  <span>{t("overview")}</span>
 </button>
 <button id="show-reports" class="pane" class:on={app.shown.reports} title={t("reportsTitle")} onclick={() => pane("reports")}>
   <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1.5" /><path d="M8 16v-4M12 16V8M16 16v-6" /></svg>

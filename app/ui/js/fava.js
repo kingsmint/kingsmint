@@ -37,11 +37,31 @@ export function showFava(id, path, group) {
   dock.getPanel(id).api.setActive();
 }
 
-// A link in a terminal: a page of this ledger's server (Fava, /ledger/) opens in the Fava view used last, any other
-// link in the system's browser
+// Fava's page `path` in the Fava view used last, as one step of the window's history ({ fava: id }): back goes to
+// where the step came from (the overview), not to the frame's page before, which location.replace() drops
+export function stepToFava(path) {
+  const id = favas.has(lastFava) ? lastFava : [...favas.keys()][0];
+  if (!id) return addFava({ url: path }); // a new view: its first page is no step back
+  history.pushState({ fava: id }, "");
+  favas.get(id).contentWindow.location.replace(new URL(path, app.serverOrigin).href);
+  dock.getPanel(id).api.setActive();
+}
+
+// A link in a terminal: an account's page without a filter (the agent's most common link) opens the overview's
+// detail of it (Dashboard.svelte, which falls back to Fava without data); another page of this ledger's server (Fava,
+// /ledger/) opens in the Fava view used last, any other link in the system's browser
 export function openLink(_e, uri) {
   const url = new URL(uri, location.href);
   if (url.origin !== app.serverOrigin) return invoke("open_url", { url: url.href });
+  const account = url.pathname.match(/^\/ledger\/account\/([^/]+)\/?$/)?.[1];
+  if (account && !url.searchParams.has("filter") && !url.hash) {
+    const detail = {
+      account: decodeURIComponent(account),
+      time: url.searchParams.get("time") ?? "",
+      path: url.pathname + url.search,
+    };
+    return document.dispatchEvent(new CustomEvent("km-account", { detail }));
+  }
   showFava(favas.has(lastFava) ? lastFava : [...favas.keys()][0], url.pathname + url.search + url.hash);
 }
 

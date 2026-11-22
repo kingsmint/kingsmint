@@ -125,3 +125,62 @@ def save(ledger: Path, title: str, locale: str, language: str) -> list[str]:
     if versions.enabled(ledger):
         versions.save(ledger, "Settings: " + ", ".join(changed))
     return changed
+
+
+META_LINE = re.compile(r"(\s+)([a-z][\w-]*):")
+
+
+def meta_value(key: str, value) -> str:
+    return str(value) if key == "cut" else f'"{value}"'
+
+
+def edit_meta(lines: list[str], lineno: int, edit: dict) -> None:
+    """Sets the keys of `edit` in the metadata lines under the `open` on line `lineno` (1-based); None removes a key.
+    Other lines stay as they are."""
+    end = lineno
+    while end < len(lines) and META_LINE.match(lines[end]):
+        end += 1
+    indent = META_LINE.match(lines[lineno]).group(1) if end > lineno else "  "
+    for key, value in edit.items():
+        at = next((i for i in range(lineno, end) if META_LINE.match(lines[i]).group(2) == key), None)
+        if value is None:
+            if at is not None:
+                del lines[at]
+                end -= 1
+        elif at is not None:
+            lines[at] = f"{META_LINE.match(lines[at]).group(1)}{key}: {meta_value(key, value)}\n"
+        else:
+            lines.insert(end, f"{indent}{key}: {meta_value(key, value)}\n")
+            end += 1
+
+
+def save_meta(ledger: Path, entries, changes: dict) -> list[str]:
+    """Writes the runway's edits (dashboard.checked) into the metadata of the accounts' `open` entries, where the
+    entries were loaded from, and saves a version that lists them; returns what changed. An `open` in ledger/ is not
+    written: a reimport would lose the change."""
+    from beancount.core.data import Open
+    from beancount.parser import parser
+
+    opens = {e.account: e for e in entries if isinstance(e, Open)}
+    files: dict[Path, list] = {}
+    for account, edit in changes.items():
+        path = Path(opens[account].meta["filename"])
+        if not path.is_file() or path.resolve().is_relative_to((ledger / "ledger").resolve()):
+            raise SettingsError(f"{account} is opened in {path}, which the app does not change")
+        files.setdefault(path, []).append((opens[account].meta["lineno"], edit))
+    texts = {}
+    for path, edits in files.items():
+        old = path.read_text(encoding="utf-8")
+        lines = old.splitlines(keepends=True)
+        for lineno, edit in sorted(edits, key=lambda e: -e[0]):  # from the end, so the line numbers above hold
+            edit_meta(lines, lineno, edit)
+        texts[path] = "".join(lines)
+        if len(parser.parse_string(texts[path])[1]) > len(parser.parse_string(old)[1]):
+            raise SettingsError(f"The change would break {path.name}; nothing was written")
+    for path, text in texts.items():
+        path.write_text(text, encoding="utf-8")
+    changed = [f"{account} " + ", ".join(f"{k} {'none' if v is None else v}" for k, v in edit.items())
+               for account, edit in changes.items()]
+    if versions.enabled(ledger):
+        versions.save(ledger, "Runway: " + "; ".join(changed))
+    return changed

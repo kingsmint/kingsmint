@@ -111,7 +111,10 @@ function applyState(status) {
     assign({ imported: status.imported });
     if (first)
       pane("inbox"); // a new ledger starts in the inbox, which says what to do
-    else if (visible("inbox")) refreshInbox();
+    else {
+      if (visible("inbox")) refreshInbox();
+      pane("dashboard"); // the first import: what it brought
+    }
   }
   app.waiting = inbox;
   const seen = `${inbox.join("\n")}\0${check}\0${app.imported}`;

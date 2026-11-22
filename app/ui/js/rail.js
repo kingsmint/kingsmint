@@ -1,4 +1,4 @@
-// The rail: Fava, the inbox, the reports, the settings, and the agent (the terminal used last). A click shows the panel; one that
+// The rail: Fava, the inbox, the overview, the reports, the settings, and the agent (the terminal used last). A click shows the panel; one that
 // was closed comes back.
 
 import { app } from "./app.svelte.js";

@@ -2,6 +2,7 @@
      buttons run the app's native dialogs, the Trash and tasks for the agent. It loads again on km-inbox
      (refreshInbox in inbox.js): when it shows, after files were added, and when the ledger's state changed. -->
 <script>
+  import AgentIcon from "./AgentIcon.svelte";
   import { t } from "./i18n.js";
   import { INBOX_ACTIONS, removeFile } from "./inbox.js";
   import { app } from "./app.svelte.js";
@@ -92,6 +93,7 @@ import { active, assign } from "./state.js";
       {#if inbox.statements.length}
         <div class="wa-cluster wa-gap-m">
           <wa-button variant="brand" disabled={busy === "import"} onclick={() => act("import")}>
+            <AgentIcon slot="start" />
             {agent ? t(inbox.imported ? "importWith" : "setupWith", { agent }) : t("import")}
           </wa-button>
           <p class="muted note">{t("importNote")}</p>
@@ -105,7 +107,7 @@ import { active, assign } from "./state.js";
         <p class="muted">{t("closeNote")}</p>
         <div>
           <wa-button size="small" appearance="filled" disabled={busy === "close"} onclick={() => act("close")}
-            >{t("closeMonth", { month: inbox.month })}</wa-button
+            ><AgentIcon slot="start" />{t("closeMonth", { month: inbox.month })}</wa-button
           >
         </div>
       </section>

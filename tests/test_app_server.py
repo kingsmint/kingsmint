@@ -131,3 +131,102 @@ def test_rpc_answers_on_the_first_stdout_and_exits_with_stdin():
     assert answers == [{"id": 1, "result": 5}, {"id": 2, "error": "KeyError: 'nope'"}]
     p.stdin.close()
     assert p.wait(timeout=10) == 0 and "noise" in p.stderr.read()  # prints go to stderr, not into the answers
+
+
+def test_dashboard(ledger, tmp_path):
+    """The overview (app/server/dashboard.py) on the sample, through the server's RPC methods."""
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    shutil.copy(SERVER.parent / "ui" / "i18n.json", ui)
+    methods = server.make_app(ledger / "main.beancount", ui).state.methods
+
+    d = methods["dashboard"]()
+    assert d["period"] <= d["periods"][0]  # the last full month, not after the statements
+    assert len(d["window"]) == 13 and d["window"][-1] == d["period"] == d["ends"][-1]
+    flows = d["flows"]
+    income, expenses = flows["Income"][-1], flows["Expenses"][-1]
+    assert income > 0 and expenses > 0 and all(len(v) == 13 for v in flows.values())
+    areas = [a for a in flows if a.count(":") == 1 and a.startswith("Expenses:")]
+    assert abs(sum(flows[a][-1] for a in areas) - expenses) < 0.05  # the areas add up to the expenses
+    food = [a for a in flows if a.startswith("Expenses:Food:")]
+    assert food and abs(sum(flows[a][-1] for a in food) - flows["Expenses:Food"][-1]) < 0.05
+    assert {kind for kind in (a["kind"] for a in d["accounts"])} == {"current", "savings"}
+    assert all(len(a["history"]) == 13 for a in d["accounts"])
+    r = d["runway"]
+    assert r["liquid"] == pytest.approx(sum(a["history"][-1] for a in d["accounts"]))  # both bank accounts are liquid
+    assert [a["account"] for a in r["liquid_by_account"]] == ["Assets:Me:Bank"]  # the query's rows, by root(account, 3)
+    assert r["liquid_by_account"][0]["amount"] == pytest.approx(r["liquid"])
+    assert set(r["baseline"]) == {"today", "reduced", "minimum"} and r["baseline"]["today"] > 0
+    assert r["query"].startswith("SELECT")  # Baseline by account: what the baseline is made of
+
+    month = {"start": d["period"], "end": d["period"]}
+    t = methods["transactions"](**month)
+    assert abs(sum(r["amount"] for r in t["rows"]) - (income - expenses)) < 0.05
+    top = methods["transactions"](**month, account="Expenses:Food")
+    assert abs(sum(r["amount"] for r in top["rows"]) + flows["Expenses:Food"][-1]) < 0.05
+    assert any(m["recurring"] for m in methods["transactions"](**month, account="Expenses")["merchants"])
+    assert all(len(r["hash"]) == 32 and r["document"] for r in top["rows"])  # Fava's hash; the sample names statements
+    row = top["rows"][-1]
+    e = methods["entry"](hash=row["hash"])
+    assert e["payee"] == row["payee"] and e["amount"] == row["amount"] and e["statement"]  # the sample has its statements
+    assert abs(sum(p["value"] for p in e["postings"])) < 0.01 and e["history"][0]["hash"] == row["hash"]
+    assert "filename" not in e["meta"] and methods["entry"](hash="0" * 32) is None
+    bank = next(a for a in d["accounts"] if a["kind"] == "current")
+    rows = methods["transactions"](**month, account=bank["account"])["rows"]
+    assert rows[-1]["balance"] == pytest.approx(bank["history"][-1])  # money in positive, the balance after each
+    assert all(abs(b["balance"] - a["balance"] - b["amount"]) < 0.01 for a, b in zip(rows, rows[1:]))
+
+    # a year that is not over: it and the years before count the same months, up to the last full one
+    y = methods["dashboard"](unit="year")
+    assert y["period"] == d["period"][:4] and y["periods"][0] == y["period"] and y["window"][-1] == y["period"]
+    n = int(d["period"][5:])
+    assert y["months"] == n and y["ends"][-1] == d["period"]
+    year = y["window"][-2]
+    assert y["ends"][-2] == f"{year}-{n:02}"
+    rows = methods["transactions"](start=f"{year}-01", end=f"{year}-{n:02}")["rows"]
+    flows = y["flows"]
+    assert abs(sum(r["amount"] for r in rows) - (flows["Income"][-2] - flows["Expenses"][-2])) < 0.05
+    full = methods["dashboard"](period=year, unit="year")
+    assert full["months"] == 12 and full["ends"][-1] == f"{year}-12"
+    assert all(v > 0 for v in flows["Expenses"])  # no year without data in its counted months
+
+
+def test_runway_edit_and_save(ledger, tmp_path):
+    """The runway's edit view: a preview of liquid, need and cut without writing, then the save into accounts.beancount
+    and its undo, which gives the file back as it was."""
+    shutil.copytree(ledger, tmp_path / "l")
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    shutil.copy(SERVER.parent / "ui" / "i18n.json", ui)
+    methods = server.make_app(tmp_path / "l" / "main.beancount", ui).state.methods
+    accounts = tmp_path / "l" / "accounts.beancount"
+    before = accounts.read_text()
+
+    now = methods["runway_edit"]()
+    assets = {a["account"]: a for a in now["assets"]}
+    savings = assets["Assets:Me:Bank:VUB:Savings"]
+    assert savings["counted"] and savings["amount"] > 0
+    assert now["meta"]["Expenses:Cash"] == {"need": "unknown", "cut": "0.5"}
+    assert now["by_account"]["columns"][:2] == ["need", "account"]
+
+    edits = {"Assets:Me:Bank:VUB:Savings": {"liquid": "false"}, "Expenses:Cash": {"need": "essential"}}
+    preview = methods["runway_edit"](changes=edits)
+    assert preview["liquid"] == pytest.approx(now["liquid"] - savings["amount"])
+    assert not {a["account"]: a for a in preview["assets"]}["Assets:Me:Bank:VUB:Savings"]["counted"]
+    assert preview["meta"]["Expenses:Cash"] == {"need": "essential"}  # an essential need drops the cut
+    assert preview["baseline"]["minimum"] > now["baseline"]["minimum"]  # cash now counts as essential
+    assert accounts.read_text() == before  # a preview writes nothing
+
+    for bad in ({"Expenses:Cash": {"cut": 1.5}}, {"Expenses:Food:Groceries": {"need": "optional", "cut": 0.5}},
+                {"Assets:Me:Bank:VUB:Savings": {"need": "essential"}}, {"Expenses:Nope": {"need": "essential"}}):
+        with pytest.raises(ValueError):
+            methods["runway_edit"](changes=bad)
+
+    assert methods["runway_save"](changes=edits)["changed"]
+    text = accounts.read_text()
+    assert 'open Assets:Me:Bank:VUB:Savings EUR\n  iban: "SK5400000000009876543210"\n  liquid: "false"\n' in text
+    assert 'open Expenses:Cash\n  need: "essential"\n2000' in text
+    assert methods["dashboard"]()["runway"]["liquid"] == pytest.approx(preview["liquid"])  # the ledger loads again
+    methods["runway_save"](changes={"Assets:Me:Bank:VUB:Savings": {"liquid": None},
+                                    "Expenses:Cash": {"need": "unknown", "cut": 0.5}})
+    assert accounts.read_text() == before  # the undo: the old values
