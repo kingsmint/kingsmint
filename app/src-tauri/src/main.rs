@@ -424,7 +424,7 @@ fn new_ledger(dir: String, title: String, language: String, app: State<App>, han
 #[tauri::command]
 fn sample_ledger(language: String, app: State<App>, handle: tauri::AppHandle) -> Result<String, String> {
     let d = handle.path().app_data_dir().map_err(|e| e.to_string())?.join(format!("sample-{language}"));
-    if d.join("documents").is_dir() {
+    if has_statement(&d.join("documents")) {
         return open(&app, &d, Start::Existing);
     }
     if !d.join("main.beancount").is_file() {
@@ -432,6 +432,14 @@ fn sample_ledger(language: String, app: State<App>, handle: tauri::AppHandle) ->
         make_ledger(&d, if language == "sk" { "Ukážka" } else { "Sample" }, &language, &handle)?;
     }
     open(&app, &d, Start::Sample)
+}
+
+/// A statement was imported: documents/ holds a file (not .keep, which the template ships), as server/inbox.py says.
+fn has_statement(dir: &Path) -> bool {
+    std::fs::read_dir(dir).into_iter().flatten().flatten().any(|e| {
+        let hidden = e.file_name().to_string_lossy().starts_with('.');
+        !hidden && (e.path().is_file() || has_statement(&e.path()))
+    })
 }
 
 /// Copies the template into `d` and fills in the owner, language and kingsmint source.
