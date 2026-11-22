@@ -17,7 +17,8 @@
   const waiting = $derived(app.waiting.length);
 </script>
 
-<div id="lights" data-tauri-drag-region></div>
+<!-- room for the traffic lights: only macOS hides the title bar (main.rs); elsewhere the system draws it -->
+<div id="lights" data-tauri-drag-region style:height={navigator.userAgent.includes("Mac") ? null : "8px"}></div>
 <button
   id="switch"
   class:active={app.menuOpen}
