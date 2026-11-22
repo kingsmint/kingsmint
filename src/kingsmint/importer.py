@@ -36,6 +36,7 @@ from kingsmint.pdf import pdf_text
 ROOT = Path.cwd()
 KEPT, OTHER = {}, {}  # merge.collect() of the ledger before this import
 USED, WRITTEN = set(), set()  # ids merged, files written or deleted
+NAMES = []  # the payee rules of this import: (since, regex, name, "file:line"), the first match wins
 LEDGER = ROOT / "main.beancount"
 
 def read_csv(path):
@@ -104,6 +105,10 @@ def load():
              for e in sorted((e for e in entries if isinstance(e, data.Custom) and e.type == "rule"),
                              key=lambda e: (e.meta["filename"], e.meta["lineno"]))]
     ibkr = {e.meta["ibkr"]: e.account for e in entries if isinstance(e, data.Open) and "ibkr" in e.meta}
+    NAMES[:] = [(e.date, re.compile(e.values[0].value, re.I), e.values[1].value,
+                 f"{Path(e.meta['filename']).name}:{e.meta['lineno']}")
+                for e in sorted((e for e in entries if isinstance(e, data.Custom) and e.type == "payee"),
+                                key=lambda e: (e.meta["filename"], e.meta["lineno"]))]
     return accounts, own, rules, ibkr
 
 
@@ -116,11 +121,24 @@ def match(t, own, rules, currency="EUR"):
     until, other_currency = own.get(t.iban, (dt.date.min, None))
     if t.date <= until:  # between own accounts: a transfer, or an exchange when the currencies differ
         return ("Equity:Conversions" if other_currency not in (None, currency) else "Assets:Transit"), [], "own account"
-    text = f"{t.payee} | {t.narration} | {t.iban} | {t.amount}"
+    text = text_of(t)
     for since, rx, account, splits, *where in rules:
         if since <= t.date and (rx.search(text) or t.vs and rx.search(f"VS{t.vs}") or t.ref and rx.search(t.ref)):
             return account, splits, where[0] if where else "rule"
     return "Income:Uncategorized" if t.amount > 0 else "Expenses:Uncategorized", [], "no rule"
+
+
+def text_of(t):
+    """What a rule matches: the bank's payee, narration, counterparty IBAN and amount."""
+    return f"{t.payee} | {t.narration} | {t.iban} | {t.amount}"
+
+
+def rename(t, names):
+    """(name, "file:line") of the first payee rule that matches the bank's text, or (None, None)."""
+    for since, rx, name, where in names:
+        if since <= t.date and rx.search(text_of(t)):
+            return name, where
+    return None, None
 
 
 def preview():
@@ -134,11 +152,11 @@ def preview():
     # postings changed by hand: reimport keeps them, whatever the rules say
     pinned = {tid: merge.parts(base)[2][-1][0] for tid, (_, base, _, mine) in kept.items()
               if base and mine != base and merge.parts(mine)[2][1:] != merge.parts(base)[2][1:]}
-    changes, edits = {}, []
+    changes, edits, names = {}, [], {}
     for e in loader.load_file(str(LEDGER))[0]:
         bank = e.postings[0] if isinstance(e, data.Transaction) and e.postings else None
         if bank and e.meta.get("id") in pinned and bank.account in iban_of:
-            t = Txn(e.date, bank.units.number, e.payee or "", e.narration or "", e.meta.get("iban", ""),
+            t = Txn(e.date, bank.units.number, bank_payee(e), e.narration or "", e.meta.get("iban", ""),
                     vs=e.meta.get("vs", ""), ref=e.meta.get("ref", ""))
             rule = match(t, {k: v for k, v in own.items() if k != iban_of[bank.account]}, rules, bank.units.currency)[0]
             if rule != pinned[e.meta["id"]]:  # the rules changed since the user's edit
@@ -149,8 +167,13 @@ def preview():
         if not auto or bank.account not in iban_of:
             continue  # IBKR, hand-written, and zero-amount entries are not categorized by rules
         fee = e.postings[1].units.number if e.postings[1] is not auto[0] and e.postings[1].account == "Expenses:Bank:Fees" else 0
-        t = Txn(e.date, bank.units.number + fee, e.payee or "", e.narration or "", e.meta.get("iban", ""),
+        t = Txn(e.date, bank.units.number + fee, bank_payee(e), e.narration or "", e.meta.get("iban", ""),
                 vs=e.meta.get("vs", ""), ref=e.meta.get("ref", ""))
+        name, where = rename(t, NAMES)
+        # shortcut: a payee renamed by hand shows here too, though reimport keeps it; compare with the base if it misleads
+        if (name or t.payee) != (e.payee or ""):
+            names.setdefault((where or "no payee rule", e.payee or "", name or t.payee), []).append(
+                f"{t.date}  {t.payee} | {t.narration} | {t.amount}")
         others = {k: v for k, v in own.items() if k != iban_of[bank.account]}
         new, _, why = match(t, others, rules, bank.units.currency)
         old = auto[0].account
@@ -160,7 +183,11 @@ def preview():
         print(f"{why}  {old} -> {new}  {len(txns)}")
         for line in txns[:3]:
             print(f"    {line}")
-    n = sum(map(len, changes.values()))
+    for (why, old, new), txns in sorted(names.items(), key=lambda kv: -len(kv[1])):
+        print(f"{why}  payee {old!r} -> {new!r}  {len(txns)}")
+        for line in txns[:3]:
+            print(f"    {line}")
+    n = sum(map(len, changes.values())) + sum(map(len, names.values()))
     print(f"{n} transactions would change; `uv run kingsmint reimport` applies the rules" if n else "no changes")
     if pinned:
         print(f"{len(pinned)} transactions keep postings edited by hand; reimport does not apply rules to them")
@@ -168,6 +195,11 @@ def preview():
         print(f"    {line}")
     if edits:
         print("    to take the rule: `uv run kingsmint reset <id>`, then `uv run kingsmint reimport`")
+
+
+def bank_payee(e):
+    """The payee as the bank wrote it: a payee rule keeps it in `bank_payee:`."""
+    return e.meta.get("bank_payee", e.payee or "")
 
 
 def clear_generated():
@@ -213,9 +245,12 @@ def render(st, account, own, rules, source):
         n = seen[key] = seen.get(key := (t.date, t.amount + t.fee), -1) + 1
         other, splits = categorize(t, {k: v for k, v in own.items() if k != st.iban}, rules, st.currency)
         flag = "!" if other.endswith("Uncategorized") else "*"
-        out.append(f"{t.date} {flag} {q(t.payee)} {q(t.narration)}")
+        name = rename(t, NAMES)[0]  # one name for a merchant whose bank text changes from store to store
+        out.append(f"{t.date} {flag} {q(name or t.payee)} {q(t.narration)}")
         out.append(f"  id: {q(txn_id(st.iban, t, n))}")  # `kingsmint reimport` keeps edits by it
         out.append(f"  document: {q(source)}")  # Fava opens the statement from the transaction
+        if name is not None and name != t.payee:
+            out.append(f"  bank_payee: {q(t.payee)}")  # rules match it, not the name
         if t.iban:
             out.append(f"  iban: {q(t.iban)}")  # counterparty; rules and transfer detection match on it
         if t.vs:

@@ -29,6 +29,12 @@ or else in the language the user writes in.
    - A counterparty that comes again (a shop, a utility, a client, a salary, a yearly insurance): one rule
      in the matching section of `rules.beancount`, following its header and the rule gotchas below. Put
      what the user explained into the rule's comment: the comment is the memory for the next session.
+   - A merchant whose bank text changes from store to store (`LIDL 185 <CITY>`, `Lidl dakuje 232`): also
+     one payee rule in the payee section of `rules.beancount`, which gives it one name: the brand, without
+     city, store number or a payment processor. Do it for each group you categorize that has more than one
+     payee text. To see the variants of the ledger, alphabetical order puts them next to each other:
+     `uv run bean-query -q main.beancount "SELECT coalesce(str(entry_meta('bank_payee')), payee) AS text,
+     count(*) AS n GROUP BY text ORDER BY text"`.
    - One transaction (a refund, a gift, a one-time purchase, a payment the general rule gets wrong): an
      edit of that transaction in `ledger/`, as "Editing one transaction" below shows. What the user
      explained goes into its `note:`.
@@ -58,7 +64,7 @@ or else in the language the user writes in.
    monthly payments to an accounting firm (does an accountant keep the official books?), shops or
    restaurants paid from a company account (does the company pay personal costs?).
 5. Run `uv run kingsmint rules`: it shows, by rule, which transactions the edited rules would move, from
-   which account to which, with examples. Fix a rule that moves more than intended before you go on.
+   which account to which, and which payees a payee rule would rename, with examples. Fix a rule that moves more than intended before you go on.
    Then run `uv run kingsmint reimport` and `uv run kingsmint check`; it must print nothing that was not
    there before your change (run `check` once before your first edit to know) (a Transit `FAIL` about a missing statement can stay). Diff the ledger (`jj diff --stat ledger/` or `git diff --stat ledger/`; `.kingsmint/` repeats it) and spot-check
    that each new rule moved only the intended transactions; a rule that also caught others is too broad.
@@ -114,6 +120,10 @@ comments:
 ## Rule gotchas
 
 - Backslashes are doubled inside Beancount strings: `"\\bBP\\b"`.
+- Category rules and payee rules match the bank's text, which a renamed transaction keeps in `bank_payee:`,
+  not the name. A rule written for the name (`^Lidl$`) misses the bank's `LIDL 185 <CITY>`.
+- A payment processor is not the merchant: name the shop behind `GOPAY *`, `PADDLE.NET*`, or leave the
+  payee as the bank wrote it.
 - Wrap short words in `\\b`: `hotovost` matched "Bezhotovostná", `voda` matched a surname.
 - First match wins in file order, not date order. Specific rules go above general ones, such as a
   fallback for all payments to the state treasury.

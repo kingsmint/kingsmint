@@ -68,3 +68,19 @@ def test_tatra_csv_card():
 def test_tatra_pdf_vs():
     t = tatra.tb_txn(Txn(D, Decimal("-5")), ["   Referencia platiteľa:   /VS123/SS/KS"])
     assert t.vs == "123"
+
+
+def test_payee_rules(monkeypatch):
+    from kingsmint import importer
+    from kingsmint.banks.common import Statement
+
+    monkeypatch.setattr(importer, "NAMES", [(D, re.compile(r"^Lidl\b", re.I), "Lidl", "rules.beancount:1")])
+    txns = [Txn(D, Decimal("-10.00"), "LIDL dakuje 185 MESTO", "Platba kartou"),
+            Txn(D, Decimal("-5.00"), "Lidl", "Platba kartou"),
+            Txn(D, Decimal("-7.00"), "Bakery", "Platba kartou")]
+    out = importer.render(Statement("SK00", Decimal(0), Decimal("-22.00"), D, D, txns), "Assets:Bank", {}, RULES, "s.csv")
+    first, second, third = out.split("\n\n")[2:5]
+    assert first.startswith('2025-06-01 * "Lidl" "Platba kartou"') and 'bank_payee: "LIDL dakuje 185 MESTO"' in first
+    assert "Expenses:Food:Groceries" in first  # the category rule matches the bank's text
+    assert '"Lidl"' in second and "bank_payee" not in second  # the name the bank wrote: nothing to keep
+    assert '"Bakery"' in third and "bank_payee" not in third
