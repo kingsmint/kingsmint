@@ -3,8 +3,8 @@
 origin: a script in Fava's frame cannot call the app's commands.
 
 The app asks it for the ledger's data on stdin (rpc.py), with the methods in `app.state.methods`: `query` (BQL on
-Fava's loaded ledger), `reports` (reports/*.toml), `state` (statements waiting, the check, a first import), `inbox`,
-`settings` and `save_settings`, and the versions (`history`, `versions_init`, `versions_restore`, `versions_save`).
+Fava's loaded ledger), `dashboard`, `transactions` and `entry` (the overview), `reports` (reports/*.toml), `state` (statements
+waiting, the check, a first import), `inbox`, `settings` and `save_settings`, and the versions (`history`, `versions_init`, `versions_restore`, `versions_save`).
 
 The app runs it in the ledger, with the ledger's Python, so Fava and its kingsmint extensions are the ledger's version:
 
@@ -27,13 +27,16 @@ from types import SimpleNamespace
 from pathlib import Path
 
 import beanquery
+import dashboard
 import inbox
 import jj_versions as versions
 import ledger_settings
 import ledger_state
 import rpc
 from babel.numbers import format_decimal
+from beancount.core.data import Transaction
 from fava.application import create_app
+from fava.helpers import FavaAPIError
 from werkzeug.exceptions import NotFound
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.middleware.shared_data import SharedDataMiddleware
@@ -107,6 +110,37 @@ def make_app(ledger: Path, ui: Path):
         cursor = beanquery.connect("beancount:", entries=l.all_entries, errors=l.errors, options=l.options).execute(bql)
         return {"columns": [c.name for c in cursor.description], "rows": cursor.fetchall()}
 
+    def loaded():
+        """Fava's ledger, loaded again after a change; and the price of a unit in the operating currency."""
+        l = fava.config["LEDGERS"].ledgers[0]
+        l.changed()
+        currency = (l.options["operating_currency"] or ["EUR"])[0]
+        return l, lambda c, day: l.prices.get_price((c, currency), day)
+
+    def overview(period: str | None = None, unit: str = "month") -> dict:
+        l, rate = loaded()
+        return dashboard.overview(l.all_entries, l.errors, l.options, rate, period, unit)
+
+    def transactions(start: str, end: str, account: str | None = None) -> dict:
+        l, rate = loaded()
+        return dashboard.transactions(l.all_entries, l.options, rate, start, end, account)
+
+    def entry(hash: str) -> dict | None:
+        """A transaction by Fava's hash (the overview's transaction view); None when the ledger no longer has it (a
+        change of the transaction gives it another hash)."""
+        l, rate = loaded()
+        try:
+            e = l.get_entry(hash)
+        except FavaAPIError:
+            return None
+        if not isinstance(e, Transaction):
+            return None
+        try:
+            statement = bool(l.statement_path(hash, "document"))
+        except FavaAPIError:
+            statement = False
+        return dashboard.entry(e, l.all_entries, l.options, rate, statement)
+
     def reports() -> list[dict]:
         """The reports in reports/*.toml: name, query (BQL), view (table, bar, line). A broken file comes with its
         error, so it does not hide the others."""
@@ -146,6 +180,24 @@ def make_app(ledger: Path, ui: Path):
         except versions.VersionError as e:
             return {"changed": None, "error": str(e)}
 
+    def runway_edit(changes: dict | None = None) -> dict | None:
+        """The runway with edits of the accounts' liquid, need and cut that are not saved yet: a preview."""
+        l, _ = loaded()
+        currency = (l.options["operating_currency"] or ["EUR"])[0]
+        return dashboard.runway_edit(l.all_entries, l.errors, l.options, currency, changes or {})
+
+    def runway_save(changes: dict) -> dict:
+        """Writes the edits into the `open` entries (ValueError, SettingsError for a bad one): what changed; the files
+        are written also when the version fails, which comes as `error`."""
+        l, _ = loaded()  # the files as they are now: their line numbers
+        try:
+            changed = ledger_settings.save_meta(root, l.all_entries, dashboard.checked(l.all_entries, changes))
+            error = ""
+        except versions.VersionError as e:
+            changed, error = None, str(e)
+        l.load_file()  # now, not when Fava's watcher sees the file: the page loads the runway right after the save
+        return {"changed": changed, "error": error}
+
     def history() -> dict:
         """The versions, newest first, and whether files changed since the last; `versions` is None before the
         versions are on. An error of jj comes as `error`, as in the other version methods."""
@@ -177,8 +229,11 @@ def make_app(ledger: Path, ui: Path):
             versions.save(root, message)
 
     app.state = SimpleNamespace(checker=checker)
-    app.state.methods = {"query": query, "reports": reports, "inbox": inbox_data, "settings": settings_data,
-                         "save_settings": save_settings, "history": history, "versions_init": versions_init,
+    app.state.methods = {"query": query, "dashboard": overview, "transactions": transactions, "entry": entry,
+                         "reports": reports,
+                         "inbox": inbox_data, "settings": settings_data,
+                         "save_settings": save_settings, "runway_edit": runway_edit, "runway_save": runway_save,
+                         "history": history, "versions_init": versions_init,
                          "versions_restore": versions_restore, "versions_save": versions_save,
                          "state": lambda: dataclasses.asdict(checker.state())}
     return app

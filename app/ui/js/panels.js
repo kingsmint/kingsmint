@@ -1,4 +1,4 @@
-// Panels (Dockview): Fava, the inbox, the settings, and one panel per terminal. A terminal runs one program (an agent,
+// Panels (Dockview): Fava, the inbox, the overview, the reports, the settings, and one panel per terminal. A terminal runs one program (an agent,
 // or "" for a shell), which keeps running while another panel shows. `session` is the program's number; events of an
 // ended program are ignored. A Claude Code terminal has its own session id (`claude`), so it continues the same
 // conversation after a restart. The layout, with each terminal's agent and session id and Fava's page, is saved per
@@ -14,13 +14,13 @@ import { t } from "./i18n.js";
 import { refreshInbox } from "./inbox.js";
 import { railState } from "./rail.js";
 import { loadSettings } from "./settings.js";
-import { active, assign, dock, favas, lastFava, loaded, tabs } from "./state.js";
+import { active, assign, dock, favas, lastFava, loaded, overviews, tabs } from "./state.js";
 import TabHeader from "./TabHeader.svelte";
 import TerminalPanel from "./TerminalPanel.svelte";
 import { addTab, defaultAgent, newTab, showTab } from "./terminal.js";
 import { byId, dark, invoke } from "./util.js";
 
-export const PARTS = { inbox: "inbox", reports: "reports", settings: "settings" }; // the pages that are in one panel only
+export const PARTS = { inbox: "inbox", dashboard: "dashboard", reports: "reports", settings: "settings" }; // the pages that are in one panel only
 
 export function save() {
   if (!loaded || !app.current || !dock) return;
@@ -53,6 +53,17 @@ function svelte(Component) {
       if (instance) unmount(instance);
     },
   };
+}
+
+// One more overview beside the group's (direction), starting on `params`: the view, unit and period of the one split
+export function addOverview({ group, direction, params } = {}) {
+  dock.addPanel({
+    id: `overview-${crypto.randomUUID().slice(0, 8)}`,
+    component: "overview",
+    title: t("dashboard"),
+    params,
+    position: group ? { referenceGroup: group, direction } : undefined,
+  });
 }
 
 // Fava (the view used last), the inbox or the settings: shows it, and adds it again after it was closed.
@@ -132,7 +143,9 @@ export function makeDock() {
         ? svelte(TerminalPanel)
         : name === "fava"
           ? svelte(FavaPanel)
-          : { element: byId(PARTS[name]), init() {} },
+          : name === "overview"
+            ? svelte(Dashboard)
+            : { element: byId(PARTS[name]), init() {} },
     // Dockview asks createTabComponent only with a tab component's name; without one it draws its own tabs
     defaultTabComponent: "tab",
     createTabComponent: () => svelte(TabHeader),
@@ -174,7 +187,8 @@ export function makeDock() {
   dark.addEventListener("change", () => dock.updateOptions({ theme: dark.matches ? DV.themeDark : DV.themeLight }));
 }
 
-// A ledger on the server's page: its saved layout, else Fava with the first agent and a shell beside it.
+// A ledger on the server's page: its saved layout, else the overview and Fava, with the first agent and a shell beside
+// them. A new ledger then goes to the inbox (applyState in ledger.js).
 export async function loadLayout(dir) {
   assign({ loaded: false });
   if (!dock) makeDock();
@@ -195,11 +209,15 @@ export async function loadLayout(dir) {
     }
   }
   if (!ok) {
-    dock.addPanel({ id: "fava", component: "fava", title: t("fava") });
+    dock.addPanel({ id: "dashboard", component: "dashboard", title: t("dashboard") });
+    dock.addPanel({ id: "fava", component: "fava", title: t("fava"), position: { referencePanel: "dashboard" } });
+    dock.getPanel("dashboard").api.setActive();
     assign({ restoring: !!saved?.tabs?.length }); // the tabs of an older app: they continue too
     (saved?.tabs?.length ? saved.tabs : [...new Set([defaultAgent(), ""])].map((agent) => ({ agent }))).forEach(addTab);
   }
   assign({ restoring: false, loaded: true });
+  // the rail's overview takes the view saved in its panel's parameters (Dashboard.svelte)
+  document.dispatchEvent(new CustomEvent("km-overview", { detail: dock.getPanel("dashboard")?.params ?? {} }));
   titles();
   railState();
   // a saved layout can show the inbox or the settings at once: they load as when they are opened
@@ -210,6 +228,7 @@ export async function loadLayout(dir) {
 export const titles = () => {
   Object.keys(PARTS).forEach((id) => dock?.getPanel(id)?.api.setTitle(t(id)));
   favas.forEach((_, id) => dock.getPanel(id)?.api.setTitle(t("fava")));
+  overviews.forEach((_, id) => dock.getPanel(id)?.api.setTitle(t("dashboard")));
 };
 
 // The tab menu, and what closes the menus.

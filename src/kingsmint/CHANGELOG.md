@@ -7,6 +7,21 @@ here is the installed version.
 
 ## Unreleased
 
+- The Kingsmint app has an **Overview**: five tiles for a month (cash flow, the top spending category, net worth,
+  savings rate and runway), each compared with the month before, the 12-month average or the goal. A tile opens
+  its detail (a trend, categories, accounts), and a category, a payee or a bank account its transactions in the
+  app: filtered by account, payee and text, as a list by day or a table, with a running total or the balance,
+  under a chart of the days against the month before, where a drag picks days. A transaction opens its detail:
+  its postings and details, its statement, and the payee's payments in 12 months; Fava edits it. The runway shows
+  what the baseline is made of, by need and account, the liquid money by account, and the runway without
+  investments; its **Edit** changes which accounts are liquid
+  money, and the need and cut of the spending, shows the runway with the new values before you save, writes them
+  into `accounts.beancount` as a version, and undoes the save; **Discuss with the agent** asks the agent to propose
+  these values, with your changes not saved yet, and to change the file only after you agree. An agent's link to an account opens its detail here, not
+  in Fava. A group's split opens one more overview beside it, on the same view, with its own period; in a wide
+  panel a transaction's detail opens beside the transactions. After a restart, the overview goes on where it was. It is the first
+  page of a ledger, and shows after the first import. Its tables and charts, and those of Reports, take Fava's
+  look and colors.
 - The Kingsmint app has **Reports**: your own reports in `reports/*.toml` (a name, a BQL query and a view), each as
   a table, and a bar or line chart too. Ask the agent for one ("my monthly expenses by category"); it writes the
   file, and the report shows at once, also after the next import.

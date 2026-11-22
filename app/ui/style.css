@@ -885,23 +885,754 @@ select.lang {
   height: 280px;
   margin-bottom: 1.5em;
 }
-.reports table {
+/* the tables of the reports and the overview, as Fava draws them (its --table-* variables, from the same tokens as
+   fava.css): a grey header, every other row darker, numbers in the monospaced font */
+:is(.reports, .dashboard) table {
   border-collapse: collapse;
   font-size: var(--wa-font-size-s);
 }
-.reports th,
-.reports td {
-  padding: 0.3em 0.9em 0.3em 0;
-  border-bottom: 1px solid var(--wa-color-surface-border);
+:is(.reports, .dashboard) :is(th, td) {
+  padding: 2px 8px;
+  border: 1px solid var(--wa-color-surface-border);
   text-align: left;
+  white-space: nowrap;
 }
-.reports th {
-  font-weight: 500;
+:is(.reports, .dashboard) th {
+  font-weight: 400;
   color: var(--wa-color-text-quiet);
+  background: var(--wa-color-neutral-fill-quiet);
 }
-.reports td.num {
+:is(.reports, .dashboard) tbody tr:nth-child(2n) {
+  background: var(--wa-color-surface-lowered);
+}
+:is(.reports, .dashboard) .num {
   text-align: right;
   font-family: var(--wa-font-family-code);
+}
+
+/* the overview's tables are read, not scanned like Fava's: the text's size, room in the rows, and only lines
+   between them */
+.dashboard table {
+  font-size: inherit;
+}
+.dashboard :is(th, td) {
+  padding: 7px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--wa-color-surface-border);
+}
+.dashboard th {
+  background: none;
+  font-size: var(--wa-font-size-s);
+  border-bottom-color: var(--wa-color-neutral-border-normal, var(--wa-color-surface-border));
+}
+.dashboard tbody tr:nth-child(2n) {
+  background: none;
+}
+.dashboard tr.group td {
+  background: var(--wa-color-surface-lowered);
+}
+
+/* the overview (js/Dashboard.svelte): on one screen, the tiles, then the cash flow and where the money went side by
+   side; a detail in its place. Fewer tiles in a row, and one column, when the panel is narrow. Color only for a
+   state (data-state): good, warn, bad, in Fava's diff colors */
+#dashboard {
+  height: 100%;
+}
+.overview-scroll {
+  zoom: var(--zoom, 1);
+  height: 100%;
+  overflow: auto;
+  background: var(--wa-color-surface-default);
+}
+/* a transaction's detail beside the transactions: the list scrolls, the detail stays in sight */
+.dashboard.split {
+  max-width: 140em;
+}
+.dashboard .panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2.5em;
+  align-items: start;
+}
+.dashboard.split .panes {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.dashboard .pane.detail {
+  position: sticky;
+  top: 0;
+  max-height: 100vh;
+  overflow: auto;
+  padding-top: 0.5em;
+}
+/* one width for every view, in the middle of a wide panel: the charts and the tables line up, and a table does not
+   sit in a corner under a chart that runs across the screen */
+.dashboard {
+  max-width: 72em;
+  margin: 0 auto;
+  padding: 1em 1.5em 2em;
+}
+.dashboard header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+  margin-bottom: 1em;
+}
+.dashboard h1 {
+  margin: 0;
+  font-weight: 500;
+  font-size: 1.4em;
+}
+.dashboard select {
+  font: inherit;
+}
+.dashboard button {
+  font: inherit;
+  color: inherit;
+}
+/* the period: month or year, ‹ the period › */
+.dashboard .period {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.dashboard .units {
+  display: flex;
+  margin-right: 0.5em;
+  border: 1px solid var(--wa-color-surface-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.dashboard .units button {
+  padding: 0.2em 0.8em;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.dashboard .units button.on {
+  background: var(--wa-color-brand-fill-quiet);
+  color: var(--wa-color-brand-on-quiet);
+}
+.dashboard .arrow {
+  width: 1.8em;
+  height: 1.8em;
+  border: 1px solid var(--wa-color-surface-border);
+  border-radius: 4px;
+  background: none;
+  font-size: 1.1em;
+  line-height: 1;
+  cursor: pointer;
+}
+.dashboard .arrow:hover:not(:disabled) {
+  background: var(--wa-color-surface-lowered);
+}
+.dashboard .arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.dashboard .crumbs {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  min-width: 0;
+}
+.dashboard .crumbs button,
+.dashboard .more {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--wa-color-text-link);
+  cursor: pointer;
+}
+.dashboard .crumbs button:hover,
+.dashboard .more:hover {
+  text-decoration: underline;
+}
+.dashboard .crumbs .sep {
+  color: var(--wa-color-text-quiet);
+}
+.dashboard .tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13em, 1fr));
+  gap: 0.75em;
+}
+.dashboard .tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+  min-width: 0;
+  padding: 0.75em 0.9em;
+  border: 1px solid var(--wa-color-surface-border);
+  border-radius: 4px;
+  background: var(--wa-color-surface-default);
+  text-align: left;
+  cursor: pointer;
+}
+.dashboard .tile:hover:not(:disabled) {
+  border-color: var(--wa-color-brand-border-normal);
+}
+.dashboard .tile:disabled {
+  cursor: default;
+}
+.dashboard .tile .title {
+  font-size: var(--wa-font-size-s);
+  color: var(--wa-color-text-quiet);
+}
+.dashboard .tile strong,
+.dashboard .headline strong {
+  font-size: 1.6em;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.dashboard .tile .sub,
+.dashboard .tile .empty {
+  font-size: var(--wa-font-size-s);
+  color: var(--wa-color-text-quiet);
+}
+.dashboard .spark {
+  display: block;
+  width: 100%;
+  height: 26px;
+}
+.dashboard .meter {
+  display: block;
+  height: 6px;
+  margin: 10px 0;
+  border-radius: 3px;
+  background: var(--wa-color-neutral-fill-quiet);
+}
+.dashboard .meter span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: currentColor;
+}
+.dashboard [data-state="good"] .meter {
+  color: var(--wa-color-success-fill-loud);
+}
+.dashboard [data-state="warn"] .meter {
+  color: var(--wa-color-warning-fill-loud);
+}
+.dashboard [data-state="bad"] .meter {
+  color: var(--wa-color-danger-fill-loud);
+}
+/* the comparisons: a name and its number in two columns, under a line */
+.dashboard dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.1em 0.75em;
+  margin: auto 0 0;
+  padding-top: 0.4em;
+  border-top: 1px solid var(--wa-color-surface-border);
+  font-size: var(--wa-font-size-s);
+}
+.dashboard dt {
+  color: var(--wa-color-text-quiet);
+}
+.dashboard dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.dashboard [data-state="good"] > strong,
+.dashboard td[data-state="good"] {
+  color: var(--wa-color-success-on-quiet);
+}
+.dashboard [data-state="warn"] > strong,
+.dashboard [data-state="warn"]:is(td, .change) {
+  color: var(--wa-color-warning-on-quiet);
+}
+.dashboard [data-state="bad"] > strong,
+.dashboard td[data-state="bad"] {
+  color: var(--wa-color-danger-on-quiet);
+}
+.dashboard .panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(24em, 1fr));
+  gap: 0.75em;
+  margin-top: 0.75em;
+}
+.dashboard .card {
+  min-width: 0;
+  padding: 0.75em 0.9em;
+  border: 1px solid var(--wa-color-surface-border);
+  border-radius: 4px;
+}
+.dashboard h2 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1em;
+  margin: 0 0 0.75em;
+  font-weight: 500;
+  font-size: 1em;
+}
+.dashboard h2 .muted {
+  font-weight: 400;
+  font-size: var(--wa-font-size-s);
+}
+.dashboard .chart {
+  height: 220px;
+}
+.dashboard > .chart {
+  margin-bottom: 1em;
+}
+/* where the money went: a category, its bar, its amount, the change against the average */
+.dashboard .bars {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dashboard .bars button {
+  display: grid;
+  grid-template-columns: minmax(5em, 9em) 1fr 6em 4.5em;
+  align-items: center;
+  gap: 0.75em;
+  width: 100%;
+  padding: 0.3em 0.25em;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.dashboard .bars button:hover {
+  background: var(--wa-color-surface-lowered);
+}
+.dashboard .bars .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dashboard .bars .bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--wa-color-neutral-fill-quiet);
+}
+.dashboard .bars .bar span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: #7eaefd; /* Fava's first chart color (FAVA in Chart.svelte) */
+}
+.dashboard .bars .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+/* a change in percent, as Fava's Trends report marks it (src/kingsmint/fava/templates/Trends.html) */
+.dashboard .chg {
+  display: inline-block;
+  min-width: 3.6em;
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
+  text-align: right;
+}
+.dashboard .chg.bad2 {
+  background: #d93f3f;
+  color: #fff;
+}
+.dashboard .chg.bad1 {
+  color: #c0392b;
+}
+.dashboard .chg.good1 {
+  color: #2e8b57;
+}
+.dashboard .chg.good2 {
+  background: #2e8b57;
+  color: #fff;
+}
+.dashboard .chg.small {
+  color: var(--wa-color-text-quiet);
+}
+/* the percentage in a column of its own, joined to its amount: the amounts stay aligned when it is missing */
+.dashboard td.pct {
+  width: 5.5em;
+  padding-left: 0;
+  border-left: 0;
+  text-align: right;
+}
+.dashboard td:has(+ td.pct) {
+  border-right: 0;
+}
+.dashboard .note {
+  margin: 0.75em 0 0;
+  font-size: var(--wa-font-size-s);
+}
+/* the runway's edit view: Edit beside the note; while editing, a bar with Cancel and Save that stays in sight */
+.dashboard .runway-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1em;
+}
+.dashboard .runway-head p {
+  margin-top: 0;
+}
+.dashboard .runway-head .actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.5em;
+}
+.dashboard .edit-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin: 0 0 0.75em;
+  padding: 0.5em 0.75em;
+  border-radius: 6px;
+  background: var(--wa-color-brand-fill-quiet);
+  color: var(--wa-color-brand-on-quiet);
+}
+.dashboard .edit-bar span {
+  flex: 1;
+}
+.dashboard .edit-bar .error {
+  color: var(--wa-color-danger-on-quiet);
+}
+.dashboard .edit-bar.sticky {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.dashboard label.cut {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.dashboard label.cut input {
+  width: 8em;
+  accent-color: var(--wa-color-brand-fill-loud);
+}
+.dashboard label.cut span {
+  min-width: 3.5em;
+  font-variant-numeric: tabular-nums;
+}
+/* an account's or a report's detail */
+.dashboard .headline {
+  display: flex;
+  align-items: flex-end;
+  gap: 2em;
+  margin-bottom: 0.5em;
+}
+.dashboard .headline dl {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.dashboard .headline .more {
+  margin-left: auto;
+}
+.dashboard > table {
+  width: 100%;
+  margin-bottom: 1.5em;
+}
+/* numbers in the monospaced font, as Fava's; their headers and the bars' amounts in the text's */
+.dashboard th.num,
+.dashboard .bars .num {
+  font-family: inherit;
+}
+.dashboard > h2 {
+  margin-top: 1.5em;
+}
+.dashboard tr.link {
+  cursor: pointer;
+}
+.dashboard tbody tr.link:hover {
+  background: var(--wa-color-brand-fill-quiet);
+}
+.dashboard tr.on td {
+  font-weight: 500;
+}
+.dashboard tr.group td {
+  font-weight: 500;
+}
+.dashboard td.indent {
+  padding-left: 1.5em;
+}
+.dashboard .spark-col {
+  width: 10em;
+}
+.dashboard td.spark-col .spark {
+  height: 16px;
+}
+/* the transactions: what they are filtered by, as chips to change, then the list; a payee or an account in a row
+   narrows the filter, the row opens the transaction in Fava */
+.dashboard .filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 1em;
+}
+.dashboard .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  max-width: 100%;
+  padding: 0.15em 0.3em 0.15em 0.6em;
+  border: 1px solid var(--wa-color-surface-border);
+  border-radius: 999px;
+  background: var(--wa-color-surface-lowered);
+}
+.dashboard .chip > span {
+  color: var(--wa-color-text-quiet);
+  font-size: var(--wa-font-size-s);
+}
+.dashboard .chip select {
+  max-width: 24em;
+  border: 0;
+  background: none;
+}
+.dashboard .chip b {
+  font-weight: 500;
+}
+.dashboard .chip button {
+  width: 1.4em;
+  height: 1.4em;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  line-height: 1;
+  cursor: pointer;
+}
+.dashboard .chip button:hover {
+  background: var(--wa-color-neutral-fill-quiet);
+}
+.dashboard .filter input[type="search"] {
+  flex: 1 1 14em;
+  max-width: 24em;
+  padding: 0.25em 0.6em;
+  border: 1px solid var(--wa-color-surface-border);
+  border-radius: 4px;
+  background: var(--wa-color-surface-default);
+  color: inherit;
+  font: inherit;
+}
+.dashboard .filter .more {
+  margin-left: auto;
+}
+.dashboard table.txns {
+  width: 100%;
+  table-layout: fixed;
+}
+.dashboard .txns th:nth-child(1) {
+  width: 5.5em;
+}
+.dashboard .txns th:nth-child(3) {
+  width: 22%;
+}
+.dashboard .txns th:nth-child(4),
+.dashboard .txns th:nth-child(5) {
+  width: 8.5em;
+}
+.dashboard .txns th:nth-child(6) {
+  width: 4.5em;
+}
+.dashboard .txns td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dashboard .txns td.what .muted {
+  margin-left: 0.6em;
+  font-size: 0.9em;
+}
+.dashboard .txns .pick {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.dashboard .txns td.what .pick {
+  font-weight: 500;
+}
+.dashboard .txns .pick:hover {
+  color: var(--wa-color-text-link);
+  text-decoration: underline;
+}
+.dashboard .txns td.num.muted {
+  color: var(--wa-color-text-quiet);
+}
+
+/* the transactions as a list: a day's header with its sum, which stays on top while its rows scroll; a row in two
+   lines, the payee over what it is, the amount over the running total */
+/* the transactions' chart: low, above the list */
+.dashboard .txchart {
+  margin-bottom: 0.5em;
+}
+.dashboard .txchart .chart {
+  height: 170px;
+  margin-bottom: 0;
+}
+.dashboard .txchart .note {
+  margin: 0 0 0.5em;
+}
+.dashboard .txlist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dashboard .txlist :is(.day, .month) {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1.25em;
+  padding: 0.35em 12px;
+  border-radius: 4px;
+  background: var(--wa-color-neutral-fill-quiet);
+  font-size: var(--wa-font-size-s);
+  font-weight: 500;
+}
+.dashboard .txlist > :first-child {
+  margin-top: 0;
+}
+/* the last row of a day: no line, the next day's band ends it */
+.dashboard .txlist .item:is(:has(+ :is(.day, .month)), :last-child) {
+  border-bottom: 0;
+}
+.dashboard .txlist .day > :first-child {
+  display: inline-block;
+}
+.dashboard .txlist .day > :first-child::first-letter {
+  text-transform: uppercase;
+}
+.dashboard .txlist .month {
+  margin-top: 2em;
+  background: var(--wa-color-surface-default);
+  font-size: 1.05em;
+}
+.dashboard .txlist .month + .day {
+  margin-top: 0.25em;
+}
+.dashboard .txlist .item {
+  display: flex;
+  align-items: center;
+  gap: 1.5em;
+  padding: 0.6em 12px;
+  border-bottom: 1px solid var(--wa-color-surface-border);
+  cursor: pointer;
+}
+.dashboard .txlist .item:hover {
+  background: var(--wa-color-surface-lowered);
+}
+.dashboard .txlist .main,
+.dashboard .txlist .trail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+.dashboard .txlist .main {
+  flex: 1;
+  min-width: 0;
+}
+.dashboard .txlist .trail {
+  align-items: flex-end;
+  white-space: nowrap;
+}
+.dashboard .txlist .title .pick {
+  font-weight: 500;
+}
+.dashboard .txlist .sub {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  color: var(--wa-color-text-quiet);
+  font-size: var(--wa-font-size-s);
+  white-space: nowrap;
+}
+.dashboard .txlist .sub .text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dashboard .txlist .sub > * + *::before {
+  content: "·";
+  margin: 0 0.5em;
+  color: var(--wa-color-text-quiet);
+}
+.dashboard .txlist .pick {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+.dashboard .txlist .pick:hover {
+  color: var(--wa-color-text-link);
+  text-decoration: underline;
+}
+.dashboard .txlist .amount {
+  font-weight: 500;
+}
+.dashboard .txlist .run {
+  color: var(--wa-color-text-quiet);
+  font-size: var(--wa-font-size-s);
+}
+/* a transaction: who and when, the amount against the payee's average, what to do with it, then its postings and
+   details beside the payee's other payments */
+
+.dashboard .txn .headline {
+  align-items: center;
+  margin-bottom: 0.75em;
+}
+.dashboard .txn .who {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.dashboard .txn .who h2 {
+  margin: 0;
+  font-size: 1.3em;
+}
+.dashboard .txn .who .tag {
+  align-self: flex-start;
+  margin: 0.3em 0 0;
+}
+.dashboard .txn .actions {
+  display: flex;
+  gap: 0.5em;
+  margin-bottom: 1.5em;
+}
+.dashboard .action {
+  padding: 0.3em 0.9em;
+  border: 1px solid var(--wa-color-surface-border);
+  border-radius: 4px;
+  background: var(--wa-color-surface-default);
+  cursor: pointer;
+}
+.dashboard .action:hover {
+  background: var(--wa-color-surface-lowered);
+}
+.dashboard .txn section > table {
+  width: 100%;
+  margin-bottom: 1.5em;
+}
+.dashboard .txn td.meta {
+  white-space: normal;
+  word-break: break-all;
+}
+.dashboard .txn h2:first-child {
+  margin-top: 0;
+}
+.dashboard .txlist .item.on {
+  background: var(--wa-color-brand-fill-quiet);
+  cursor: default;
+}
+.dashboard .txn .txlist {
+  margin-bottom: 0.75em;
+}
+.dashboard .tag {
+  margin-left: 0.5em;
+  padding: 0 0.4em;
+  border-radius: 3px;
+  background: var(--wa-color-neutral-fill-quiet);
+  color: var(--wa-color-text-quiet);
+  font-size: 0.85em;
 }
 
 /* a tab's title while it is renamed (TabHeader.svelte) */
@@ -915,3 +1646,7 @@ select.lang {
   color: inherit;
   font: inherit;
 }
+
+/* the agent's sparkles: in the brand color, except on a brand button, where the text color shows */
+.agent-icon { vertical-align: -0.25em; }
+wa-button:not([variant="brand"]) .agent-icon { color: var(--wa-color-brand-fill-loud); }

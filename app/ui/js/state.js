@@ -11,6 +11,7 @@ export let loaded = false; // the layout of the open ledger is loaded; saving be
 export let restoring = false; // the panels fromJSON makes: their programs continue (resume)
 export let lastFava = null; // the Fava panel used last: the rail and ⌘2 show it
 export const favas = new Map(); // Fava's panels (one or more views of the ledger): panel id → iframe
+export const overviews = new Map(); // the overviews (the rail's "dashboard" and its splits): panel id → its state now
 
 export function assign(values) {
   for (const [k, v] of Object.entries(values)) {

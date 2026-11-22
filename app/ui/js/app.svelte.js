@@ -16,7 +16,7 @@ export const app = $state({
   menuError: "", // the same, in the ledger menu
   menuOpen: false, // the ledger menu shows
   historyOpen: false, // the versions' popup shows
-  shown: { fava: true, inbox: false, reports: false, settings: false, side: true }, // the rail's panels that show
+  shown: { fava: true, inbox: false, dashboard: false, reports: false, settings: false, side: true }, // the rail's panels that show
   waiting: [], // the statements waiting in inbox/
   check: null, // what `kingsmint check` said: "" when the ledger is fine, null while it is not known
   agentNote: "", // an agent's question that only the user answers, above the panels

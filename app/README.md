@@ -8,7 +8,7 @@ The window shows the app's own page (`dist/`, built by Vite from `ui/`, on `taur
 ledger's own server, `server/server.py`, on `http://127.0.0.1:<port>/fava`: another origin, so a script in Fava's
 frame (Fava, its extensions, a ledger's document) cannot call the app's commands. The server adds `bridge.js` to
 Fava's pages, which tells the page by messages what happens in a frame (drag the window, the app's shortcuts,
-⌘-click into a split, the current page). The page's views of the ledger (inbox, reports, settings, history) are
+⌘-click into a split, the current page). The page's views of the ledger (inbox, overview, reports, settings, history) are
 Svelte components in `ui/js/*.svelte`; they get the data with the app's command `rpc`, which the app sends to the
 server's stdin as a line of JSON (`server/rpc.py`). The app (Rust)
 keeps the window, the terminals, the native dialogs, the files the user adds, and watches the ledger's files: after a
