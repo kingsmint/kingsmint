@@ -152,11 +152,14 @@ def preview():
     # postings changed by hand: reimport keeps them, whatever the rules say
     pinned = {tid: merge.parts(base)[2][-1][0] for tid, (_, base, _, mine) in kept.items()
               if base and mine != base and merge.parts(mine)[2][1:] != merge.parts(base)[2][1:]}
-    changes, edits, names = {}, [], {}
+    # payees changed by hand: reimport keeps them, whatever the payee rules say; the rules match the bank's text
+    named = {tid: (merge.bank_text(*merge.parts(base)[:2]) or '""')[1:-1] for tid, (_, base, _, mine) in kept.items()
+             if base and mine != base and merge.parts(mine)[0].get("payee") != merge.parts(base)[0].get("payee")}
+    changes, edits, names, changed = {}, [], {}, set()
     for e in loader.load_file(str(LEDGER))[0]:
         bank = e.postings[0] if isinstance(e, data.Transaction) and e.postings else None
         if bank and e.meta.get("id") in pinned and bank.account in iban_of:
-            t = Txn(e.date, bank.units.number, bank_payee(e), e.narration or "", e.meta.get("iban", ""),
+            t = Txn(e.date, bank.units.number, named.get(e.meta.get("id"), bank_payee(e)), e.narration or "", e.meta.get("iban", ""),
                     vs=e.meta.get("vs", ""), ref=e.meta.get("ref", ""))
             rule = match(t, {k: v for k, v in own.items() if k != iban_of[bank.account]}, rules, bank.units.currency)[0]
             if rule != pinned[e.meta["id"]]:  # the rules changed since the user's edit
@@ -167,18 +170,19 @@ def preview():
         if not auto or bank.account not in iban_of:
             continue  # IBKR, hand-written, and zero-amount entries are not categorized by rules
         fee = e.postings[1].units.number if e.postings[1] is not auto[0] and e.postings[1].account == "Expenses:Bank:Fees" else 0
-        t = Txn(e.date, bank.units.number + fee, bank_payee(e), e.narration or "", e.meta.get("iban", ""),
+        t = Txn(e.date, bank.units.number + fee, named.get(e.meta.get("id"), bank_payee(e)), e.narration or "", e.meta.get("iban", ""),
                 vs=e.meta.get("vs", ""), ref=e.meta.get("ref", ""))
         name, where = rename(t, NAMES)
-        # shortcut: a payee renamed by hand shows here too, though reimport keeps it; compare with the base if it misleads
-        if (name or t.payee) != (e.payee or ""):
+        if (name or t.payee) != (e.payee or "") and e.meta.get("id") not in named:
             names.setdefault((where or "no payee rule", e.payee or "", name or t.payee), []).append(
                 f"{t.date}  {t.payee} | {t.narration} | {t.amount}")
+            changed.add(e.meta.get("id") or id(e))
         others = {k: v for k, v in own.items() if k != iban_of[bank.account]}
         new, _, why = match(t, others, rules, bank.units.currency)
         old = auto[0].account
         if new != old:
             changes.setdefault((why, old, new), []).append(f"{t.date}  {t.payee} | {t.narration} | {t.iban} | {t.amount}")
+            changed.add(e.meta.get("id") or id(e))
     for (why, old, new), txns in sorted(changes.items(), key=lambda kv: -len(kv[1])):
         print(f"{why}  {old} -> {new}  {len(txns)}")
         for line in txns[:3]:
@@ -187,7 +191,7 @@ def preview():
         print(f"{why}  payee {old!r} -> {new!r}  {len(txns)}")
         for line in txns[:3]:
             print(f"    {line}")
-    n = sum(map(len, changes.values())) + sum(map(len, names.values()))
+    n = len(changed)  # a transaction both renamed and moved counts once
     print(f"{n} transactions would change; `uv run kingsmint reimport` applies the rules" if n else "no changes")
     if pinned:
         print(f"{len(pinned)} transactions keep postings edited by hand; reimport does not apply rules to them")

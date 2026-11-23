@@ -24,7 +24,10 @@ Use these tools for every kingsmint command; they run on the user's computer, no
   accounts.beancount in the ledger folder, then call kingsmint_rules (preview), kingsmint_reimport, and
   kingsmint_check. Change one transaction directly in its ledger/ file: reimport keeps edits to a transaction.
 - A rule: `2000-01-01 custom "rule" "REGEX" Account`; the regex matches `payee | narration | iban | amount`
-  (and `VS<variable symbol>`); the first matching rule in file order wins.
+  (and `VS<variable symbol>`); the first matching rule in file order wins. The payee here is the bank's text.
+- A payee rule gives one name to a merchant whose bank text varies: `2000-01-01 custom "payee" "REGEX" "Name"`.
+  A renamed transaction keeps the bank's text in `bank_payee:`, and both kinds of rules match that text, not
+  the name: write rules against `coalesce(str(entry_meta('bank_payee')), payee)`.
 - A new user: kingsmint_start creates the ledger folder and opens it. kingsmint_banks lists the supported banks.
 - New statements go to inbox/; then kingsmint_import. Ask the user only what the statements cannot show.
 - kingsmint_check must print nothing new after each change. Then save a version with kingsmint_save: what changed
@@ -196,7 +199,9 @@ def kingsmint_restore(version: str = "", ledger_dir: str = "") -> str:
 @mcp.tool()
 def kingsmint_query(query: str, ledger_dir: str = "") -> str:
     """Run a bean-query (BQL) query on main.beancount, e.g. uncategorized transactions:
-    SELECT date, payee, narration, position WHERE account ~ '^(Expenses|Income):Uncategorized$'"""
+    SELECT date, coalesce(str(entry_meta('bank_payee')), payee) AS bank_text, narration, position
+    WHERE account ~ '^(Expenses|Income):Uncategorized$'
+    (bank_text is what rules match; payee may be a name a payee rule gave)"""
     exe = Path(sys.executable).parent / ("bean-query.exe" if os.name == "nt" else "bean-query")
     p = subprocess.run([str(exe), "-q", "main.beancount", query], cwd=ledger(ledger_dir),
                        capture_output=True, text=True, encoding="utf-8", timeout=300)

@@ -33,8 +33,8 @@ or else in the language the user writes in.
      one payee rule in the payee section of `rules.beancount`, which gives it one name: the brand, without
      city, store number or a payment processor. Do it for each group you categorize that has more than one
      payee text. To see the variants of the ledger, alphabetical order puts them next to each other:
-     `uv run bean-query -q main.beancount "SELECT coalesce(str(entry_meta('bank_payee')), payee) AS text,
-     count(*) AS n GROUP BY text ORDER BY text"`.
+     `uv run bean-query -q main.beancount "SELECT coalesce(str(meta['bank_payee']), payee) AS text,
+     count(*) AS n FROM #transactions GROUP BY text ORDER BY text"` (n counts transactions).
    - One transaction (a refund, a gift, a one-time purchase, a payment the general rule gets wrong): an
      edit of that transaction in `ledger/`, as "Editing one transaction" below shows. What the user
      explained goes into its `note:`.
