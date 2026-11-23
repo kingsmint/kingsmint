@@ -67,14 +67,11 @@ main {
 #rail button.on {
   opacity: 1;
 }
-#rail svg {
-  width: 22px;
-  height: 22px;
-  fill: none;
-  stroke: currentColor;
+#rail wa-icon {
+  font-size: 22px;
+}
+#rail wa-icon::part(svg) {
   stroke-width: 1.6;
-  stroke-linejoin: round;
-  stroke-linecap: round;
 }
 
 /* the work area: the bar, then the panels (Dockview) */
@@ -201,15 +198,11 @@ main {
   opacity: 1;
   background: var(--wa-color-surface-border);
 }
-.group-actions .add {
-  font-size: 18px;
+.group-actions wa-icon {
+  font-size: 14px;
 }
-.group-actions svg {
-  width: 14px;
-  height: 14px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.3;
+.group-actions .add wa-icon {
+  font-size: 16px;
 }
 .group-actions .hover {
   display: none;
@@ -427,15 +420,12 @@ main {
 #menu .ledger:hover {
   background: var(--wa-color-surface-lowered);
 }
-#menu .item svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linejoin: round;
-  stroke-linecap: round;
+#menu .item wa-icon {
+  font-size: 18px;
   opacity: 0.8;
+}
+#menu .item wa-icon::part(svg) {
+  stroke-width: 1.6;
 }
 #menu .ledger div {
   min-width: 0;
@@ -502,11 +492,9 @@ main {
   display: inline-flex;
 }
 #rail .chevron {
-  width: 8px;
-  height: 8px;
+  font-size: 10px;
   flex: none;
-  stroke: var(--wa-color-brand-on-loud);
-  stroke-width: 1.4;
+  color: var(--wa-color-brand-on-loud);
   opacity: 0.8;
 }
 #rail-line {
@@ -1647,6 +1635,15 @@ select.lang {
   font: inherit;
 }
 
+/* an icon in a line of text sits on the text's middle */
+button wa-icon,
+.tab-btn .close wa-icon {
+  vertical-align: -0.125em;
+}
 /* the agent's sparkles: in the brand color, except on a brand button, where the text color shows */
-.agent-icon { vertical-align: -0.25em; }
-wa-button:not([variant="brand"]) .agent-icon { color: var(--wa-color-brand-fill-loud); }
+.agent-icon {
+  font-size: 1.15em;
+}
+wa-button:not([variant="brand"]) .agent-icon {
+  color: var(--wa-color-brand-fill-loud);
+}

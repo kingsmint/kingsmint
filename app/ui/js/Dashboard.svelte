@@ -10,7 +10,6 @@
      The numbers come from the ledger's server (server/dashboard.py) and load again after the ledger's files change.
      Color only for a state: green good, yellow or red a warning. -->
 <script>
-  import AgentIcon from "./AgentIcon.svelte";
   import { untrack } from "svelte";
   import { app } from "./app.svelte.js";
   import Chart, { FAVA } from "./Chart.svelte";
@@ -711,9 +710,9 @@
         </div>
         <div class="actions">
           {#if txn.statement}
-            <button type="button" class="action" onclick={() => statementOf(txn.hash)}>{t("openStatement")} ↗</button>
+            <button type="button" class="action" onclick={() => statementOf(txn.hash)}>{t("openStatement")} <wa-icon name="external-link"></wa-icon></button>
           {/if}
-          <button type="button" class="action" onclick={() => editInFava(txn.hash)}>{t("editInFava")} ↗</button>
+          <button type="button" class="action" onclick={() => editInFava(txn.hash)}>{t("editInFava")} <wa-icon name="external-link"></wa-icon></button>
         </div>
         <div class="panels">
           <section>
@@ -772,7 +771,7 @@
                 unit = "year";
                 pick(txn.date.slice(0, 4));
                 go({ name: "txns", account, payee: txn.payee });
-              }}>{t("allOfPayee")} ›</button
+              }}>{t("allOfPayee")} <wa-icon name="chevron-right"></wa-icon></button
             >
           </section>
         </div>
@@ -797,7 +796,7 @@
       <nav class="crumbs">
         <button type="button" onclick={() => go({ name: "overview" })}>{t("overview")}</button>
         {#each crumbs as c, i}
-          <span class="sep">›</span>
+          <span class="sep"><wa-icon name="chevron-right"></wa-icon></span>
           {#if i < crumbs.length - 1}
             <button type="button" onclick={() => go(c.view)}>{c.label}</button>
           {:else}
@@ -815,11 +814,11 @@
           <button type="button" class:on={unit === "month"} onclick={() => setUnit("month")}>{t("month")}</button>
           <button type="button" class:on={unit === "year"} onclick={() => setUnit("year")}>{t("year")}</button>
         </div>
-        <button type="button" class="arrow" disabled={!older} title={t("previous")} onclick={() => pick(older)}>‹</button>
+        <button type="button" class="arrow" disabled={!older} title={t("previous")} onclick={() => pick(older)}><wa-icon name="chevron-left"></wa-icon></button>
         <select value={d.period} onchange={(e) => pick(e.target.value)}>
           {#each d.periods as p}<option value={p}>{periodName(p)}</option>{/each}
         </select>
-        <button type="button" class="arrow" disabled={!newer} title={t("next")} onclick={() => pick(newer)}>›</button>
+        <button type="button" class="arrow" disabled={!newer} title={t("next")} onclick={() => pick(newer)}><wa-icon name="chevron-right"></wa-icon></button>
       </div>
     {/if}
   </header>
@@ -855,7 +854,7 @@
     <div class="panels">
       <section class="card">
         <h2>
-          <button type="button" class="more" onclick={() => go({ name: "cashflow" })}>{t("cashFlow")} ›</button>
+          <button type="button" class="more" onclick={() => go({ name: "cashflow" })}>{t("cashFlow")} <wa-icon name="chevron-right"></wa-icon></button>
           <span class="muted">{t(L.window)}</span>
         </h2>
         <Chart
@@ -870,7 +869,7 @@
       </section>
       <section class="card">
         <h2>
-          <button type="button" class="more" onclick={() => open("Expenses", false)}>{t("whereMoney")} ›</button>
+          <button type="button" class="more" onclick={() => open("Expenses", false)}>{t("whereMoney")} <wa-icon name="chevron-right"></wa-icon></button>
           <span class="muted">{periodName(d.period)}</span>
         </h2>
         <ul class="bars">
@@ -901,7 +900,7 @@
         avgOf(s) != null && [t(L.avg), eur(avgOf(s))],
       ])}
       <button type="button" class="more" onclick={() => go({ name: "txns", account: view.account })}
-        >{t("transactions")} ›</button
+        >{t("transactions")} <wa-icon name="chevron-right"></wa-icon></button
       >
     </div>
     <Chart
@@ -1084,14 +1083,14 @@
         <span class="chip">
           <span>{t("payee")}</span>
           <b>{listView.payee}</b>
-          <button type="button" title={t("removeFilter")} onclick={() => go({ ...listView, payee: undefined })}>×</button>
+          <button type="button" title={t("removeFilter")} onclick={() => go({ ...listView, payee: undefined })}><wa-icon name="x"></wa-icon></button>
         </span>
       {/if}
       {#if listView.days}
         <span class="chip">
           <span>{t("days")}</span>
           <b>{listView.days[0] === listView.days[1] ? dayName(listView.days[0]) : `${dayName(listView.days[0])} – ${dayName(listView.days[1])}`}</b>
-          <button type="button" title={t("removeFilter")} onclick={() => go({ ...listView, days: undefined })}>×</button>
+          <button type="button" title={t("removeFilter")} onclick={() => go({ ...listView, days: undefined })}><wa-icon name="x"></wa-icon></button>
         </span>
       {/if}
       <input type="search" placeholder={t("searchTransactions")} bind:value={search} />
@@ -1099,7 +1098,7 @@
         <button type="button" class:on={layout === "list"} onclick={() => setLayout("list")}>{t("asList")}</button>
         <button type="button" class:on={layout === "table"} onclick={() => setLayout("table")}>{t("asTable")}</button>
       </div>
-      <button type="button" class="more" onclick={favaJournal}>Fava ↗</button>
+      <button type="button" class="more" onclick={favaJournal}>Fava <wa-icon name="external-link"></wa-icon></button>
     </div>
     {#if shown}
       <div class="headline">
@@ -1244,10 +1243,10 @@
       <p class="muted">{t("runwayNote")}</p>
       <div class="actions">
         {#if !editing}
-          <wa-button size="small" appearance="filled" onclick={startEdit}>✎ {t("runwayEdit")}</wa-button>
+          <wa-button size="small" appearance="filled" onclick={startEdit}><wa-icon slot="start" name="pencil"></wa-icon>{t("runwayEdit")}</wa-button>
         {/if}
         <wa-button size="small" appearance="filled" title={t("runwayAgentTitle")} onclick={discuss}
-          ><AgentIcon slot="start" />{t("runwayAgent")}</wa-button
+          ><wa-icon slot="start" class="agent-icon" name="sparkles"></wa-icon>{t("runwayAgent")}</wa-button
         >
       </div>
     </div>
@@ -1389,7 +1388,7 @@
         <button
           type="button"
           class="more"
-          onclick={() => fava(`/ledger/query/?query_string=${encodeURIComponent(runway.query)}`)}>Fava ↗</button
+          onclick={() => fava(`/ledger/query/?query_string=${encodeURIComponent(runway.query)}`)}>Fava <wa-icon name="external-link"></wa-icon></button
         >
       </p>
     {/if}
