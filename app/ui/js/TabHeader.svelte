@@ -81,6 +81,6 @@
     onclick={(e) => {
       e.stopPropagation();
       close();
-    }}>×</span
+    }}><wa-icon name="x"></wa-icon></span
   >
 </div>

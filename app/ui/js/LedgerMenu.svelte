@@ -25,17 +25,15 @@
         openPicked();
       }}
     >
-      <svg viewBox="0 0 24 24">
-        <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4l2 2h9A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" />
-      </svg>
+      <wa-icon name="folder-open"></wa-icon>
       <span>{t("open")}</span>
     </button>
     <button type="button" class="item" onclick={() => (asking = true)}>
-      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+      <wa-icon name="plus"></wa-icon>
       <span>{t("newLedger")}</span>
     </button>
     <button type="button" class="item" onclick={sample}>
-      <svg viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3" /></svg>
+      <wa-icon name="flask-conical"></wa-icon>
       <span>{t("trySample")}</span>
     </button>
     {#if asking}

@@ -1,7 +1,6 @@
 <!-- What needs the user, above the panels: problems in the ledger (with the button that asks the agent to fix them)
      and an agent's question; and the sign while files are dragged over the window. -->
 <script>
-  import AgentIcon from "./AgentIcon.svelte";
   import { app } from "./app.svelte.js";
   import { t } from "./i18n.js";
   import { ask } from "./tasks.js";
@@ -20,7 +19,7 @@
 {#if app.check}
   <p id="check" class="banner" title={app.check}>
     <span>{t("problems")}</span>
-    <button type="button" disabled={fixing} onclick={fix}><AgentIcon /> {t("fix")}</button>
+    <button type="button" disabled={fixing} onclick={fix}><wa-icon class="agent-icon" name="sparkles"></wa-icon> {t("fix")}</button>
   </p>
 {/if}
 {#if app.agentNote}<p id="agent-note" class="banner">{app.agentNote}</p>{/if}

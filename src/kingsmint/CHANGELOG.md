@@ -7,6 +7,8 @@ here is the installed version.
 
 ## Unreleased
 
+- The Kingsmint app's icons come from one set, Lucide, in the same style everywhere; a button that gives a task
+  to the agent has sparkles.
 - The Kingsmint app has an **Overview**: five tiles for a month (cash flow, the top spending category, net worth,
   savings rate and runway), each compared with the month before, the 12-month average or the goal. A tile opens
   its detail (a trend, categories, accounts), and a category, a payee or a bank account its transactions in the

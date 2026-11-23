@@ -2,7 +2,6 @@
      statements. Saving writes the files (and a version); a change of the accounts goes to the agent as one message.
      It loads again on km-settings (loadSettings in settings.js). -->
 <script>
-  import AgentIcon from "./AgentIcon.svelte";
   import { t, tAgent } from "./i18n.js";
   import { app } from "./app.svelte.js";
   import { tell } from "./tasks.js";
@@ -97,7 +96,7 @@
 
     <form class="wa-flank:end wa-gap-s" onsubmit={askAgent}>
       <wa-input name="text" placeholder={t("accountsAsk")} autocomplete="off"></wa-input>
-      <wa-button type="submit" variant="brand"><AgentIcon slot="start" />{t("askAgent")}</wa-button>
+      <wa-button type="submit" variant="brand"><wa-icon slot="start" class="agent-icon" name="sparkles"></wa-icon>{t("askAgent")}</wa-button>
     </form>
   </div>
 {:else if error}

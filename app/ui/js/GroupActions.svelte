@@ -48,10 +48,10 @@
 <div class="group-actions">
   {#if splittable}
     <button class="hover" title={t("splitRight")} onpointerdown={own(() => {})} onclick={own(() => split("right"))}>
-      <svg viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="9" rx="1" /><path d="M8 3.5v9" /></svg>
+      <wa-icon name="columns-2"></wa-icon>
     </button>
     <button class="hover" title={t("splitDown")} onpointerdown={own(() => {})} onclick={own(() => split("below"))}>
-      <svg viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="9" rx="1" /><path d="M2.5 8h11" /></svg>
+      <wa-icon name="rows-2"></wa-icon>
     </button>
   {/if}
   <button
@@ -60,10 +60,10 @@
     onpointerdown={own(() => {})}
     onclick={own(() => maximize(group.api))}
   >
-    <svg viewBox="0 0 16 16"><path d="M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5L9 7M2.5 13.5L7 9" /></svg>
+    <wa-icon name={maximized ? "minimize-2" : "maximize-2"}></wa-icon>
   </button>
   <button class="hover" title={t("closeGroup")} onpointerdown={own(() => {})} onclick={own(() => setTimeout(() => group.api.close()))}>
-    <svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+    <wa-icon name="x"></wa-icon>
   </button>
-  <button class="add" title={t("newTab")} onpointerdown={own(() => {})} onclick={own(menu)}>+</button>
+  <button class="add" title={t("newTab")} onpointerdown={own(() => {})} onclick={own(menu)}><wa-icon name="plus"></wa-icon></button>
 </div>

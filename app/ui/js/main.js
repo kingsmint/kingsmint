@@ -43,6 +43,11 @@ initShortcuts();
 // disabled="false" disables it too. Web Awesome's loader defines an element only when it finds one in the page, and
 // the buttons are all in the components, so the page defines it first.
 await import(/* @vite-ignore */ "/vendor/@awesome.me/webawesome/dist-cdn/components/button/button.js");
+// <wa-icon name="…">: Lucide's icons, which scripts/ui.sh copies into the app; Font Awesome's would come from its CDN
+const { registerIconLibrary } = await import(
+  /* @vite-ignore */ "/vendor/@awesome.me/webawesome/dist-cdn/webawesome.loader.js"
+);
+registerIconLibrary("default", { resolver: (name) => `/vendor/lucide-static/icons/${name}.svg` });
 mount(Rail, { target: byId("rail") });
 mount(Notices, { target: byId("work"), anchor: byId("dock") });
 mount(Cover, { target: byId("work") });
