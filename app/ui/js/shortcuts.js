@@ -18,7 +18,7 @@ export function shortcut(e) {
     e.preventDefault();
     return zoom(0);
   }
-  // ⌘1-3 in the order of the rail: inbox, Fava, agent
+  // ⌘1-3 in the order of the rail: inbox, Fava, agent (⌘3 and ⌘J show or hide the sidebar)
   if (e.key === "1") {
     e.preventDefault();
     pane("inbox");

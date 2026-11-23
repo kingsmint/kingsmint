@@ -16,12 +16,16 @@ export const app = $state({
   menuError: "", // the same, in the ledger menu
   menuOpen: false, // the ledger menu shows
   historyOpen: false, // the versions' popup shows
+  // the agent's sidebar on the right (Sidebar.svelte): shown, pinned beside the panels or floating over them (it hides
+  // on a click elsewhere), wide over the panels, its width in px; saved with the ledger's layout
+  sidebar: { open: true, pinned: true, wide: false, width: 420 },
   shown: { fava: true, inbox: false, dashboard: false, reports: false, settings: false, side: true }, // the rail's panels that show
   waiting: [], // the statements waiting in inbox/
+  reports: 0, // the ledger's reports (reports/*.toml): the rail shows Reports once there is one
   check: null, // what `kingsmint check` said: "" when the ledger is fine, null while it is not known
   agentNote: "", // an agent's question that only the user answers, above the panels
   dropping: false, // files are dragged over the window
-  popup: null, // the open menu: { kind: "tab", api, x, y, isTerm, isFava, terminals } or { kind: "add", group, x, y }
+  popup: null, // the open menu: { kind: "tab", api, x, y, isTerm, isFava, terminals } or { kind: "add", group, side, x, y }
   cover: null, // over the panels: "welcome" (no ledger open), "status" (the wait for the server), or null
   status: { message: "", failed: false, log: [] }, // the wait: the message, and the last lines of uv
   renaming: null, // the panel whose tab title is a field (the tab menu's Rename)

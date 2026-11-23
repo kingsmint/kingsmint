@@ -4,7 +4,8 @@
 // the fields of the Svelte state (app.svelte.js).
 import { app } from "./app.svelte.js";
 
-export let dock = null; // the Dockview API
+export let dock = null; // the Dockview API of the panels
+export let side = null; // the Dockview API of the agent's sidebar: the terminals, as tabs of one group
 export let tabs = []; // the terminals
 export let active = null; // the terminal used last
 export let loaded = false; // the layout of the open ledger is loaded; saving before would overwrite it
@@ -22,6 +23,7 @@ export function assign(values) {
 }
 const SETTERS = {
   dock: (v) => (dock = v),
+  side: (v) => (side = v),
   tabs: (v) => (tabs = v),
   active: (v) => (active = v),
   loaded: (v) => (loaded = v),

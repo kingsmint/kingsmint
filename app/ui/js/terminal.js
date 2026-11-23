@@ -3,10 +3,11 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
+import { tick } from "svelte";
 import { app } from "./app.svelte.js";
-import { firstFava, openLink } from "./fava.js";
+import { openLink } from "./fava.js";
 import { t } from "./i18n.js";
-import { active, assign, dock, restoring, tabs } from "./state.js";
+import { active, assign, restoring, side, tabs } from "./state.js";
 import { dark, invoke, listen } from "./util.js";
 import { fontSize } from "./zoom.js";
 
@@ -152,8 +153,10 @@ export function fitTab(tab) {
   if (tab.session) invoke("pty_resize", { session: tab.session, cols: tab.term.cols, rows: tab.term.rows });
 }
 
-// Shows the terminal and waits for its program.
+// Shows the terminal, with the sidebar, and waits for its program.
 export async function showTab(tab) {
+  app.sidebar.open = true;
+  await tick(); // the sidebar shows: the terminal measures its size
   tab.api.setActive();
   assign({ active: tab });
   await run(tab);
@@ -169,27 +172,18 @@ export function closeTab(tab) {
   if (active === tab) assign({ active: null });
 }
 
-// A new terminal, beside the one used last, else right of Fava.
-export function addTab({ agent = "", claude = null, name, group, direction } = {}) {
+// A new terminal: a tab in the agent's sidebar.
+export function addTab({ agent = "", claude = null, name } = {}) {
   if (agent === "claude" && !claude) claude = crypto.randomUUID();
-  const near = active?.api ?? tabs.at(-1)?.api;
-  const position = group
-    ? { referenceGroup: group, direction }
-    : near
-      ? { referencePanel: near.id }
-      : firstFava()
-        ? { referencePanel: firstFava().id, direction: "right" }
-        : undefined;
-  const panel = dock.addPanel({
+  const panel = side.addPanel({
     id: `term-${crypto.randomUUID().slice(0, 8)}`,
     component: "term",
     title: name || freeName(agent || "shell"),
     params: { agent, claude },
-    position,
   });
   return tabs.find((t) => t.api.id === panel.id);
 }
-export const newTab = (agent, group, direction) => showTab(addTab({ agent, group, direction }));
+export const newTab = (agent) => showTab(addTab({ agent }));
 // the agent of new tabs: the one in the settings while it is installed, else the first one found
 export const defaultAgent = () =>
   app.installed.includes(app.appSettings.agent) || app.appSettings.agent === ""

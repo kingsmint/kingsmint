@@ -2,6 +2,7 @@
      table. They load again after the ledger's files change (ledger-changed), so an agent's new report or a new import
      shows at once. -->
 <script>
+  import { app } from "./app.svelte.js";
   import Chart from "./Chart.svelte";
   import { t } from "./i18n.js";
   import { listen, rpc } from "./util.js";
@@ -21,6 +22,7 @@
   async function load() {
     try {
       reports = await rpc("reports");
+      app.reports = reports.length;
     } catch {
       return; // no ledger's server yet: the start screen
     }

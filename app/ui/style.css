@@ -26,6 +26,54 @@ button:focus-visible {
 main {
   display: flex;
   height: 100vh;
+  position: relative;
+}
+
+/* the agent's sidebar (Sidebar.svelte): pinned beside the panels, floating over them, or wide over them */
+#side {
+  flex: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--wa-color-surface-border);
+  background: var(--wa-color-surface-default);
+  --dv-tabs-and-actions-container-font-size: 13px;
+  --dv-tabs-and-actions-container-height: 32px;
+}
+#side.floating,
+#side.wide {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  box-shadow: var(--wa-shadow-l);
+}
+#side.wide {
+  left: 82px; /* the rail's width */
+}
+#side-dock {
+  flex: 1;
+  min-height: 0;
+}
+#side .grip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 1;
+}
+#side.wide .grip {
+  display: none;
+}
+body.resizing iframe {
+  pointer-events: none;
+}
+.side-actions button.on {
+  opacity: 1;
+  color: var(--wa-color-brand-fill-loud);
 }
 
 /* left rail in the header color; its top holds the traffic lights, beside Fava's header */

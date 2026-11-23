@@ -1,7 +1,8 @@
 # Kingsmint app (prototype)
 
 A desktop app in Tauri: Fava of a ledger, an inbox for statements, and terminals with a coding agent
-(Claude Code, Codex, Cursor) in the ledger folder, in panels (Dockview) that the user arranges. Versions of the
+(Claude Code, Codex, Cursor) in the ledger folder: the pages in panels (Dockview) that the user arranges, the
+terminals as tabs of a sidebar on the right, pinned beside the panels or floating over them. Versions of the
 ledger are kept with jj.
 
 The window shows the app's own page (`dist/`, built by Vite from `ui/`, on `tauri://localhost`). Fava comes from the
