@@ -21,6 +21,8 @@ export const app = $state({
   sidebar: { open: true, pinned: true, wide: false, width: 420 },
   shown: { fava: true, inbox: false, dashboard: false, reports: false, settings: false, side: true }, // the rail's panels that show
   waiting: [], // the statements waiting in inbox/
+  // the overview that the rail's views go to (the one active last) and its view, as railKey names it
+  overview: { id: "dashboard", key: "overview" },
   reports: 0, // the ledger's reports (reports/*.toml): the rail shows Reports once there is one
   check: null, // what `kingsmint check` said: "" when the ledger is fine, null while it is not known
   agentNote: "", // an agent's question that only the user answers, above the panels

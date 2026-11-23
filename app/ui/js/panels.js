@@ -61,8 +61,10 @@ function svelte(Component) {
 
 // One more overview beside the group's (direction), starting on `params`: the view, unit and period of the one split
 export function addOverview({ group, direction, params } = {}) {
+  const id = `overview-${crypto.randomUUID().slice(0, 8)}`;
+  app.overview.id = id; // the new one is active: the rail's views go there (it is not in overviews yet)
   dock.addPanel({
-    id: `overview-${crypto.randomUUID().slice(0, 8)}`,
+    id,
     component: "overview",
     title: t("dashboard"),
     params,
@@ -200,8 +202,9 @@ export function makeDock() {
   dock.onDidRemovePanel((p) => {
     if (PARTS[p.id]) byId("parts").append(byId(PARTS[p.id]));
   });
-  dock.onDidActivePanelChange((p) => {
+  dock.onDidActivePanelChange(({ panel: p }) => {
     if (favas.has(p?.id)) assign({ lastFava: p.id });
+    if (overviews.has(p?.id)) app.overview.id = p.id;
     railState();
   });
 }

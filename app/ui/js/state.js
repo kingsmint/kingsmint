@@ -10,7 +10,7 @@ export let tabs = []; // the terminals
 export let active = null; // the terminal used last
 export let loaded = false; // the layout of the open ledger is loaded; saving before would overwrite it
 export let restoring = false; // the panels fromJSON makes: their programs continue (resume)
-export let lastFava = null; // the Fava panel used last: the rail and ⌘2 show it
+export let lastFava = null; // the Fava panel used last: the rail and ⌘6 show it
 export const favas = new Map(); // Fava's panels (one or more views of the ledger): panel id → iframe
 export const overviews = new Map(); // the overviews (the rail's "dashboard" and its splits): panel id → its state now
 
