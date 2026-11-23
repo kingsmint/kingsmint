@@ -5,6 +5,19 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
+## Unreleased
+
+- The runway no longer counts property and loans given as liquid money when their accounts lack
+  `liquid: "false"`: the saved query `Liquid money` leaves out `Assets:*:Property` and `Assets:*:Loans` by their
+  name. The `categorize` skill marks an asset that is not money at hand with `liquid: "false"`.
+
+### Ledger
+
+- In `main.beancount`, in the query `Liquid money`, add `AND account !~ ':(Property|Loans)(:|$)'` after
+  `WHERE account ~ '^Assets:(Me|Co):'`. Without it, property and loans given whose `open` lacks
+  `liquid: "false"` count as liquid money, and the runway is too long. Also add `liquid: "false"` to the `open`
+  of any other asset that is not money at hand.
+
 ## 0.1.9
 
 - Fava has a **Trends** report: expenses per account and year with the change against the year before, red

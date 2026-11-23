@@ -43,6 +43,8 @@ or else in the language the user writes in.
      `Liabilities:<Bank>:Mortgage`, `Assets:Me:Investments:<Fund>`. What no statement shows (purchase
      price, assessed value, a loan before the first statement, a closed fund's gain) goes to
      `property.beancount`, as its examples show.
+     An asset that is not money at hand (property, a loan given, a fund that cannot be sold soon) gets
+     `liquid: "false"` on its `open`, so the runway does not count it.
    - money from a partner who shares the assets → their `Equity:` account
    - a payment in cash that the user names (what, when, how much) → an entry in `cash.beancount`
      that moves the amount from `Expenses:Cash` to its category, as its example shows. `ledger/` holds
