@@ -16,8 +16,9 @@ here is the installed version.
   ledger the Kingsmint app opened last; the plugin keeps only the `explain` skill.
 - While the Kingsmint app prepares a ledger, it shows what uv downloads (Python and the ledger's libraries, tens of
   MB on the first start), and the output of uv when the preparation fails.
-- A new ledger in the Kingsmint app takes kingsmint from the release's archive, not with git, so it works on a Mac
-  without the Command Line Tools; `kingsmint upgrade --done` moves such a ledger to the new release too.
+- A new ledger in the Kingsmint app takes kingsmint from the release's wheel, not with git, so it works on a Mac
+  without the Command Line Tools; `kingsmint upgrade --done` pins such a ledger to the wheel of the kingsmint it
+  runs, as it pins a git source to its tag. Each release has the wheel among its files.
 - The Kingsmint app shows Fava, the inbox, the settings and each terminal in **panels**: drag a tab to put the
   agent beside Fava, below it or in its own group; a double click on a tab maximizes its group and back. A group's header splits it, as in Herdr: Fava opens a second view of the same page beside it, a
   terminal one more terminal with the same agent; "+" also opens another view of Fava. The

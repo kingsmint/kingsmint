@@ -4,19 +4,25 @@ name: release
 # and the Kingsmint app for macOS, signed and notarized. Its secrets: APPLE_CERTIFICATE (the Developer ID Application
 # .p12, base64), APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY ("Developer ID Application: <name> (<team>)"),
 # and an App Store Connect API key for the notarization: APPLE_API_ISSUER, APPLE_API_KEY (its ID), APPLE_API_KEY_P8.
+# Without APPLE_CERTIFICATE and APPLE_API_KEY_P8 the Mac app is skipped. The release has kingsmint's wheel too: the
+# app's new ledgers install it (app/src-tauri/src/main.rs, make_ledger).
 on:
   push:
     tags: ["v*"]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      apple: ${{ steps.apple.outputs.apple }}
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
       - run: uv run --locked pytest
       - name: Tag matches the version
         run: test "$GITHUB_REF_NAME" = "v$(uv run python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
@@ -32,25 +38,45 @@ jobs:
           awk -v v="## ${GITHUB_REF_NAME#v}" '$0 == v {on = 1; next} /^## / {on = 0} on' src/kingsmint/CHANGELOG.md > notes.md
           grep -q . notes.md || { echo "src/kingsmint/CHANGELOG.md has no section ## ${GITHUB_REF_NAME#v}"; exit 1; }
       - run: uv run --locked python desktop/build.py
-      - run: gh release create "$GITHUB_REF_NAME" desktop/dist/kingsmint.plugin desktop/dist/kingsmint.mcpb --notes-file notes.md
+      - run: uv build --wheel
+      - run: gh release create "$GITHUB_REF_NAME" desktop/dist/kingsmint.plugin desktop/dist/kingsmint.mcpb dist/kingsmint-*-py3-none-any.whl --notes-file notes.md
         env:
           GH_TOKEN: ${{ github.token }}
+      # a job's `if` cannot read secrets: the macos job reads this output
+      - id: apple
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: echo "apple=${APPLE_CERTIFICATE:+${APPLE_API_KEY_P8:+yes}}" >> "$GITHUB_OUTPUT"
 
+  # a universal app, for Apple silicon and Intel Macs; Tauri takes the sidecars of both targets for their builds, and
+  # the two joined (lipo) for the bundle
   macos:
     needs: release
+    if: needs.release.outputs.apple == 'yes'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - uses: dtolnay/rust-toolchain@stable
-      - run: sh app/scripts/fetch-sidecars.sh
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - name: uv and jj for both Mac targets, and joined
+        run: |
+          sh app/scripts/fetch-sidecars.sh aarch64-apple-darwin
+          sh app/scripts/fetch-sidecars.sh x86_64-apple-darwin
+          cd app/src-tauri/binaries
+          for b in uv jj; do
+            lipo -create -output "$b-universal-apple-darwin" "$b-aarch64-apple-darwin" "$b-x86_64-apple-darwin"
+            "./$b-universal-apple-darwin" --version
+          done
       - name: Build, sign and notarize
         working-directory: app/src-tauri
         run: |
           printf '%s' "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/notary.p8"
-          APPLE_API_KEY_PATH="$RUNNER_TEMP/notary.p8" npx --yes @tauri-apps/cli@2 build --bundles app,dmg
+          APPLE_API_KEY_PATH="$RUNNER_TEMP/notary.p8" npx --yes @tauri-apps/cli@2.12.6 build --target universal-apple-darwin --bundles app,dmg
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -58,6 +84,22 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
-      - run: gh release upload "$GITHUB_REF_NAME" app/src-tauri/target/release/bundle/dmg/*.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dmg
+          path: app/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+  # the only job after the tests that may write to the release; the build with the signing secrets cannot
+  upload:
+    needs: macos
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dmg
+      - run: gh release upload "$GITHUB_REF_NAME" ./*.dmg --repo "$GITHUB_REPOSITORY"
         env:
           GH_TOKEN: ${{ github.token }}
