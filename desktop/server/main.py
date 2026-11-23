@@ -1,8 +1,6 @@
-"""Kingsmint MCP server (prototype): runs the kingsmint commands on this computer, in the ledger folder."""
+"""Kingsmint MCP server for the Claude app: reads the ledger on this computer to answer questions; it never changes it."""
 
 import os
-import re
-import shutil
 import subprocess
 import sys
 import time
@@ -15,32 +13,30 @@ from mcp.server.mcpserver import MCPServer
 import versions
 
 HERE = Path(__file__).parent  # in the bundle, holds the kingsmint package (desktop/build.py copies it)
-TEMPLATE = HERE.parent / "template"
 PORT = 5057
 
 mcp = MCPServer("kingsmint", instructions="""Kingsmint keeps a Beancount ledger in a folder on the user's computer.
-Use these tools for every kingsmint command; they run on the user's computer, not in your sandbox.
-- `ledger/` is generated: change the categories of a recurring counterparty by editing rules.beancount and
-  accounts.beancount in the ledger folder, then call kingsmint_rules (preview), kingsmint_reimport, and
-  kingsmint_check. Change one transaction directly in its ledger/ file: reimport keeps edits to a transaction.
-- A rule: `2000-01-01 custom "rule" "REGEX" Account`; the regex matches `payee | narration | iban | amount`
-  (and `VS<variable symbol>`); the first matching rule in file order wins. The payee here is the bank's text.
-- A payee rule gives one name to a merchant whose bank text varies: `2000-01-01 custom "payee" "REGEX" "Name"`.
-  A renamed transaction keeps the bank's text in `bank_payee:`, and both kinds of rules match that text, not
-  the name: write rules against `coalesce(str(entry_meta('bank_payee')), payee)`.
-- A new user: kingsmint_start creates the ledger folder and opens it. kingsmint_banks lists the supported banks.
-- New statements go to inbox/; then kingsmint_import. Ask the user only what the statements cannot show.
-- kingsmint_check must print nothing new after each change. Then save a version with kingsmint_save: what changed
-  in the first line, and below it why (what the user said, which transaction showed it, what was wrong before).
-- The user can go back: kingsmint_history lists the versions, kingsmint_restore undoes the last change.""")
+These tools only read it, to answer questions about the user's money from any chat. They run on the user's computer,
+not in your sandbox.
+- Answer with numbers from kingsmint_query (bean-query SQL), and say which periods kingsmint_coverage shows as
+  missing when they affect the answer. kingsmint_history tells why the ledger looks as it does.
+- Do not change the ledger's files. Importing statements, categories, rules and fixes happen in the Kingsmint app,
+  where an agent works on the ledger and every change is a version the user can undo; send the user there.""")
+
 fava = None
 
 
 REMEMBERED = Path.home() / ".kingsmint" / "ledger_dir"  # the last ledger folder a tool got: Cowork cannot set user_config
+APP = {"darwin": Path.home() / "Library" / "Application Support", "win32": Path(os.environ.get("APPDATA", "."))}.get(
+    sys.platform, Path.home() / ".config") / "org.kingsmint.app" / "ledger"  # the Kingsmint app's ledgers, newest first
+
+
+def first_line(p: Path) -> str:
+    return next(iter(p.read_text(encoding="utf-8").splitlines()), "").strip() if p.exists() else ""
 
 
 def ledger(ledger_dir: str = "") -> Path:
-    d = ledger_dir or os.environ.get("LEDGER_DIR", "") or (REMEMBERED.read_text(encoding="utf-8").strip() if REMEMBERED.exists() else "")
+    d = ledger_dir or os.environ.get("LEDGER_DIR", "") or first_line(REMEMBERED) or first_line(APP)
     if not d:
         raise ValueError("No ledger folder yet: pass ledger_dir, the folder's path on the user's computer (not a /sessions/... "
                          "sandbox path; ask the user for it if you do not know it). It is remembered for later calls.")
@@ -62,80 +58,10 @@ def run(ledger_dir: str, *args: str) -> str:
     return f"{out}\n(exit {p.returncode})" if p.returncode else out or "(no output)"
 
 
-def reveal(p: Path):
-    """Open a folder in Finder, Explorer, or the Linux file manager."""
-    if os.name == "nt":
-        os.startfile(p)
-    else:
-        subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(p)])
-
-
-@mcp.tool()
-def kingsmint_start(folder: str = "") -> str:
-    """Create the ledger folder with inbox/ for the statements (default: Kingsmint in the user's home folder), remember
-    it, and open inbox/ on the user's screen so they can drop the statements in."""
-    d = Path(folder) if folder else Path.home() / "Kingsmint"
-    (d / "inbox").mkdir(parents=True, exist_ok=True)
-    ledger(str(d))
-    reveal(d / "inbox")
-    return f"Opened {d / 'inbox'} on the user's screen. The chat needs this folder connected: {d}."
-
-
 @mcp.tool()
 def kingsmint_banks(ledger_dir: str = "") -> str:
     """The supported banks and statement formats, also the ones this ledger adds in banks/."""
     return run(ledger_dir, "banks")
-
-
-@mcp.tool()
-def kingsmint_text(file: str, ledger_dir: str = "") -> str:
-    """The text of a statement in the ledger folder (e.g. inbox/x.pdf), as the parsers see it: to write a parser."""
-    d = ledger(ledger_dir).resolve()
-    if not (d / file).resolve().is_relative_to(d):
-        raise ValueError("Only files inside the ledger folder")
-    return run(ledger_dir, "text", file)
-
-
-@mcp.tool()
-def kingsmint_new_ledger(title: str, currency: str = "EUR", locale: str = "sk_SK", language: str = "Slovak",
-                         language_code: str = "sk", ledger_dir: str = "") -> str:
-    """Create a new ledger from the template in an empty ledger folder. title: the owner's name, e.g. "Ján Novák"."""
-    d = ledger(ledger_dir)
-    if (d / "main.beancount").exists() or any(p.name not in ("inbox", "banks", ".DS_Store") for p in d.iterdir()):
-        raise ValueError(f"{d} is not empty; use an empty folder (inbox/ with statements and banks/ with parsers are fine)")
-    shutil.copytree(TEMPLATE, d, dirs_exist_ok=True)
-    for name, values in {"main.beancount": {"TITLE": title, "CURRENCY": currency, "LOCALE": locale, "LANGUAGE_CODE": language_code},
-                         "CLAUDE.md": {"LANGUAGE": language},
-                         "pyproject.toml": {"KINGSMINT_SOURCE": "https://github.com/kingsmint/kingsmint"}}.items():
-        f = d / name
-        text = f.read_text(encoding="utf-8")
-        for k, v in values.items():
-            text = re.sub(rf'\b{k}\b', v, text)
-        f.write_text(text, encoding="utf-8")
-    run(str(d), "upgrade", "--done")
-    versions.save(d, "New ledger")
-    return f"Created a ledger in {d}. Put statements into {d / 'inbox'}, then call kingsmint_scan."
-
-
-@mcp.tool()
-def kingsmint_scan(ledger_dir: str = "") -> str:
-    """Show what the statements in inbox/ are: bank, IBAN, period, holder, and the account they belong to or NEW."""
-    return run(ledger_dir, "scan")
-
-
-@mcp.tool()
-def kingsmint_import(ledger_dir: str = "") -> str:
-    """Import new statements from inbox/; each file ends on an ok, skip, or FAIL line. Saves a version."""
-    out = run(ledger_dir, "import")
-    versions.save(ledger(ledger_dir), "Import statements\n\n" + out)
-    return out
-
-
-@mcp.tool()
-def kingsmint_upgrade(done: bool = False, ledger_dir: str = "") -> str:
-    """What to change in a ledger made with an older kingsmint, and why. done=True after the changes are applied:
-    the ledger then matches this kingsmint."""
-    return run(ledger_dir, "upgrade", *(["--done"] if done else []))
 
 
 @mcp.tool()
@@ -151,49 +77,11 @@ def kingsmint_coverage(ledger_dir: str = "") -> str:
 
 
 @mcp.tool()
-def kingsmint_rules(ledger_dir: str = "") -> str:
-    """Preview what a reimport would change with the current rules, by rule, with examples."""
-    return run(ledger_dir, "rules")
-
-
-@mcp.tool()
-def kingsmint_reimport(message: str = "Reimport with the current rules", ledger_dir: str = "") -> str:
-    """Rebuild ledger/ from documents/ with the current rules. Saves a version with message: what changed in the first
-    line, and below it why (what the user said, which transactions showed it)."""
-    out = run(ledger_dir, "reimport")
-    versions.save(ledger(ledger_dir), message)
-    return out
-
-
-@mcp.tool()
-def kingsmint_reset(id: str, ledger_dir: str = "") -> str:
-    """Give one transaction (by its `id` metadata) the postings and flag kingsmint wrote, dropping hand edits to them;
-    notes, tags and narration stay. Then call kingsmint_reimport to apply the current rules."""
-    return run(ledger_dir, "reset", id)
-
-
-@mcp.tool()
-def kingsmint_save(message: str, ledger_dir: str = "") -> str:
-    """Save a version of the ledger folder after a change. message: what changed in the first line, e.g. "Rules: gas and
-    electricity by variable symbol", and below it why: what the user said, which transactions showed it, what was wrong
-    before, what was checked. Later chats read kingsmint_history to learn why the ledger looks as it does."""
-    v = versions.save(ledger(ledger_dir), message)
-    return f"Saved version {v}." if v else "Nothing changed since the last version."
-
-
-@mcp.tool()
 def kingsmint_history(limit: int = 20, ledger_dir: str = "") -> str:
     """The saved versions of the ledger, newest first: id, date, what changed and why."""
     rows = versions.history(ledger(ledger_dir), limit)
     # shortcut: the body is cut at 8 lines (an import lists every file); add a version parameter when the rest is needed
     return "\n".join(f"{v}  {date}  " + "\n    ".join(msg.splitlines()[:9]) for v, date, msg in rows) or "No versions yet."
-
-
-@mcp.tool()
-def kingsmint_restore(version: str = "", ledger_dir: str = "") -> str:
-    """Go back: without version, undo the last change; with a version id from kingsmint_history, return to it.
-    The restore is saved as a new version, so it can be undone too. Run kingsmint_check afterwards."""
-    return versions.restore(ledger(ledger_dir), version)
 
 
 @mcp.tool()
@@ -217,18 +105,19 @@ def up():
 
 @mcp.tool()
 def kingsmint_fava(ledger_dir: str = "") -> str:
-    """Start Fava for the ledger on this computer (only reachable from this computer) and open it in the browser."""
+    """Start Fava for the ledger on this computer (only reachable from this computer, read-only) and open it in the
+    browser."""
     global fava
     main = ledger(ledger_dir) / "main.beancount"
     if not main.exists():
-        raise ValueError(f"No main.beancount in {main.parent}; create a ledger with kingsmint_new_ledger")
+        raise ValueError(f"No main.beancount in {main.parent}; the user creates a ledger in the Kingsmint app")
     if fava and fava.args[-1] != str(main):
         fava.terminate()
         fava.wait()
         fava = None
     if not up():
         exe = Path(sys.executable).parent / ("fava.exe" if os.name == "nt" else "fava")
-        fava = subprocess.Popen([str(exe), "--host", "127.0.0.1", "--port", str(PORT), str(main)],
+        fava = subprocess.Popen([str(exe), "--read-only", "--host", "127.0.0.1", "--port", str(PORT), str(main)],
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         for _ in range(60):
             if up():

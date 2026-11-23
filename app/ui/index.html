@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Kingsmint</title>
+    <link rel="stylesheet"
+          vite-ignore
+          href="/vendor/@awesome.me/webawesome/dist-cdn/styles/themes/default.css">
+    <link rel="stylesheet"
+          vite-ignore
+          href="/vendor/@awesome.me/webawesome/dist-cdn/styles/utilities.css">
+    <link rel="stylesheet" href="/theme.css">
+
+    <script src="/dark.js"></script>
+    <!-- errors of the page, printed to the app's output (no devtools); a classic script, so it also sees the modules fail to load -->
+    <script>
+      addEventListener("error", (e) => window.__TAURI__.core.invoke("log", { message: `${e.message} at ${e.filename}:${e.lineno}` }));
+      addEventListener("unhandledrejection", (e) => window.__TAURI__.core.invoke("log", { message: `unhandled: ${e.reason?.stack || e.reason}` }));
+    </script>
+    <!-- data-webawesome: where the loader finds the components (from src alone it would import a relative path, which fails) -->
+    <script type="module"
+            vite-ignore
+            src="/vendor/@awesome.me/webawesome/dist-cdn/webawesome.loader.js"
+            data-webawesome="/vendor/@awesome.me/webawesome/dist-cdn"></script>
+  </head>
+  <body>
+    <!-- ledger switcher, like the project menu of JetBrains IDEs -->
+    <!-- the ledger menu: a Svelte component (js/LedgerMenu.svelte), mounted by main.js -->
+    <div id="menu-root"></div>
+
+
+    <!-- the versions: a Svelte component (js/VersionHistory.svelte), mounted by main.js -->
+    <div id="history-root"></div>
+
+    <!-- the menus at the mouse: a Svelte component (js/Popups.svelte), mounted by main.js -->
+    <div id="popups"></div>
+
+    <main>
+      <!-- the window's title bar is hidden (titleBarStyle Overlay): the rail holds the traffic lights and moves the window.
+           A Svelte component (js/Rail.svelte), mounted by main.js -->
+      <nav id="rail" data-tauri-drag-region>
+      </nav>
+
+      <section id="work">
+
+        <!-- above the dock, mounted by main.js: js/Notices.svelte (problems in the ledger, the agent's question) and
+             js/Cover.svelte (the start screen, the wait for a ledger's server) -->
+        <div id="dock"></div>
+
+      </section>
+    </main>
+
+    <!-- the panels' content while it is not in the dock -->
+    <div id="parts" hidden>
+      <!-- the inbox: a Svelte component (js/Inbox.svelte), mounted by main.js -->
+      <section id="inbox">
+      </section>
+
+      <!-- the reports: a Svelte component (js/Reports.svelte), mounted by main.js -->
+      <section id="reports">
+      </section>
+
+      <section id="settings">
+        <!-- the ledger's settings: a Svelte component (js/LedgerSettings.svelte), mounted by main.js -->
+        <div id="settings-ledger"></div>
+
+        <!-- the app's, on this computer -->
+        <!-- the app's settings: a Svelte component (js/AppSettings.svelte), mounted by main.js -->
+        <div id="settings-app-root"></div>
+      </section>
+    </div>
+    <script type="module" src="/js/main.js"></script>
+  </body>
+</html>

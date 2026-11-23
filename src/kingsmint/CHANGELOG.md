@@ -7,6 +7,33 @@ here is the installed version.
 
 ## Unreleased
 
+- The Kingsmint app has **Reports**: your own reports in `reports/*.toml` (a name, a BQL query and a view), each as
+  a table, and a bar or line chart too. Ask the agent for one ("my monthly expenses by category"); it writes the
+  file, and the report shows at once, also after the next import.
+- The Claude app extension only reads the ledger: ask about your money from any chat (`kingsmint_query`,
+  `check`, `coverage`, `history`, `fava`, which opens Fava read-only). Importing, categorizing and undoing
+  changes move to the Kingsmint app, so the two never write the same ledger at once. The extension finds the
+  ledger the Kingsmint app opened last; the plugin keeps only the `explain` skill.
+- While the Kingsmint app prepares a ledger, it shows what uv downloads (Python and the ledger's libraries, tens of
+  MB on the first start), and the output of uv when the preparation fails.
+- The Kingsmint app shows Fava, the inbox, the settings and each terminal in **panels**: drag a tab to put the
+  agent beside Fava, below it or in its own group; a double click on a tab maximizes its group and back. A group's header splits it, as in Herdr: Fava opens a second view of the same page beside it, a
+  terminal one more terminal with the same agent; "+" also opens another view of Fava. The
+  app keeps the layout and Fava's page for each ledger. Fava runs in the app's own local server, which also
+  loads the ledger again after a reimport, without touching `main.beancount`.
+- In the Kingsmint app, links in a terminal work: a link to the ledger's Fava opens in the app's Fava, any other
+  link in the browser. The agent links its tables to the Fava pages with the same numbers (skill `explain`).
+- In the Kingsmint app, ⌘-click on a link in Fava opens the page beside it, in a split, and the same split again
+  next time; a middle click still opens a new tab behind.
+- The Kingsmint app and its Fava share one look: Web Awesome's design tokens give the colors and fonts of the app,
+  its panels, terminals and Fava, light or dark as the system.
+- The Kingsmint app in Slovak calls a ledger "pokladnica" (treasury), which a new user understands better than
+  "ledger"; the start screen is more compact.
+- The inbox in the Kingsmint app has × beside each file: it moves the file to the Trash.
+- In the Kingsmint app, a terminal of an agent ends when the agent exits; it no longer becomes a shell. A task
+  button then starts the agent again, and never types the task into a shell, which would run parts of it.
+- An undo in the Kingsmint app puts every statement it takes out of `documents/` back into `inbox/`: one whose name
+  is taken there by another file gets a number (`statement-2.pdf`).
 - The runway no longer counts property and loans given as liquid money when their accounts lack
   `liquid: "false"`: the saved query `Liquid money` leaves out `Assets:<Me|Co>:Property` and `Assets:<Me|Co>:Loans` by
   their name. The `categorize` skill marks an asset that is not money at hand with `liquid: "false"`.
@@ -17,6 +44,10 @@ here is the installed version.
 
 ### Ledger
 
+- In `CLAUDE.md`, after the list of commands, add the two sentences about `$KINGSMINT_FAVA_URL` from the template:
+  in the Kingsmint app the agent then links to the app's Fava and does not start a second Fava.
+- In `CLAUDE.md`, before "Talk to the owner", add the paragraph about `reports/*.toml` from the template: the agent
+  then knows how to write a report that the Kingsmint app shows.
 - In `main.beancount`, in the query `Liquid money`, add `AND account !~ '^Assets:(Me|Co):(Property|Loans)(:|$)'` after
   `WHERE account ~ '^Assets:(Me|Co):'`. Without it, property and loans given whose `open` lacks
   `liquid: "false"` count as liquid money, and the runway is too long. A `Loans` account deeper down, such as P2P

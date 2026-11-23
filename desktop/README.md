@@ -1,38 +1,28 @@
 # Kingsmint
 
-Personal and one-person-company accounting with Beancount and Fava, in the Claude app.
+Ask Claude about your money: the Claude app reads your Kingsmint ledger (Beancount) on your computer.
 
 ## Install
 
 Install two files from the [latest release](https://github.com/kingsmint/kingsmint/releases/latest):
 
-1. `kingsmint.plugin`, the skills: **Plugins** in the sidebar, then **Add > Upload plugin**. It syncs to your other
+1. `kingsmint.plugin`, the skill that explains your money: **Plugins** in the sidebar, then **Add > Upload plugin**. It syncs to your other
    computers.
-2. `kingsmint.mcpb`, the server that runs the accounting on your computer: double-click it on each
+2. `kingsmint.mcpb`, the server that reads the ledger on your computer: double-click it on each
    computer, and Claude asks to install it; extensions do not sync. The first start takes a minute or two: Claude
    downloads Python and the packages.
 
 ## Use it
 
-Start a chat and ask Claude to set up your accounting. It guides you: it creates a folder, tells you to
-connect it to the chat and to put your bank statements into it, and checks each file. Claude reads the statements, proposes the accounts, imports the transactions, asks you
-about the ones it cannot categorize, and writes the answers as rules. Ask it to open Fava to browse the
-ledger. Every change is saved as a version; ask Claude to undo one, or to show the versions.
+Keep the accounting in the Kingsmint app: it imports your statements, and an agent categorizes the transactions with
+you; every change is a version you can undo. The Claude app is where you ask about your money from any chat, for
+example while you plan a holiday or answer your accountant: "how much did we spend on energy last year?", "what is
+our runway without income?". Claude answers with numbers from the ledger and can open Fava to browse it.
 
-After the setup, create a project (**Projects > New**), connect the ledger folder to it, and start a new
-chat in the project for each task: "import" each month, a question about your money, "open Fava". The
-ledger remembers what Claude learned (rules, notes about your accounts) in its files, so a new chat
-continues where the last one stopped; one long chat only gets slower.
+The extension only reads the ledger. It finds the ledger the Kingsmint app opened last; set another one in the
+extension's settings. Fava opens read-only.
 
-A ledger made with Claude Code works as it is: connect its folder, and Claude continues with it. Use it
-from one app only, or from a copy (`git clone`): the extension saves versions with its own git.
-
-The folder must be on your computer's disk: Claude does not accept network folders. On Windows in a
-virtual machine, folders such as Documents may point to the host's disk; use a folder like
-`C:\Users\<you>\Ledger`.
-
-Supported statements: VÚB, Tatra banka, Fio banka, and Interactive Brokers. For another bank, Claude
-writes a parser into the folder's `banks/`, and offers to share it with other users.
+The folder must be on your computer's disk: Claude does not accept network folders.
 
 ## Data
 

@@ -25,6 +25,14 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "djlint>=1.54.0",
     "dulwich>=1.2.20",
     "pytest",
 ]
+
+# the app's HTML page (app/ui/index.html)
+[tool.djlint]
+profile = "jinja"
+indent = 2
+max_line_length = 120
+preserve_blank_lines = true

@@ -3,11 +3,17 @@
 Beancount + Fava ledger of one person and their company, built with kingsmint (skills `import`,
 `categorize`, `explain`, `add-bank`: from the `kingsmint` Claude Code plugin, or copied into
 `.claude/skills/kingsmint-*` by `uv run kingsmint skills`). Commands: `uv run kingsmint` (scan, import,
-rules, reimport, reset, check, coverage, fava, rates, doctor). Facts about the owner (people, arrangements, which IBAN belongs to whom)
+rules, reimport, reset, check, coverage, fava, rates, doctor). In the Kingsmint app, Fava already runs at
+`$KINGSMINT_FAVA_URL`: do not start another one, and link its pages as the `explain` skill says. Facts about the owner (people, arrangements, which IBAN belongs to whom)
 live as comments in `accounts.beancount` and `rules.beancount`: read them before answering questions
 about the money, and record new facts there, next to the account or rule they explain. Values that no
 statement shows (property, loans before the first statement) live in `property.beancount`; cash payments
 the owner names live in `cash.beancount`.
+
+The owner's own reports live in `reports/*.toml`: `name`, `query` (BQL, as `uv run bean-query` runs it) and `view`
+(`table`, `bar` or `line`). The Kingsmint app shows each as a table, and `bar` and `line` also as a chart: the first
+column labels the x axis, and each other column of numbers is a series (`sum(number)`, not `sum(position)`, which is
+text). Write a report when the owner wants to see a number again later.
 
 Talk to the owner in LANGUAGE, also when a skill is written in English. Ledger names (accounts, rules,
 comments) stay as they are.

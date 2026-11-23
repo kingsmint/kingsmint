@@ -1,0 +1,32 @@
+/* Fava's colors and fonts from the app's tokens (the server adds this file to Fava's pages). Fava derives the others
+   (sidebar, summary, table) from these. */
+:root {
+  --font-family: var(--wa-font-family-body);
+  --font-family-monospaced: var(--wa-font-family-code);
+  --background: var(--wa-color-surface-default);
+  --background-darker: var(--wa-color-surface-lowered);
+  --background-darkest: var(--wa-color-neutral-fill-quiet);
+  --background-button: var(--wa-color-neutral-fill-normal);
+  --border-lighter: var(--wa-color-surface-border);
+  --border: var(--wa-color-neutral-border-quiet);
+  --border-darker: var(--wa-color-neutral-border-normal);
+  --text-color: var(--wa-color-text-normal);
+  --text-color-lighter: var(--wa-color-text-normal);
+  --text-color-lightest: var(--wa-color-text-quiet);
+  --link-color: var(--wa-color-text-link);
+  --button-background: var(--wa-color-brand-fill-loud);
+  --button-color: var(--wa-color-brand-on-loud);
+  --header-background: var(--wa-color-brand-fill-loud);
+  --header-color: var(--wa-color-brand-on-loud);
+  --header-placeholder-background: color-mix(
+    in oklab,
+    var(--wa-color-brand-on-loud) 20%,
+    var(--wa-color-brand-fill-loud)
+  );
+  --header-placeholder-color: color-mix(in oklab, var(--wa-color-brand-on-loud) 65%, var(--wa-color-brand-fill-loud));
+  --error: var(--wa-color-danger-fill-loud);
+  --warning: var(--wa-color-warning-fill-loud);
+  --green: var(--wa-color-success-fill-loud);
+  --diff-red: var(--wa-color-danger-on-quiet);
+  --diff-green: var(--wa-color-success-on-quiet);
+}
