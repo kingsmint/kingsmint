@@ -184,7 +184,8 @@ def make_app(ledger: Path, ui: Path):
         """The runway with edits of the accounts' liquid, need and cut that are not saved yet: a preview."""
         l, _ = loaded()
         currency = (l.options["operating_currency"] or ["EUR"])[0]
-        return dashboard.runway_edit(l.all_entries, l.errors, l.options, currency, changes or {})
+        r = dashboard.runway_edit(l.all_entries, l.errors, l.options, currency, changes or {})
+        return r and dataclasses.asdict(r)
 
     def runway_save(changes: dict) -> dict:
         """Writes the edits into the `open` entries (ValueError, SettingsError for a bad one): what changed; the files

@@ -6,6 +6,7 @@ negative)."""
 
 import datetime as dt
 from collections import defaultdict
+from dataclasses import asdict, dataclass
 from decimal import Decimal
 
 import beanquery
@@ -70,7 +71,8 @@ def overview(entries, errors, options, rate, period: str | None = None, unit: st
     full one, and so do the years before it, as Fava's Trends report compares them; a year before it whose statements
     start after January is left out."""
     led = Ledger(entries, options, rate)
-    result = {"currency": led.currency, "goal": GOAL, "runway": runway(entries, errors, options, led.currency),
+    r = runway(entries, errors, options, led.currency)
+    result = {"currency": led.currency, "goal": GOAL, "runway": r and asdict(r),
               "unit": unit}
     if not led.txns:
         return result | {"period": None, "periods": []}
@@ -178,7 +180,41 @@ def transactions(entries, options, rate, start: str, end: str, account: str | No
     return {"rows": rows, "merchants": merchants}
 
 
-def runway(entries, errors, options, currency) -> dict | None:
+@dataclass
+class LiquidAccount:
+    account: str
+    amount: float
+
+
+@dataclass
+class Runway:
+    liquid: float  # the liquid money now
+    liquid_by_account: list[LiquidAccount]  # the rows of the query, largest first
+    baseline: dict[str, float | None]  # the monthly baseline in each column of the query: today, reduced, minimum
+    query: str | None  # the saved query `Baseline by account`: what the baseline is made of
+
+
+@dataclass
+class Rows:
+    columns: list[str]
+    rows: list[tuple]
+
+
+@dataclass
+class Asset:
+    account: str
+    amount: float
+    counted: bool  # in the saved query `Liquid money` by itself
+
+
+@dataclass
+class RunwayEdit(Runway):
+    by_account: Rows  # the rows of `Baseline by account`, as the query method gives them
+    assets: list[Asset]  # the asset accounts with a balance, largest first
+    meta: dict[str, dict[str, str]]  # the liquid, need and cut of each account
+
+
+def runway(entries, errors, options, currency) -> Runway | None:
     """The saved queries `Liquid money` and `Baseline` (as `kingsmint runway`): the liquid money now and its accounts
     (the query's rows, largest first), the monthly baseline in each of the query's columns (today, reduced,
     minimum), and the query `Baseline by account`, which shows what the baseline is made of. None in a ledger older
@@ -191,10 +227,8 @@ def runway(entries, errors, options, currency) -> dict | None:
     liquid = sum((n for _, n in rows), Decimal(0))
     cursor = conn.execute(queries["Baseline"])
     row = cursor.fetchone() or [None] * len(cursor.description)
-    return {"liquid": money(liquid),
-            "liquid_by_account": [{"account": a, "amount": money(n)} for a, n in sorted(rows, key=lambda r: -r[1]) if n],
-            "baseline": {c.name: money(v) for c, v in zip(cursor.description, row)},
-            "query": queries.get("Baseline by account")}
+    return Runway(money(liquid), [LiquidAccount(a, money(n)) for a, n in sorted(rows, key=lambda r: -r[1]) if n],
+                  {c.name: money(v) for c, v in zip(cursor.description, row)}, queries.get("Baseline by account"))
 
 
 NEEDS = ("essential", "flexible", "optional", "unknown", "income-linked")
@@ -243,11 +277,9 @@ def with_meta(entries, changes: dict) -> list:
     return [edited(e) for e in entries]
 
 
-def runway_edit(entries, errors, options, currency, changes: dict) -> dict | None:
-    """The runway with the edits `changes` (as `checked` takes them), for the runway's edit view: `runway()`, the rows
-    of `Baseline by account` (columns and rows, as the query method gives them), the asset accounts with a balance
-    (amount, and `counted`: in the saved query `Liquid money` by itself), and the liquid, need and cut of each account.
-    None in a ledger older than the queries."""
+def runway_edit(entries, errors, options, currency, changes: dict) -> RunwayEdit | None:
+    """The runway with the edits `changes` (as `checked` takes them), for the runway's edit view. None in a ledger
+    older than the queries."""
     entries = with_meta(entries, checked(entries, changes))
     r = runway(entries, errors, options, currency)
     if r is None:
@@ -259,17 +291,16 @@ def runway_edit(entries, errors, options, currency, changes: dict) -> dict | Non
     counted = {a for a, _ in conn.execute(queries["Liquid money"].replace("root(account, 3)", "account")).fetchall()}
     assets = conn.execute(f"SELECT account, convert(value(sum(position)), '{currency}') WHERE account ~ '^Assets:' "
                           "GROUP BY account").fetchall()
-    rows = {"columns": [], "rows": []}
-    if r["query"]:
-        cursor = conn.execute(r["query"])
-        rows = {"columns": [c.name for c in cursor.description], "rows": cursor.fetchall()}
-    return r | {"by_account": rows,
-                "assets": sorted(({"account": a, "amount": money(inv.get_currency_units(currency).number),
-                                   "counted": a in counted} for a, inv in assets
-                                  if inv.get_currency_units(currency).number), key=lambda a: -a["amount"]),
-                "meta": {e.account: {k: str(e.meta[k]) for k in ("liquid", "need", "cut") if k in e.meta}
-                         for e in entries if isinstance(e, Open) and e.account.startswith(("Assets:", "Expenses:",
-                                                                                            "Liabilities:"))}}
+    rows = Rows([], [])
+    if r.query:
+        cursor = conn.execute(r.query)
+        rows = Rows([c.name for c in cursor.description], cursor.fetchall())
+    return RunwayEdit(
+        **vars(r), by_account=rows,
+        assets=sorted((Asset(a, money(inv.get_currency_units(currency).number), a in counted) for a, inv in assets
+                       if inv.get_currency_units(currency).number), key=lambda a: -a.amount),
+        meta={e.account: {k: str(e.meta[k]) for k in ("liquid", "need", "cut") if k in e.meta}
+              for e in entries if isinstance(e, Open) and e.account.startswith(("Assets:", "Expenses:", "Liabilities:"))})
 
 
 def entry(e, entries, options, rate, statement: bool) -> dict:
