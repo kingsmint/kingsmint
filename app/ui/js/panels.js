@@ -1,20 +1,23 @@
-// Panels (Dockview): Fava, the inbox, the overview, the reports, the settings, and one panel per terminal. A terminal runs one program (an agent,
-// or "" for a shell), which keeps running while another panel shows. `session` is the program's number; events of an
+// Panels (Dockview): Fava, the inbox, the overview, the reports and the settings; and in the agent's sidebar on the
+// right (a second Dockview, one group), one tab per terminal. A terminal runs one program (an agent,
+// or "" for a shell), which keeps running while another tab shows or the sidebar hides. `session` is the program's number; events of an
 // ended program are ignored. A Claude Code terminal has its own session id (`claude`), so it continues the same
 // conversation after a restart. The layout, with each terminal's agent and session id and Fava's page, is saved per
-// ledger.
+// ledger, with the sidebar's.
 
 import * as DV from "dockview-core";
 import { flushSync, mount, unmount } from "svelte";
 import { app } from "./app.svelte.js";
+import Dashboard from "./Dashboard.svelte";
 import FavaPanel from "./FavaPanel.svelte";
 import { addFava, favaUrl, firstFava } from "./fava.js";
 import GroupActions from "./GroupActions.svelte";
 import { t } from "./i18n.js";
 import { refreshInbox } from "./inbox.js";
 import { railState } from "./rail.js";
+import SideActions from "./SideActions.svelte";
 import { loadSettings } from "./settings.js";
-import { active, assign, dock, favas, lastFava, loaded, overviews, tabs } from "./state.js";
+import { assign, dock, favas, lastFava, loaded, overviews, side, tabs } from "./state.js";
 import TabHeader from "./TabHeader.svelte";
 import TerminalPanel from "./TerminalPanel.svelte";
 import { addTab, defaultAgent, newTab, showTab } from "./terminal.js";
@@ -29,7 +32,8 @@ export function save() {
     const url = favaUrl(frame);
     if (url && layout.panels[id]) layout.panels[id].params = { url };
   }
-  invoke("save_tabs", { dir: app.current, tabs: { layout } });
+  const { open, pinned, width } = app.sidebar;
+  invoke("save_tabs", { dir: app.current, tabs: { layout, side: side.toJSON(), sidebar: { open, pinned, width } } });
 }
 export let saveTimer;
 export const saveSoon = () => {
@@ -67,14 +71,11 @@ export function addOverview({ group, direction, params } = {}) {
 }
 
 // Fava (the view used last), the inbox or the settings: shows it, and adds it again after it was closed.
-// A closed Fava comes back left of the terminals, as in a new ledger's layout: Fava | agent.
+// A closed Fava comes back beside the overview, as in a new ledger's layout.
 export function showPart(id) {
   if (id === "fava" && favas.size)
     return dock.getPanel(favas.has(lastFava) ? lastFava : firstFava().id).api.setActive();
-  if (id === "fava") {
-    const term = active?.api ?? tabs.at(-1)?.api;
-    return addFava(term ? { group: term.group, direction: "left" } : {});
-  }
+  if (id === "fava") return addFava(dock.getPanel("dashboard") ? { group: dock.getPanel("dashboard").group } : {});
   let panel = dock.getPanel(id);
   if (!panel) {
     const near = firstFava() ?? dock.getPanel("inbox") ?? dock.getPanel("settings");
@@ -92,7 +93,12 @@ export function showPart(id) {
 export const shown = (id) => !!dock?.getPanel(id)?.api.isVisible;
 export const visible = (id) => (id === "fava" ? [...favas.keys()].some(shown) : shown(id)); // "fava": any view of Fava
 
-export const maximize = (api) => (api.isMaximized() ? api.exitMaximized() : api.maximize());
+// a terminal's tab widens the sidebar over the panels, and back
+export function maximize(api) {
+  if (tabs.some((t) => t.api.id === api.id)) app.sidebar.wide = !app.sidebar.wide;
+  else if (api.isMaximized()) api.exitMaximized();
+  else api.maximize();
+}
 
 // The tab's title turns into a field (TabHeader.svelte).
 export const rename = (tab) => (app.renaming = tab.api.id);
@@ -105,7 +111,7 @@ export function tabMenu(api, x, y) {
 // An action of the tab's menu on the panel `api`.
 export function tabAction(api, act) {
   app.popup = null;
-  if (!dock?.getPanel(api.id)) return;
+  if (!dock?.getPanel(api.id) && !side?.getPanel(api.id)) return;
   if (act === "maximize") return maximize(api);
   if (act === "close") return api.close();
   if (act === "clone" && favas.has(api.id)) return addFava({ group: api.group, url: favaUrl(favas.get(api.id)) });
@@ -131,12 +137,15 @@ export const TAB_ACTIONS = {
   },
 };
 
-export function makeDock() {
-  const created = new DV.DockviewComponent(byId("dock"), {
+// A Dockview in `element`: the panels, or the sidebar (`sidebar`: terminals only, in one group, so a tab moves only
+// along the tab bar).
+function makeView(element, sidebar) {
+  const view = new DV.DockviewComponent(element, {
     // Tauri's file-drop handler (the inbox needs it) takes HTML5 drags in WKWebView: a tab would never drop
     dndStrategy: "pointer",
     // a panel's content stays where it is when the panel moves or hides: Fava does not load again, a terminal keeps its text
     defaultRenderer: "always",
+    disableFloatingGroups: sidebar,
     theme: dark.matches ? DV.themeDark : DV.themeLight,
     createComponent: ({ name }) =>
       name === "term"
@@ -149,69 +158,97 @@ export function makeDock() {
     // Dockview asks createTabComponent only with a tab component's name; without one it draws its own tabs
     defaultTabComponent: "tab",
     createTabComponent: () => svelte(TabHeader),
-    createRightHeaderActionComponent: () => svelte(GroupActions),
+    createRightHeaderActionComponent: () => svelte(sidebar ? SideActions : GroupActions),
   }).api;
-  assign({ dock: created });
-  // a closed part goes back out of the dock, where the code that fills it still finds it
+  // a tab drops only in its own Dockview, and in the sidebar only into its tab bar
+  view.onWillShowOverlay((e) => {
+    const other = e.getData() && e.getData().viewId !== view.id;
+    if (other || (sidebar && (e.kind === "edge" || (e.kind === "content" && e.position !== "center"))))
+      e.preventDefault();
+  });
   // the empty part of a tab bar is the window's title bar: it moves the window, a double click zooms it. Dockview would
   // drag the group from there; a group moves by its tabs.
   const bare = (e) => e.target.classList.contains("dv-void-container");
   const win = window.__TAURI__.window.getCurrentWindow();
-  byId("dock").addEventListener(
+  element.addEventListener(
     "pointerdown",
     (e) => {
       if (bare(e)) e.stopPropagation();
     },
     true,
   );
-  byId("dock").addEventListener("mousedown", (e) => {
+  element.addEventListener("mousedown", (e) => {
     if (e.button === 0 && e.detail === 1 && bare(e)) {
       e.preventDefault();
       win.startDragging();
     }
   });
-  byId("dock").addEventListener("dblclick", (e) => {
+  element.addEventListener("dblclick", (e) => {
     if (bare(e)) win.toggleMaximize();
   });
-  dock.onDidRemovePanel((p) => {
-    if (PARTS[p.id]) byId("parts").append(byId(PARTS[p.id]));
-  });
-  dock.onDidLayoutChange(() => {
+  view.onDidLayoutChange(() => {
     saveSoon();
     railState();
+  });
+  dark.addEventListener("change", () => view.updateOptions({ theme: dark.matches ? DV.themeDark : DV.themeLight }));
+  return view;
+}
+
+export function makeDock() {
+  assign({ dock: makeView(byId("dock"), false), side: makeView(byId("side-dock"), true) });
+  // a closed part goes back out of the dock, where the code that fills it still finds it
+  dock.onDidRemovePanel((p) => {
+    if (PARTS[p.id]) byId("parts").append(byId(PARTS[p.id]));
   });
   dock.onDidActivePanelChange((p) => {
     if (favas.has(p?.id)) assign({ lastFava: p.id });
     railState();
   });
-  dark.addEventListener("change", () => dock.updateOptions({ theme: dark.matches ? DV.themeDark : DV.themeLight }));
 }
 
-// A ledger on the server's page: its saved layout, else the overview and Fava, with the first agent and a shell beside
-// them. A new ledger then goes to the inbox (applyState in ledger.js).
+// A ledger on the server's page: its saved layout, else the overview and Fava, with the first agent and a shell in the
+// sidebar. A new ledger then goes to the inbox (applyState in ledger.js).
 export async function loadLayout(dir) {
   assign({ loaded: false });
   if (!dock) makeDock();
   dock.clear();
+  side.clear();
   assign({ tabs: [], active: null });
   const saved = await invoke("load_tabs", { dir });
   assign({ restoring: true });
-  let ok = false;
+  Object.assign(app.sidebar, saved?.sidebar ?? {}, { wide: false });
+  if (Object.keys(saved?.side?.panels ?? {}).length) {
+    try {
+      side.fromJSON(saved.side);
+    } catch (e) {
+      invoke("log", { message: `sidebar: ${e}` });
+      side.clear();
+      assign({ tabs: [] });
+    }
+  }
   // a layout without panels (closed one by one, or saved by an older app after an error) gives the new layout
   if (Object.keys(saved?.layout?.panels ?? {}).length) {
     try {
       dock.fromJSON(saved.layout);
-      ok = true;
     } catch (e) {
       invoke("log", { message: `layout: ${e}` });
       dock.clear();
-      assign({ tabs: [] });
+      assign({ tabs: tabs.filter((t) => side.getPanel(t.api.id)) });
     }
   }
-  if (!ok) {
+  // the terminals of a layout from before the sidebar move into it, where their programs continue
+  for (const tab of tabs.filter((t) => dock.getPanel(t.api.id))) {
+    const { agent, claude } = tab,
+      name = tab.api.title;
+    dock.getPanel(tab.api.id).api.close();
+    addTab({ agent, claude, name });
+  }
+  if (!dock.panels.length) {
     dock.addPanel({ id: "dashboard", component: "dashboard", title: t("dashboard") });
     dock.addPanel({ id: "fava", component: "fava", title: t("fava"), position: { referencePanel: "dashboard" } });
     dock.getPanel("dashboard").api.setActive();
+  }
+  if (!tabs.length) {
     assign({ restoring: !!saved?.tabs?.length }); // the tabs of an older app: they continue too
     (saved?.tabs?.length ? saved.tabs : [...new Set([defaultAgent(), ""])].map((agent) => ({ agent }))).forEach(addTab);
   }

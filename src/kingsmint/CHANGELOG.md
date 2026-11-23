@@ -7,6 +7,10 @@ here is the installed version.
 
 ## Unreleased
 
+- In the Kingsmint app, the agent and the shell are tabs of a sidebar on the right: pinned beside the panels,
+  or floating over them until a click elsewhere; it widens over the panels, its edge drags its width, and ⌘J
+  shows or hides it. The buttons that give the agent a task open it. The terminals of a saved layout move into it.
+- The app's rail shows Reports once the ledger has a report.
 - The Kingsmint app's icons come from one set, Lucide, in the same style everywhere; a button that gives a task
   to the agent has sparkles.
 - The Kingsmint app has an **Overview**: five tiles for a month (cash flow, the top spending category, net worth,

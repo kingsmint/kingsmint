@@ -1,5 +1,5 @@
-<!-- The rail: the ledger's badge (its menu, and a dot for its check), Inbox, Overview, Reports, Fava, the agent, Settings and
-     History. A button shows its panel, and one that was closed comes back; it is "on" while its panel shows. -->
+<!-- The rail: the ledger's badge (its menu, and a dot for its check), Inbox, Overview, Reports (once the ledger has one,
+     or while they show), Fava, the agent's sidebar, Settings and History. A button shows its panel, and one that was closed comes back; it is "on" while its panel shows. -->
 <script>
   import { app } from "./app.svelte.js";
   import { closeHistory, showHistory } from "./history.js";
@@ -49,15 +49,17 @@
   <wa-icon name="layout-grid"></wa-icon>
   <span>{t("overview")}</span>
 </button>
-<button id="show-reports" class="pane" class:on={app.shown.reports} title={t("reportsTitle")} onclick={() => pane("reports")}>
-  <wa-icon name="chart-column-big"></wa-icon>
-  <span>{t("reports")}</span>
-</button>
+{#if app.reports || app.shown.reports}
+  <button id="show-reports" class="pane" class:on={app.shown.reports} title={t("reportsTitle")} onclick={() => pane("reports")}>
+    <wa-icon name="chart-column-big"></wa-icon>
+    <span>{t("reports")}</span>
+  </button>
+{/if}
 <button id="show-fava" class="pane" class:on={app.shown.fava} title={t("favaTitle")} onclick={() => pane("fava")}>
   <wa-icon name="chart-column"></wa-icon>
   <span>{t("fava")}</span>
 </button>
-<button id="toggle" class="pane" class:on={app.shown.side} title={t("agentTitle")} onclick={() => pane("side")}>
+<button id="toggle" class="pane" class:on={app.sidebar.open && !app.cover} title={t("agentTitle")} onclick={() => pane("side")}>
   <wa-icon name="square-terminal"></wa-icon>
   <span>{t("agent")}</span>
 </button>
