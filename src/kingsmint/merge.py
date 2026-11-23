@@ -105,11 +105,18 @@ def merge_txn(base, mine, theirs):
     (bh, bm, bp, _), (mh, mm, mp, mc), (th, tm, tp, _) = parts(base), parts(mine), parts(theirs)
     if theirs == base and mp[:1] == tp[:1]:
         return mine, []
+    if mh.get("payee") != bh.get("payee") and bank_text(bh, bm) == bank_text(th, tm):
+        th = dict(th, payee=mh.get("payee"))  # the same bank text: a payee rule renamed it, the hand edit wins silently
     conflicts = []
     head = {f: pick(bh.get(f), mh.get(f), th.get(f), f, conflicts) for f in HEADER}
     meta = [(key, pick(bm.get(key), mm.get(key), tm.get(key), key, conflicts)) for key in [*tm, *(k for k in mm if k not in tm)]]
     postings = tp[:1] + pick(bp[1:], mp[1:], tp[1:], "postings", conflicts)
     return assemble(mine, th["date"], head, meta, postings), conflicts
+
+
+def bank_text(head, meta):
+    """The payee as the bank wrote it, quoted: a payee rule keeps it in `bank_payee:`."""
+    return meta["bank_payee"].split(":", 1)[1].strip() if "bank_payee" in meta else head.get("payee")
 
 
 def reset(mine, base):

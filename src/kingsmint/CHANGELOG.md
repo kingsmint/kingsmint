@@ -10,6 +10,10 @@ here is the installed version.
 - The runway no longer counts property and loans given as liquid money when their accounts lack
   `liquid: "false"`: the saved query `Liquid money` leaves out `Assets:<Me|Co>:Property` and `Assets:<Me|Co>:Loans` by
   their name. The `categorize` skill marks an asset that is not money at hand with `liquid: "false"`.
+- A payee rule gives one name to a merchant whose bank text changes from store to store
+  (`2000-01-01 custom "payee" "^LIDL\\b" "Lidl"` in `rules.beancount`). Fava and queries then group
+  its payments under one payee. The bank's text stays in the transaction's `bank_payee:`, and the category rules
+  still match it. `kingsmint rules` shows the payees a rule would rename.
 
 ### Ledger
 
@@ -18,6 +22,9 @@ here is the installed version.
   `liquid: "false"` count as liquid money, and the runway is too long. A `Loans` account deeper down, such as P2P
   lending at a broker, still counts. Also add `liquid: "false"` to the `open`
   of any other asset that is not money at hand.
+- Optional: add payee rules to `rules.beancount` (ask the agent: "give my merchants one name"; the header of the
+  section is in the template's `rules.beancount`), then run `uv run kingsmint reimport`. Without payee rules nothing
+  changes. A payee you renamed by hand stays.
 
 ## 0.1.9
 

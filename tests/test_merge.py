@@ -42,6 +42,16 @@ def test_both_change_postings_keeps_mine():
     assert conflicts == ["postings"] and "Expenses:Fun" in text and text.startswith("2025-06-01 *")
 
 
+def test_payee_renamed_by_hand_wins_over_a_payee_rule():
+    base = BASE.replace('"Shop"', '"SHOP 185 TOWN"')
+    mine = BASE.replace('"Shop"', '"Shop Downtown"')
+    theirs = txn("!", meta='  bank_payee: "SHOP 185 TOWN"\n')  # a payee rule names it "Shop"
+    text, conflicts = merge_txn(base, mine, theirs)
+    assert conflicts == [] and text.startswith('2025-06-01 ! "Shop Downtown"') and 'bank_payee: "SHOP 185 TOWN"' in text
+    changed = txn("!", meta='  bank_payee: "SHOP 186 TOWN"\n')  # the bank's text changed: still a conflict
+    assert merge_txn(base, mine, changed)[1] == ["payee"]
+
+
 def test_comments_stay_next_to_their_item():
     mine = txn("!", "Museum", meta="  ; after id and note\n").replace("  Assets:Bank  -10.00 EUR\n",
                                                                     "  Assets:Bank  -10.00 EUR ; own\n  ; after bank\n")

@@ -12,3 +12,10 @@
 
 ; 2000-01-01 custom "rule" "\\bLidl\\b|\\bTesco\\b" Expenses:Food:Groceries
 
+; Payee rules: one name for a merchant whose bank text changes (store number, city, case).
+;   DATE custom "payee" "REGEX" "Name"
+; REGEX matches the same text as a category rule, the bank's: the import writes the name as the payee
+; and keeps the bank's text in `bank_payee:`. First matching payee rule wins. A payee rule names one
+; merchant; a category rule may still group several.
+
+; 2000-01-01 custom "payee" "^LIDL\\b" "Lidl"
