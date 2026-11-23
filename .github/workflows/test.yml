@@ -14,7 +14,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - run: uv run --locked pytest -v
+      # tests/test_app_versions.py needs jj; the version the app ships (app/scripts/fetch-sidecars.sh)
+      - name: Install jj
+        shell: bash
+        env:
+          JJ_VERSION: 0.47.1
+        run: |
+          case "$RUNNER_OS-$RUNNER_ARCH" in
+            Linux-X64) target=x86_64-unknown-linux-musl.tar.gz ;;
+            macOS-ARM64) target=aarch64-apple-darwin.tar.gz ;;
+            macOS-X64) target=x86_64-apple-darwin.tar.gz ;;
+            Windows-X64) target=x86_64-pc-windows-msvc.zip ;;
+            *) echo "no jj for $RUNNER_OS-$RUNNER_ARCH"; exit 1 ;;
+          esac
+          mkdir -p "$RUNNER_TEMP/jj" && cd "$RUNNER_TEMP/jj"
+          curl -fsSL -o "jj-$target" "https://github.com/jj-vcs/jj/releases/download/v$JJ_VERSION/jj-v$JJ_VERSION-$target"
+          case "$target" in *.zip) unzip -q "jj-$target" ;; *) tar -xzf "jj-$target" ;; esac
+          echo "$RUNNER_TEMP/jj" >> "$GITHUB_PATH"
+      # a short temp dir: jj's operation files have 128-letter names, over Windows' 260-character path limit
+      - run: uv run --locked pytest -v --basetemp="${{ runner.temp }}/t"
 
   # the app's page: Biome (app/ui/biome.json), svelte-check (app/ui/svelte.config.js) and djLint ([tool.djlint] in
   # pyproject.toml)
