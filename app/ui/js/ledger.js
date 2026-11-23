@@ -125,7 +125,8 @@ function applyState(status) {
 // The start screen's and the ledger menu's buttons, and the home folder for ~ in paths.
 export function initLedger() {
   ledgerState(null);
-  listen("ledger-changed", (e) => app.current && app.serverOrigin && applyState(e.payload));
+  // the state of the ledger shown only: a change of the ledger before may arrive after another one opened
+  listen("ledger-changed", (e) => e.payload.dir === app.current && app.serverOrigin && applyState(e.payload.state));
   window.__TAURI__.path.homeDir().then((h) => assign({ home: h.replace(/[\\/]$/, "") }));
   // a click outside closes it (clicks inside stop at the menu); clicks into Fava's iframe blur this window instead
   addEventListener("click", () => app.menuOpen && closeMenu());

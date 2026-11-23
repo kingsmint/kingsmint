@@ -84,12 +84,13 @@ def history(ledger: Path, limit: int = 30) -> list[Version]:
 class Restored:
     id: str
     title: str
-    back: list[str]  # statements moved back to inbox/, to import again
+    back: list[str]  # statements moved back to inbox/, to import again, by their name there
 
 
 def restore(ledger: Path, id: str | None = None) -> Restored:
     """Returns to version `id`, or without it, undoes the last change: the files become as they were, saved as a new
-    version. Unsaved changes are saved first. Statements in documents/ that the old version lacks go to inbox/."""
+    version. Unsaved changes are saved first. Statements in documents/ that the old version lacks go to inbox/; one
+    whose name is taken there by another file gets a number (s-2.pdf)."""
     if id is not None and not re.fullmatch(r"[0-9a-f]{4,}", id):
         raise VersionError(f"bad version id {id}")
     if not enabled(ledger):  # else jj finds a repository above the ledger and restores that one
@@ -102,7 +103,8 @@ def restore(ledger: Path, id: str | None = None) -> Restored:
     if not target.strip("0"):
         raise VersionError("Nothing to undo: there is only one version")
     try:
-        kept = set(jj(ledger, "file", "list", "-r", target, "documents").splitlines())
+        # jj prints the paths with `\` on Windows
+        kept = {p.replace("\\", "/") for p in jj(ledger, "file", "list", "-r", target, "documents").splitlines()}
     except VersionError:  # the old version has no documents/
         kept = set()
     documents = ledger / "documents"
@@ -111,9 +113,14 @@ def restore(ledger: Path, id: str | None = None) -> Restored:
     jj(ledger, "restore", "--from", target, KEEP)
     inbox = ledger / "inbox"
     inbox.mkdir(exist_ok=True)
+    back = []
     for name, data in statements:
-        if not (inbox / name).exists():
-            (inbox / name).write_bytes(data)
+        path, n = inbox / name, 2
+        while path.exists() and path.read_bytes() != data:
+            path, n = inbox / f"{Path(name).stem}-{n}{Path(name).suffix}", n + 1
+        if not path.exists():  # else the same statement is in inbox/ already
+            path.write_bytes(data)
+            back.append(path.name)
     title = jj(ledger, "log", "--no-graph", "-r", target, "-T", "description.first_line()").strip()
     jj(ledger, "commit", "-m", f"Restore {target[:8]}: {title}")
-    return Restored(target[:8], title, [name for name, _ in statements])
+    return Restored(target[:8], title, back)

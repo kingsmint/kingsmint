@@ -62,3 +62,18 @@ def test_restore_needs_the_ledgers_own_versions(tmp_path):
     with pytest.raises(versions.VersionError, match="no versions"):
         versions.restore(ledger)
     assert (ledger / "main.beancount").exists() and (outer / "work.txt").read_text() == "v2\n"
+
+
+def test_restore_keeps_statements_of_the_same_name(tmp_path):
+    # two accounts' statements of one name in documents/ both go back to inbox/
+    d = tmp_path
+    (d / "main.beancount").write_text("x\n")
+    versions.init(d, "New ledger")
+    first = versions.history(d)[0].id
+    for account in ("A", "B"):
+        (d / "documents" / account).mkdir(parents=True)
+        (d / "documents" / account / "s.pdf").write_text(account)
+    versions.save(d, "Import statements")
+    done = versions.restore(d, first)
+    assert sorted(done.back) == ["s-2.pdf", "s.pdf"]
+    assert sorted((d / "inbox" / n).read_text() for n in done.back) == ["A", "B"]

@@ -1,5 +1,5 @@
-// Prototype shell: Fava of one ledger and terminals with a coding agent, in panels. The page and Fava come from the
-// ledger's own server (server/server.py), on one origin.
+// Prototype shell: Fava of one ledger and terminals with a coding agent, in panels. The page comes from the app
+// (tauri://localhost), Fava from the ledger's own server (server/server.py), on another origin.
 // The ledger folder comes from KINGSMINT_LEDGER, the first argument, the last one opened, or the user picks it.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -9,7 +9,7 @@ use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager, State};
@@ -28,6 +28,8 @@ struct Ledger {
     dir: PathBuf,
     port: u16,
     server: Mutex<Option<Child>>,
+    /// set under the `server` lock when another ledger replaces this one: a start still in `uv sync` starts no server
+    closed: AtomicBool,
     error: Mutex<Option<String>>,
     /// the last lines of uv and the server on stderr: the start screen shows what is downloaded
     log: Mutex<Vec<String>>,
@@ -184,6 +186,10 @@ fn start_server(l: &Arc<Ledger>, start: Start, resources: &Path) {
         }
     }
     agent_files(&l.dir);
+    let mut server = l.server.lock().unwrap();
+    if l.closed.load(Ordering::SeqCst) {
+        return; // another ledger was opened meanwhile
+    }
     match Command::new(uv())
         // the ledger's own packages only (Fava brings werkzeug), so a ledger of any kingsmint version runs the server
         .args(["run", "--no-sync", "python"])
@@ -205,7 +211,7 @@ fn start_server(l: &Arc<Ledger>, start: Start, resources: &Path) {
             let (stdout, answers) = (c.stdout.take().unwrap(), l.clone());
             std::thread::spawn(move || read_answers(&answers, stdout));
             *l.requests.lock().unwrap() = c.stdin.take();
-            *l.server.lock().unwrap() = Some(c)
+            *server = Some(c)
         }
         Err(e) => fail(format!("cannot start the server: {e}")),
     }
@@ -232,8 +238,10 @@ fn agent_files(dir: &Path) {
 
 /// Kills `uv run`; its Python exits when its stdin closes, which happens here.
 fn kill_server(l: &Ledger) {
+    let mut server = l.server.lock().unwrap();
+    l.closed.store(true, Ordering::SeqCst);
     l.requests.lock().unwrap().take();
-    if let Some(mut f) = l.server.lock().unwrap().take() {
+    if let Some(mut f) = server.take() {
         f.kill().ok();
         f.wait().ok();
     }
@@ -249,7 +257,7 @@ fn open(app: &App, dir: &Path, start: Start) -> Result<String, String> {
     }
     kill_ptys(app);
     let port = TcpListener::bind(("127.0.0.1", 0)).unwrap().local_addr().unwrap().port();
-    let l = Arc::new(Ledger { dir: dir.clone(), port, server: Mutex::new(None), error: Mutex::new(None), log: Mutex::new(vec![]),
+    let l = Arc::new(Ledger { dir: dir.clone(), port, server: Mutex::new(None), closed: AtomicBool::new(false), error: Mutex::new(None), log: Mutex::new(vec![]),
                          requests: Mutex::new(None), pending: Mutex::new(HashMap::new()), watcher: Mutex::new(None) });
     watch(&l, app.handle.clone());
     *app.ledger.lock().unwrap() = Some(l.clone());
@@ -322,7 +330,8 @@ const UNWATCHED: [&str; 5] = [".venv", ".git", ".jj", "documents", "node_modules
 
 /// Watches the ledger's files. After a change, once nothing changed for 300 ms (an import writes many files), it asks
 /// the server for the ledger's state (the server checks the ledger and reloads Fava) and sends it to the page as
-/// `ledger-changed`. The thread holds the ledger weakly and ends when the ledger, with its watcher, is dropped.
+/// `ledger-changed`, with the ledger's folder, so the page ignores the state of a ledger it no longer shows. The
+/// thread holds the ledger weakly and ends when the ledger, with its watcher, is dropped.
 fn watch(l: &Arc<Ledger>, handle: tauri::AppHandle) {
     use notify::Watcher;
     let (tx, rx) = mpsc::channel();
@@ -350,7 +359,7 @@ fn watch(l: &Arc<Ledger>, handle: tauri::AppHandle) {
             while rx.recv_timeout(Duration::from_millis(300)).is_ok() {}
             let Some(l) = weak.upgrade() else { break };
             match request(&l, "state", serde_json::json!({})) {
-                Ok(state) => drop(handle.emit("ledger-changed", state)),
+                Ok(state) => drop(handle.emit("ledger-changed", serde_json::json!({ "dir": l.dir.display().to_string(), "state": state }))),
                 Err(e) => eprintln!("kingsmint: state: {e}"),
             }
         }
@@ -415,9 +424,13 @@ fn make_ledger(d: &Path, title: &str, language: &str, handle: &tauri::AppHandle)
         "sk" => ("Slovak", "sk", "sk_SK"),
         _ => ("English", "en", "en_US"),
     };
-    let title = title.trim().replace('"', "");
+    let title = title.trim();
     if title.is_empty() {
         return Err("Enter the owner's name".into());
+    }
+    // the title goes into a quoted beancount string; the same rule as the ledger's settings (ledger_settings.save)
+    if title.contains(['"', '\\', '\n', '\r']) {
+        return Err(format!("The name cannot contain \", \\ or a line break: {title}"));
     }
     let template = handle.path().resource_dir().map_err(|e| e.to_string())?.join("template");
     copy_dir(&template, d).map_err(|e| format!("cannot copy the template: {e}"))?;
@@ -607,12 +620,12 @@ fn pty_start(agent: String, cols: u16, rows: u16, claude: Option<String>, name: 
         .map_err(|e| e.to_string())?;
     let mut cmd = CommandBuilder::new(shell());
     if !agent.is_empty() {
-        // when the agent exits, the tab stays as a shell
+        // when the agent exits, the tab ends too (no shell after it): the app's tasks type into agent tabs only
         let line = agent_command(&agent, claude.as_deref(), &name, resume)?;
         if cfg!(windows) {
-            cmd.args(["-NoLogo", "-NoExit", "-Command", &line]);
+            cmd.args(["-NoLogo", "-Command", &line]);
         } else {
-            cmd.args(["-l", "-i", "-c", &format!("{line}; exec \"$SHELL\" -l -i")]);
+            cmd.args(["-l", "-i", "-c", &line]);
         }
     }
     cmd.cwd(&dir);

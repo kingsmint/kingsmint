@@ -129,6 +129,7 @@ export async function run(tab) {
   }
   tab.fit.fit();
   tab.starting = true;
+  tab.last = 0; // a task waits for the new program's output
   tab.term.reset();
   tab.session = await invoke("pty_start", {
     agent: tab.agent,

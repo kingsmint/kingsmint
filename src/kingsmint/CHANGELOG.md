@@ -30,6 +30,10 @@ here is the installed version.
 - The Kingsmint app in Slovak calls a ledger "pokladnica" (treasury), which a new user understands better than
   "ledger"; the start screen is more compact.
 - The inbox in the Kingsmint app has × beside each file: it moves the file to the Trash.
+- In the Kingsmint app, a terminal of an agent ends when the agent exits; it no longer becomes a shell. A task
+  button then starts the agent again, and never types the task into a shell, which would run parts of it.
+- An undo in the Kingsmint app puts every statement it takes out of `documents/` back into `inbox/`: one whose name
+  is taken there by another file gets a number (`statement-2.pdf`).
 - The runway no longer counts property and loans given as liquid money when their accounts lack
   `liquid: "false"`: the saved query `Liquid money` leaves out `Assets:<Me|Co>:Property` and `Assets:<Me|Co>:Loans` by
   their name. The `categorize` skill marks an asset that is not money at hand with `liquid: "false"`.
