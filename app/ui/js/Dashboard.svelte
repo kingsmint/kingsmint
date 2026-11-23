@@ -16,6 +16,7 @@
   import { stepToFava } from "./fava.js";
   import { t, tAgent } from "./i18n.js";
   import { saveSoon, showPart, visible } from "./panels.js";
+  import { railKey } from "./rail.js";
   import Spark from "./Spark.svelte";
   import { assign, dock, favas, overviews } from "./state.js";
   import { tell } from "./tasks.js";
@@ -40,6 +41,10 @@
     view = next;
     history.pushState({ dashboard: $state.snapshot(next), panel: id }, "");
   }
+  // the rail marks the view of the overview it goes to
+  $effect(() => {
+    if (app.overview.id === id) app.overview.key = railKey(view);
+  });
   // what a split starts with, and what a split view's layout saves
   const current = () => ({ view: $state.snapshot(view), unit, period });
   $effect(() => {
@@ -339,6 +344,14 @@
       load();
     };
     document.addEventListener("km-overview", restore);
+    // a view of the rail (rail.js showView), in this overview
+    const goTo = (e) => {
+      if (e.detail.panel !== id) return;
+      if (JSON.stringify($state.snapshot(view)) !== JSON.stringify(e.detail.view)) go(e.detail.view);
+      if (api) api.setActive();
+      else showPart("dashboard");
+    };
+    document.addEventListener("km-go", goTo);
     // an account's link in a terminal (fava.js openLink): its detail in the month or year of Fava's time filter
     const account = (e) => {
       if (api) return; // the rail's overview opens it
@@ -363,6 +376,7 @@
       document.removeEventListener("km-ledger", load);
       document.removeEventListener("km-account", account);
       document.removeEventListener("km-overview", restore);
+      document.removeEventListener("km-go", goTo);
       removeEventListener("keydown", key);
       removeEventListener("popstate", pop);
       panel.removeEventListener("mouseup", back);

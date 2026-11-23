@@ -5,7 +5,7 @@
   import { closeHistory, showHistory } from "./history.js";
   import { t } from "./i18n.js";
   import { badgeOf, basename, closeMenu, showMenu } from "./ledger.js";
-  import { pane } from "./rail.js";
+  import { pane, showView } from "./rail.js";
 
   const badge = $derived(app.current ? badgeOf(app.current) : { text: "K", color: "" });
   const state = $derived(app.check === null ? "" : app.check === "" ? "ok" : "bad");
@@ -45,10 +45,18 @@
   <wa-icon name="inbox"></wa-icon>
   <span>{t("inbox")}</span>{#if waiting}<b id="inbox-badge" class="count">{waiting}</b>{/if}
 </button>
-<button id="show-dashboard" class="pane" class:on={app.shown.dashboard} title={t("overviewTitle")} onclick={() => pane("dashboard")}>
-  <wa-icon name="layout-grid"></wa-icon>
-  <span>{t("overview")}</span>
-</button>
+{#each [["overview", "layout-grid", "overview"], ["txns", "receipt-text", "transactions"], ["spending", "chart-pie", "expenses"], ["runway", "hourglass", "runway"]] as [key, icon, label] (key)}
+  <button
+    id={key === "overview" ? "show-dashboard" : `show-${key}`}
+    class="pane"
+    class:on={app.shown.overview && app.overview.key === key}
+    title={t(`${key}Rail`)}
+    onclick={(e) => showView(key, e.metaKey)}
+  >
+    <wa-icon name={icon}></wa-icon>
+    <span>{t(label)}</span>
+  </button>
+{/each}
 {#if app.reports || app.shown.reports}
   <button id="show-reports" class="pane" class:on={app.shown.reports} title={t("reportsTitle")} onclick={() => pane("reports")}>
     <wa-icon name="chart-column-big"></wa-icon>

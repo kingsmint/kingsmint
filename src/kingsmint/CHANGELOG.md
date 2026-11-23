@@ -11,6 +11,9 @@ here is the installed version.
   or floating over them until a click elsewhere; it widens over the panels, its edge drags its width, and ⌘J
   shows or hides it. The buttons that give the agent a task open it. The terminals of a saved layout move into it.
 - The app's rail shows Reports once the ledger has a report.
+- The app's rail opens the overview's Transactions, Where the money went and Runway, in the overview used last
+  (⌘-click: in a new one beside). ⌘1-6 follow the rail: Inbox, Overview, Transactions, Where the money went,
+  Runway, Fava; ⌘J shows or hides the agent. ⌘6 shows the Fava view used last again.
 - The Kingsmint app's icons come from one set, Lucide, in the same style everywhere; a button that gives a task
   to the agent has sparkles.
 - The Kingsmint app has an **Overview**: five tiles for a month (cash flow, the top spending category, net worth,

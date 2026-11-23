@@ -1,5 +1,5 @@
 // The app's keyboard shortcuts, on its page and in Fava's frames (fava.js).
-import { pane } from "./rail.js";
+import { pane, showView } from "./rail.js";
 import { active, dock, tabs } from "./state.js";
 import { defaultAgent, newTab, showTab } from "./terminal.js";
 import { zoom } from "./zoom.js";
@@ -18,16 +18,13 @@ export function shortcut(e) {
     e.preventDefault();
     return zoom(0);
   }
-  // ⌘1-3 in the order of the rail: inbox, Fava, agent (⌘3 and ⌘J show or hide the sidebar)
-  if (e.key === "1") {
+  // ⌘1-6 in the order of the rail: inbox, the overview's views, Fava; ⌘J shows or hides the agent's sidebar
+  const rail = { 1: () => pane("inbox"), 2: "overview", 3: "txns", 4: "spending", 5: "runway", 6: () => pane("fava") }[e.key];
+  if (rail) {
     e.preventDefault();
-    pane("inbox");
+    typeof rail === "string" ? showView(rail) : rail();
   }
-  if (e.key === "2") {
-    e.preventDefault();
-    pane("fava");
-  }
-  if (e.key === "3" || e.key === "j") {
+  if (e.key === "j") {
     e.preventDefault();
     pane("side");
   }
