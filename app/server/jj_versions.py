@@ -21,7 +21,9 @@ class VersionError(Exception):
 
 
 def jj(ledger: Path, *args: str) -> str:
-    out = subprocess.run([JJ, *args, "--color", "never"], cwd=ledger, capture_output=True, text=True)
+    # not the server's stdin: on Windows, starting a child with it waits while the RPC thread reads it (rpc.py)
+    out = subprocess.run([JJ, *args, "--color", "never"], cwd=ledger, capture_output=True, text=True,
+                         stdin=subprocess.DEVNULL)
     if out.returncode:
         raise VersionError(out.stderr.strip())
     return out.stdout

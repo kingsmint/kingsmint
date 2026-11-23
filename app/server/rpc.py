@@ -1,7 +1,10 @@
 """Requests from the app on stdin, one JSON object per line: {"id": n, "method": "...", "params": {...}}. The answer
 goes to the stdout the process started with, one line: {"id": n, "result": ...} or {"id": n, "error": "..."}. Anything
 else the process prints goes to stderr, so it cannot break an answer. When stdin closes, the process exits: it does not
-outlive the app, also when the app is killed."""
+outlive the app, also when the app is killed.
+
+A method that starts a child process passes it stdin=subprocess.DEVNULL: on Windows, starting a child that inherits
+stdin waits for as long as the reading thread here waits for the next request."""
 
 import json
 import os
