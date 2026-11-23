@@ -435,10 +435,12 @@ fn sample_ledger(language: String, app: State<App>, handle: tauri::AppHandle) ->
 }
 
 /// A statement was imported: documents/ holds a file (not .keep, which the template ships), as server/inbox.py says.
+/// Symbolic links are not followed: a link to a folder above would never end.
 fn has_statement(dir: &Path) -> bool {
     std::fs::read_dir(dir).into_iter().flatten().flatten().any(|e| {
         let hidden = e.file_name().to_string_lossy().starts_with('.');
-        !hidden && (e.path().is_file() || has_statement(&e.path()))
+        let Ok(kind) = e.file_type() else { return false };
+        !hidden && (kind.is_file() || kind.is_dir() && has_statement(&e.path()))
     })
 }
 

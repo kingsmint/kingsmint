@@ -33,6 +33,10 @@ here is the installed version.
 - The Kingsmint app in Slovak calls a ledger "pokladnica" (treasury), which a new user understands better than
   "ledger"; the start screen is more compact.
 - The inbox in the Kingsmint app has × beside each file: it moves the file to the Trash.
+- The sample ledger in the Kingsmint app is made again when its first start failed (for example in `uv sync`),
+  instead of opening empty.
+- On Windows and Linux, the Kingsmint app keeps no empty room for the macOS window buttons above the rail: the
+  system draws the title bar there.
 - In the Kingsmint app, a terminal of an agent ends when the agent exits; it no longer becomes a shell. A task
   button then starts the agent again, and never types the task into a shell, which would run parts of it.
 - An undo in the Kingsmint app puts every statement it takes out of `documents/` back into `inbox/`: one whose name
