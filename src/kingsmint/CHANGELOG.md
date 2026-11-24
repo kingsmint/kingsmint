@@ -5,7 +5,7 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
-## Unreleased
+## 0.2.1
 
 - The Kingsmint app installs an agent: without one, a bar offers **Install Claude Code** and **Install Codex**, for a
   Claude or a ChatGPT subscription; the sidebar's "+" offers the one not installed yet. A terminal runs the agent's

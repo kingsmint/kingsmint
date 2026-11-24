@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "kingsmint",
   "display_name": "Kingsmint",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Ask about your money from any chat: reads the Kingsmint ledger on this computer (Beancount), answers with numbers, and opens Fava. Changes go through the Kingsmint app.",
   "author": {
     "name": "kingsmint"
