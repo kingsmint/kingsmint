@@ -5,7 +5,7 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
-## Unreleased
+## 0.2.0
 
 - In the Kingsmint app, the agent and the shell are tabs of a sidebar on the right: pinned beside the panels,
   or floating over them until a click elsewhere; it widens over the panels, its edge drags its width, and ⌘J

@@ -1798,7 +1798,7 @@ dependencies = [
 
 [[package]]
 name = "kingsmint-app"
-version = "0.1.9"
+version = "0.2.0"
 dependencies = [
  "notify",
  "objc2",
