@@ -22,12 +22,15 @@ export const app = $state({
   shown: { fava: true, inbox: false, dashboard: false, reports: false, settings: false, side: true }, // the rail's panels that show
   waiting: [], // the statements waiting in inbox/
   // the overview that the rail's views go to (the one active last) and its view, as railKey names it
-  overview: { id: "dashboard", key: "overview" },
+  // and its view as pinKey gives it (rail.js)
+  overview: { id: "dashboard", key: "overview", view: "" },
+  pins: [], // the views pinned on the rail: { label, view }, saved with the ledger's layout
   reports: 0, // the ledger's reports (reports/*.toml): the rail shows Reports once there is one
   check: null, // what `kingsmint check` said: "" when the ledger is fine, null while it is not known
   agentNote: "", // an agent's question that only the user answers, above the panels
   dropping: false, // files are dragged over the window
-  popup: null, // the open menu: { kind: "tab", api, x, y, isTerm, isFava, terminals } or { kind: "add", group, side, x, y }
+  popup: null, // the open menu: { kind: "tab", api, x, y, isTerm, isFava, terminals } or { kind: "add", group, side, x, y },
+  // { kind: "pin", i, x, y } (a pinned view's menu) or { kind: "pins", x, y } (the pinned views not on the rail)
   cover: null, // over the panels: "welcome" (no ledger open), "status" (the wait for the server), or null
   status: { message: "", failed: false, log: [] }, // the wait: the message, and the last lines of uv
   renaming: null, // the panel whose tab title is a field (the tab menu's Rename)

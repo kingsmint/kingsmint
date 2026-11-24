@@ -1,11 +1,12 @@
-<!-- The rail: the ledger's badge (its menu, and a dot for its check), Inbox, Overview, Reports (once the ledger has one,
+<!-- The rail: the ledger's badge (its menu, and a dot for its check), Inbox, Overview and its views, the pinned views
+     (right-click: rename or unpin; past PINS_ON_RAIL in a "…" menu), Reports (once the ledger has one,
      or while they show), Fava, the agent's sidebar, Settings and History. A button shows its panel, and one that was closed comes back; it is "on" while its panel shows. -->
 <script>
   import { app } from "./app.svelte.js";
   import { closeHistory, showHistory } from "./history.js";
   import { t } from "./i18n.js";
   import { badgeOf, basename, closeMenu, showMenu } from "./ledger.js";
-  import { pane, showView } from "./rail.js";
+  import { pane, PINS_ON_RAIL, railKey, showView } from "./rail.js";
 
   const badge = $derived(app.current ? badgeOf(app.current) : { text: "K", color: "" });
   const state = $derived(app.check === null ? "" : app.check === "" ? "ok" : "bad");
@@ -15,6 +16,14 @@
       : t("switchLedger"),
   );
   const waiting = $derived(app.waiting.length);
+  // a pin's icon: its kind of view's, as railKey names it (a report or an account other than an expense: a star)
+  const PIN_ICONS = { txns: "receipt-text", spending: "chart-pie", runway: "hourglass", overview: "star" };
+  const pinned = $derived(app.pins.findIndex((p) => JSON.stringify(p.view) === app.overview.view)); // the pin that shows
+  const menu = (e, popup) => {
+    e.preventDefault();
+    e.stopPropagation();
+    app.popup = { ...popup, x: e.clientX, y: e.clientY };
+  };
 </script>
 
 <!-- room for the traffic lights: only macOS hides the title bar (main.rs); elsewhere the system draws it -->
@@ -49,7 +58,7 @@
   <button
     id={key === "overview" ? "show-dashboard" : `show-${key}`}
     class="pane"
-    class:on={app.shown.overview && app.overview.key === key}
+    class:on={app.shown.overview && app.overview.key === key && pinned < 0}
     title={t(`${key}Rail`)}
     onclick={(e) => showView(key, e.metaKey)}
   >
@@ -57,6 +66,29 @@
     <span>{t(label)}</span>
   </button>
 {/each}
+{#each app.pins.slice(0, PINS_ON_RAIL) as pin, i (i)}
+  <button
+    class="pane pin"
+    class:on={app.shown.overview && pinned === i}
+    title={`${pin.label} (⌘${7 + i}; ${t("pinRail")})`}
+    onclick={(e) => showView(pin.view, e.metaKey)}
+    oncontextmenu={(e) => menu(e, { kind: "pin", i })}
+  >
+    <wa-icon name={PIN_ICONS[railKey(pin.view)]}></wa-icon>
+    <span>{pin.label}</span>
+  </button>
+{/each}
+{#if app.pins.length > PINS_ON_RAIL}
+  <button
+    id="more-pins"
+    class="pane"
+    class:on={app.shown.overview && pinned >= PINS_ON_RAIL}
+    title={t("morePins")}
+    onclick={(e) => menu(e, { kind: "pins" })}
+  >
+    <wa-icon name="ellipsis"></wa-icon>
+  </button>
+{/if}
 {#if app.reports || app.shown.reports}
   <button id="show-reports" class="pane" class:on={app.shown.reports} title={t("reportsTitle")} onclick={() => pane("reports")}>
     <wa-icon name="chart-column-big"></wa-icon>
