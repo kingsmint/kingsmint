@@ -5,6 +5,11 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
+## Unreleased
+
+- The Kingsmint app for Windows, x64 and ARM, is in each release: an installer not signed yet, so Windows
+  SmartScreen asks before the first start.
+
 ## 0.2.1
 
 - The Kingsmint app installs an agent: without one, a bar offers **Install Claude Code** and **Install Codex**, for a
