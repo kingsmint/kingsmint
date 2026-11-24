@@ -1,13 +1,13 @@
 <!-- The menus that open at the mouse: a tab's menu (right-click on a tab), the "+" of a group's header (in the
      sidebar: an agent or a shell; among the panels: an overview or Fava), a pinned view's menu (right-click on it on the
-     rail: its name, Unpin) and the pinned views past the rail's. A click
+     rail: its name, Unpin), the pinned views past the rail's, a rail item's menu (Hide) and the hidden items. A click
      elsewhere or Escape closes them (initPanels). -->
 <script>
   import { app } from "./app.svelte.js";
   import { addFava } from "./fava.js";
   import { t } from "./i18n.js";
   import { addOverview, tabAction } from "./panels.js";
-  import { PINS_ON_RAIL, renamePin, showView, unpin } from "./rail.js";
+  import { hideRail, PINS_ON_RAIL, RAIL_LABELS, railHidden, renamePin, resetRail, showView, unpin } from "./rail.js";
   import { newTab } from "./terminal.js";
 
   const p = $derived(app.popup);
@@ -87,5 +87,19 @@
         }}>{pin.label}</button
       >
     {/each}
+  </div>
+{:else if p?.kind === "rail"}
+  <div id="rail-menu" class="popup" style:left="{p.x}px" style:top="{p.y}px">
+    <button type="button" onclick={() => (hideRail(p.key, true), close())}>{t("railHide")}</button>
+    <hr />
+    <button type="button" onclick={() => (resetRail(), close())}>{t("railReset")}</button>
+  </div>
+{:else if p?.kind === "rail-add"}
+  <div id="rail-add-menu" class="popup" style:left="{p.x}px" style:top="{Math.min(p.y, innerHeight - 40 * (railHidden().length + 1))}px">
+    {#each railHidden() as key (key)}
+      <button type="button" onclick={() => (hideRail(key, false), close())}>{t(RAIL_LABELS[key])}</button>
+    {/each}
+    <hr />
+    <button type="button" onclick={() => (resetRail(), close())}>{t("railReset")}</button>
   </div>
 {/if}

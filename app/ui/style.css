@@ -1718,3 +1718,21 @@ wa-button:not([variant="brand"]) .agent-icon {
   margin: 4px 8px;
   width: calc(100% - 16px);
 }
+/* a rail item (Rail.svelte): one button, or the pinned views; while one is dragged, a line where it goes */
+.rail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  touch-action: none;
+}
+.rail-item.dragged {
+  opacity: 0.4;
+}
+.rail-item.drop-before {
+  box-shadow: 0 -4px 0 -1px var(--wa-color-brand-on-loud);
+}
+.rail-item.drop-after {
+  box-shadow: 0 4px 0 -1px var(--wa-color-brand-on-loud);
+}
