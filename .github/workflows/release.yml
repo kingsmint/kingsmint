@@ -77,6 +77,11 @@ jobs:
         run: |
           printf '%s' "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/notary.p8"
           APPLE_API_KEY_PATH="$RUNNER_TEMP/notary.p8" npx --yes @tauri-apps/cli@2.12.6 build --target universal-apple-darwin --bundles app,dmg
+          # Tauri notarizes the app, not the dmg around it: Gatekeeper rejects an unnotarized dmg once downloaded
+          dmg=$(ls target/universal-apple-darwin/release/bundle/dmg/*.dmg)
+          xcrun notarytool submit "$dmg" --key "$RUNNER_TEMP/notary.p8" --key-id "$APPLE_API_KEY" --issuer "$APPLE_API_ISSUER" --wait
+          xcrun stapler staple "$dmg"
+          spctl -a -vv -t open --context context:primary-signature "$dmg"
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
