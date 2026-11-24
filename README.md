@@ -3,8 +3,9 @@
 *The king's mint*: where the crown's money was made and counted, for centuries.
 
 Personal accounting with [Beancount](https://github.com/beancount/beancount) and
-[Fava](https://github.com/beancount/fava), run by [Claude Code](https://claude.com/claude-code).
-For developers who want one view of their personal money and their one-person company.
+[Fava](https://github.com/beancount/fava), run by a coding agent: [Claude Code](https://claude.com/claude-code),
+Codex or Cursor. For developers who want one view of their personal money and their one-person company.
+Website: [kingsmint.org](https://kingsmint.org).
 
 - Download bank statements into `inbox/`; `kingsmint import` parses them, checks that each one
   reconciles (opening balance + transactions = closing balance), categorizes the transactions, and
@@ -26,22 +27,32 @@ For developers who want one view of their personal money and their one-person co
 
 Other banks: ask Claude to add one from a sample statement (`add-bank` skill).
 
+## Kingsmint app
+
+The app for macOS: download the `.dmg` from the [latest release](https://github.com/kingsmint/kingsmint/releases/latest).
+It creates a ledger, imports the statements you drop into its inbox, and runs your agent (Claude Code, Codex or
+Cursor) beside an overview of your money, your reports and Fava. Every change is a version you can undo. It
+ships with uv and installs Python and the packages itself. Windows builds are only test builds for now. See
+[`app/README.md`](app/README.md) to build it.
+
 ## Claude app
 
-To use kingsmint in the Claude app (chat or Cowork) instead of Claude Code, download two files from the
+To ask about your money from any chat in the Claude app (chat or Cowork), download two files from the
 [latest release](https://github.com/kingsmint/kingsmint/releases/latest):
 
 1. [`kingsmint.plugin`](https://github.com/kingsmint/kingsmint/releases/latest/download/kingsmint.plugin), the
-   skills: upload it in **Plugins** in the sidebar, then **Add > Upload plugin**. It syncs to your other computers.
+   skill that explains your money: upload it in **Plugins** in the sidebar, then **Add > Upload plugin**. It syncs
+   to your other computers.
 2. [`kingsmint.mcpb`](https://github.com/kingsmint/kingsmint/releases/latest/download/kingsmint.mcpb), the
    server, which runs on your computer (Claude installs its Python and dependencies): double-click it
    on each computer, and Claude asks to install it.
 
-Then start a chat and ask Claude to set up your accounting. See [`desktop/README.md`](desktop/README.md). To build both files
-from a checkout: `uv run python desktop/build.py`; a tag `v<version>` makes a release with them, with the
-notes from the `## <version>` section of [`CHANGELOG.md`](src/kingsmint/CHANGELOG.md).
+The extension only reads the ledger, the one the Kingsmint app opened last. Importing and categorizing happen in
+the Kingsmint app. See [`desktop/README.md`](desktop/README.md). To build both files from a checkout:
+`uv run python desktop/build.py`; a tag `v<version>` makes a release with them, with the notes from the
+`## <version>` section of [`CHANGELOG.md`](src/kingsmint/CHANGELOG.md).
 
-## Setup
+## Setup in Claude Code
 
 Requires [uv](https://docs.astral.sh/uv/) and [Claude Code](https://claude.com/claude-code). uv installs Python
 and all packages into `.venv/` of the ledger; `/kingsmint:setup` installs uv when it is missing.
