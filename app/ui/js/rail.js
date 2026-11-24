@@ -5,6 +5,7 @@
 
 import { app } from "./app.svelte.js";
 import { addOverview, PARTS, saveSoon, shown, showPart, visible } from "./panels.js";
+import { saveApp } from "./settings.js";
 import { active, dock, overviews, tabs } from "./state.js";
 import { defaultAgent, newTab, showTab } from "./terminal.js";
 
@@ -73,3 +74,34 @@ export function unpin(i) {
   app.pins.splice(i, 1);
   saveSoon();
 }
+
+// The rail's order and the items hidden from it: the app's settings, as they are the user's habits, not the ledger's.
+// "pins" is the pinned views, as one item. An item that a newer app adds goes where it is by default.
+export const RAIL = ["inbox", "overview", "txns", "spending", "runway", "pins", "reports", "fava", "side"];
+export const RAIL_LABELS = {
+  inbox: "inbox",
+  overview: "overview",
+  txns: "transactions",
+  spending: "expenses",
+  runway: "runway",
+  pins: "pinnedViews",
+  reports: "reports",
+  fava: "fava",
+  side: "agent",
+};
+export function railOrder() {
+  const order = (app.appSettings.rail?.order ?? []).filter((k) => RAIL.includes(k));
+  RAIL.forEach((k, i) => order.includes(k) || order.splice(Math.min(i, order.length), 0, k));
+  return order;
+}
+export const railHidden = () => app.appSettings.rail?.hidden ?? [];
+const setRail = (order, hidden) => saveApp({ rail: { order, hidden } });
+// `key` before or after `to`
+export function moveRail(key, to, after) {
+  const order = railOrder().filter((k) => k !== key);
+  order.splice(order.indexOf(to) + (after ? 1 : 0), 0, key);
+  setRail(order, railHidden());
+}
+export const hideRail = (key, hide) =>
+  setRail(railOrder(), hide ? [...railHidden(), key] : railHidden().filter((k) => k !== key));
+export const resetRail = () => setRail(RAIL, []);
