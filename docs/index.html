@@ -60,9 +60,12 @@
       an AI agent sorts the transactions, and your data stays on your computer.</p>
     <div class="buttons">
       <a class="button" id="download-mac" href="https://github.com/kingsmint/kingsmint/releases/latest">Download for macOS</a>
+      <a class="button" id="download-win" href="https://github.com/kingsmint/kingsmint/releases/latest" hidden>Download for Windows</a>
       <a class="button secondary" href="https://github.com/kingsmint/kingsmint">Source on GitHub</a>
     </div>
-    <p class="note">macOS, Apple silicon and Intel. Windows: coming soon. Free and open source (MIT). · <a href="sk/" lang="sk">Slovensky</a></p>
+    <p class="note" id="windows-note" hidden>Windows on ARM: <a id="download-arm" href="#">ARM installer</a>.
+      The Windows installer is not signed yet: when Windows says “Windows protected your PC”, choose More info, then Run anyway.</p>
+    <p class="note">macOS (Apple silicon and Intel) and Windows. Free and open source (MIT). · <a href="sk/" lang="sk">Slovensky</a></p>
   </header>
 
   <h2>What it does</h2>
@@ -105,9 +108,9 @@
 
   <h2>What you need</h2>
   <ul>
-    <li>A Mac.</li>
+    <li>A Mac or a Windows PC.</li>
     <li>An AI subscription: Claude (Pro or Max), ChatGPT (Plus or Pro) or a Cursor account.</li>
-    <li>Its agent on your Mac: <a href="https://claude.com/claude-code">Claude Code</a>, Codex or Cursor. It installs with one command in Terminal.</li>
+    <li>Its agent: <a href="https://claude.com/claude-code">Claude Code</a> or Codex, which the app installs for you, or Cursor.</li>
   </ul>
 
   <h2>Privacy</h2>
@@ -134,8 +137,20 @@
   fetch("https://api.github.com/repos/kingsmint/kingsmint/releases/latest")
     .then(r => r.json())
     .then(release => {
-      const dmg = (release.assets || []).find(a => a.name.endsWith(".dmg"));
+      const asset = (end) => (release.assets || []).find(a => a.name.endsWith(end));
+      const dmg = asset(".dmg"), x64 = asset("_x64-setup.exe"), arm = asset("_arm64-setup.exe");
       if (dmg) document.getElementById("download-mac").href = dmg.browser_download_url;
+      // the Windows buttons show once a release has the installers
+      if (x64) {
+        const win = document.getElementById("download-win");
+        win.href = x64.browser_download_url;
+        win.hidden = false;
+      }
+      if (arm) {
+        const link = document.getElementById("download-arm");
+        link.href = arm.browser_download_url;
+        document.getElementById("windows-note").hidden = false;
+      }
     })
     .catch(() => {});
 </script>
