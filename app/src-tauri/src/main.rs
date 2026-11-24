@@ -15,6 +15,11 @@ use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager, State};
 
 const AGENTS: [&str; 3] = ["claude", "codex", "cursor-agent"];
+/// The official installers of the agents a subscription brings: Claude (Pro, Max) and ChatGPT. (agent, sh, PowerShell)
+const INSTALLERS: [(&str, &str, &str); 2] = [
+    ("claude", "curl -fsSL https://claude.ai/install.sh | bash", "irm https://claude.ai/install.ps1 | iex"),
+    ("codex", "curl -fsSL https://chatgpt.com/codex/install.sh | sh", "irm https://chatgpt.com/codex/install.ps1 | iex"),
+];
 const KINGSMINT_GIT: &str = "https://github.com/kingsmint/kingsmint";
 
 struct Pty {
@@ -131,6 +136,23 @@ fn login_path() {
             std::env::set_var("PATH", p);
         }
     }
+}
+
+/// Adds the folders the agents' installers use to PATH, when missing: an agent installed from the app is found
+/// before the user's shell profile has them, and the installers do not always add them.
+fn agent_path() {
+    let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from);
+    let mut dirs: Vec<PathBuf> = home.into_iter().map(|h| h.join(".local").join("bin")).collect();
+    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+        dirs.push(PathBuf::from(local).join(r"Programs\OpenAI\Codex\bin"));
+    }
+    let mut path: Vec<PathBuf> = std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()).collect();
+    for d in dirs {
+        if !path.contains(&d) {
+            path.push(d);
+        }
+    }
+    std::env::set_var("PATH", std::env::join_paths(path).unwrap());
 }
 
 /// PATH for the terminal: the ledger's .venv first (`kingsmint`, `fava`, `bean-query` of the ledger's version), then the app's uv.
@@ -643,8 +665,8 @@ fn agent_command(agent: &str, claude: Option<&str>, name: &str, resume: bool) ->
 /// the `pty-data` event, the end to `pty-exit`, both with the session, so a tab ignores what an older program wrote.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-fn pty_start(agent: String, cols: u16, rows: u16, claude: Option<String>, name: String, resume: bool, app: State<App>,
-             handle: tauri::AppHandle) -> Result<u64, String> {
+fn pty_start(agent: String, cols: u16, rows: u16, claude: Option<String>, name: String, resume: bool, install: bool,
+             app: State<App>, handle: tauri::AppHandle) -> Result<u64, String> {
     if !agent.is_empty() && !AGENTS.contains(&agent.as_str()) {
         return Err(format!("unknown agent {agent}"));
     }
@@ -655,7 +677,12 @@ fn pty_start(agent: String, cols: u16, rows: u16, claude: Option<String>, name: 
     let mut cmd = CommandBuilder::new(shell());
     if !agent.is_empty() {
         // when the agent exits, the tab ends too (no shell after it): the app's tasks type into agent tabs only
-        let line = agent_command(&agent, claude.as_deref(), &name, resume)?;
+        let mut line = agent_command(&agent, claude.as_deref(), &name, resume)?;
+        if install {
+            // the agent's installer first, in the tab, so the user sees it; then the agent, which asks to sign in
+            let (_, sh, ps) = INSTALLERS.iter().find(|i| i.0 == agent).ok_or(format!("no installer for {agent}"))?;
+            line = if cfg!(windows) { format!("{ps}; if ($?) {{ {line} }}") } else { format!("{sh} && {line}") };
+        }
         if cfg!(windows) {
             cmd.args(["-NoLogo", "-Command", &line]);
         } else {
@@ -705,6 +732,7 @@ fn pty_resize(session: u64, cols: u16, rows: u16, app: State<App>) -> Result<(),
 
 fn main() {
     login_path();
+    agent_path();
     // Python on Windows reads and writes pipes in the ANSI code page (cp1250), which garbles the server's and
     // kingsmint's UTF-8 text; the server, kingsmint and the terminals inherit this
     #[cfg(windows)]

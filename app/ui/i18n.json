@@ -259,7 +259,10 @@
       "vsAverageNoteYears": "The change is against the average of the years before.",
       "previous": "Previous (←)",
       "next": "Next (→)",
-      "ytd": "January to {months}, in every year"
+      "ytd": "January to {months}, in every year",
+      "noAgent": "No AI agent found. Kingsmint works with your Claude or ChatGPT subscription: install its agent, then sign in in the terminal.",
+      "installClaude": "Install Claude Code",
+      "installCodex": "Install Codex"
     },
     "sk": {
       "trySample": "Vyskúšať ukážku",
@@ -520,7 +523,10 @@
       "vsAverageNoteYears": "Zmena je oproti priemeru rokov predtým.",
       "previous": "Predchádzajúce (←)",
       "next": "Nasledujúce (→)",
-      "ytd": "január – {months}, v každom roku"
+      "ytd": "január – {months}, v každom roku",
+      "noAgent": "Nenašiel som AI agenta. Kingsmint pracuje s tvojím predplatným Claude alebo ChatGPT: nainštaluj jeho agenta a potom sa prihlás v termináli.",
+      "installClaude": "Nainštalovať Claude Code",
+      "installCodex": "Nainštalovať Codex"
     }
   },
   "agent": {
