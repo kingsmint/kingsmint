@@ -8,7 +8,7 @@
   import { t } from "./i18n.js";
   import { addOverview, tabAction } from "./panels.js";
   import { hideRail, PINS_ON_RAIL, RAIL_LABELS, railHidden, renamePin, resetRail, showView, unpin } from "./rail.js";
-  import { newTab } from "./terminal.js";
+  import { installAgent, newTab } from "./terminal.js";
 
   const p = $derived(app.popup);
   const close = () => (app.popup = null);
@@ -39,6 +39,15 @@
             close();
             newTab(agent);
           }}>{agent || "shell"}</button
+        >
+      {/each}
+      {#each [["claude", "installClaude"], ["codex", "installCodex"]].filter(([a]) => !app.installed.includes(a)) as [agent, label] (agent)}
+        <button
+          type="button"
+          onclick={() => {
+            close();
+            installAgent(agent);
+          }}>{t(label)}</button
         >
       {/each}
     {:else}

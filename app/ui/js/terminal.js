@@ -72,6 +72,9 @@ export function freeName(base) {
   return name;
 }
 
+// the new tabs that install their agent first (pty_start's install); not in the panel's params, which the layout keeps
+const installing = new Set();
+
 export function makeTab(api, { agent = "", claude = null }, el) {
   // linkHandler: links the program marks (OSC 8); without it xterm.js asks with confirm() and opens a new window
   const term = new Terminal({
@@ -89,6 +92,7 @@ export function makeTab(api, { agent = "", claude = null }, el) {
     api,
     agent,
     claude,
+    install: installing.delete(api.id),
     resume: restoring,
     term,
     fit,
@@ -139,12 +143,25 @@ export async function run(tab) {
     claude: tab.claude,
     name: tab.api.title,
     resume: tab.resume,
+    install: tab.install,
   }).catch((e) => {
     tab.term.write(`${e}\r\n`);
     return null;
   });
   tab.starting = false;
   tab.resume = true; // a restart continues the conversation
+  if (tab.install) {
+    tab.install = false; // a restart runs the agent, not its installer again
+    watchInstall(tab.agent);
+  }
+}
+
+// Looks for the agent on PATH until its installer has put it there (or 10 min passed), for the "+" menu and the tasks.
+async function watchInstall(agent) {
+  for (let i = 0; i < 200 && !app.installed.includes(agent); i++) {
+    await new Promise((r) => setTimeout(r, 3000));
+    await agentMenu();
+  }
 }
 
 export function fitTab(tab) {
@@ -173,10 +190,12 @@ export function closeTab(tab) {
 }
 
 // A new terminal: a tab in the agent's sidebar.
-export function addTab({ agent = "", claude = null, name } = {}) {
+export function addTab({ agent = "", claude = null, name, install = false } = {}) {
   if (agent === "claude" && !claude) claude = crypto.randomUUID();
+  const id = `term-${crypto.randomUUID().slice(0, 8)}`;
+  if (install) installing.add(id); // before addPanel, which makes the tab
   const panel = side.addPanel({
-    id: `term-${crypto.randomUUID().slice(0, 8)}`,
+    id,
     component: "term",
     title: name || freeName(agent || "shell"),
     params: { agent, claude },
@@ -184,6 +203,8 @@ export function addTab({ agent = "", claude = null, name } = {}) {
   return tabs.find((t) => t.api.id === panel.id);
 }
 export const newTab = (agent) => showTab(addTab({ agent }));
+// a tab that runs the agent's official installer, then the agent, which asks the user to sign in
+export const installAgent = (agent) => showTab(addTab({ agent, install: true }));
 // the agent of new tabs: the one in the settings while it is installed, else the first one found
 export const defaultAgent = () =>
   app.installed.includes(app.appSettings.agent) || app.appSettings.agent === ""
