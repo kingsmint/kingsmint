@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kingsmint</title>
+<meta name="description" content="Personal accounting from your bank statements. Every statement reconciles, an AI agent categorizes, and your data stays on your computer.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #fbfaf7; --fg: #1d1d1f; --muted: #5f6368; --line: #e4e1d8;
+    --card: #ffffff; --accent: #005e98; --accent-fg: #ffffff; --gold: #b07a12;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121417; --fg: #ececec; --muted: #a0a4aa; --line: #2a2e34;
+      --card: #1a1d21; --accent: #3aa0e0; --accent-fg: #0b1117; --gold: #f2b938;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 17px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  main, footer { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+  a { color: var(--accent); }
+  header { text-align: center; padding: 72px 0 40px; }
+  header img { width: 112px; height: 112px; }
+  h1 { font-size: 44px; margin: 12px 0 4px; letter-spacing: -0.02em; }
+  .tagline { font-size: 21px; color: var(--muted); margin: 0 auto 28px; max-width: 34em; }
+  .buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .button {
+    display: inline-block; padding: 12px 22px; border-radius: 10px; font-weight: 600;
+    text-decoration: none; background: var(--accent); color: var(--accent-fg);
+  }
+  .button.secondary { background: transparent; color: var(--fg); border: 1px solid var(--line); }
+  .note { color: var(--muted); font-size: 14px; margin-top: 12px; }
+  h2 { font-size: 24px; margin: 56px 0 16px; }
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .feature { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .feature h3 { margin: 0 0 6px; font-size: 17px; }
+  .feature p { margin: 0; color: var(--muted); font-size: 15px; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  ul { padding-left: 20px; }
+  code { font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--card); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+  footer { border-top: 1px solid var(--line); margin-top: 64px; padding-top: 20px; padding-bottom: 40px; color: var(--muted); font-size: 14px; }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="icon.svg" alt="">
+    <h1>Kingsmint</h1>
+    <p class="tagline">Personal accounting from your bank statements. Every statement is checked,
+      an AI agent sorts the transactions, and your data stays on your computer.</p>
+    <div class="buttons">
+      <a class="button" id="download-mac" href="https://github.com/kingsmint/kingsmint/releases/latest">Download for macOS</a>
+      <a class="button secondary" href="https://github.com/kingsmint/kingsmint">Source on GitHub</a>
+    </div>
+    <p class="note">macOS, Apple silicon and Intel. Windows: coming soon. Free and open source (MIT).</p>
+  </header>
+
+  <h2>What it does</h2>
+  <div class="features">
+    <div class="feature">
+      <h3>Every statement reconciles</h3>
+      <p>Kingsmint checks each statement: opening balance + transactions = closing balance. No transaction goes missing.</p>
+    </div>
+    <div class="feature">
+      <h3>An agent sorts your money</h3>
+      <p>Claude Code, Codex or Cursor categorizes the transactions, asks you about the unknown ones and writes rules for next time.</p>
+    </div>
+    <div class="feature">
+      <h3>Local first</h3>
+      <p>Statements and the ledger stay in a folder on your computer. Kingsmint has no server and collects nothing.</p>
+    </div>
+    <div class="feature">
+      <h3>Plain Beancount</h3>
+      <p>The ledger is plain-text <a href="https://github.com/beancount/beancount">Beancount</a>, with reports in <a href="https://github.com/beancount/fava">Fava</a>. No lock-in.</p>
+    </div>
+  </div>
+
+  <h2>How it works</h2>
+  <ol>
+    <li>Download the statements from your bank and drop them into the app's inbox.</li>
+    <li>Kingsmint reads them, checks that each one reconciles, and imports the transactions.</li>
+    <li>The agent categorizes them and asks you only about what the statements cannot show.</li>
+    <li>See your net worth, income and expenses in Fava, or ask the agent: "Why was my profit lower in March?"</li>
+  </ol>
+
+  <h2>Supported banks</h2>
+  <table>
+    <tr><th>Bank</th><th>Statements</th></tr>
+    <tr><td>VÚB (Slovakia)</td><td>monthly or yearly PDF, account history CSV</td></tr>
+    <tr><td>Tatra banka (Slovakia)</td><td>monthly PDF, account history CSV</td></tr>
+    <tr><td>Fio banka (Slovakia, Czechia)</td><td>monthly PDF</td></tr>
+    <tr><td>Interactive Brokers, also through Lynx</td><td>activity statement CSV</td></tr>
+  </table>
+  <p>Another bank? Give the agent one sample statement, and it adds a parser for it.</p>
+
+  <h2>What you need</h2>
+  <ul>
+    <li>A Mac.</li>
+    <li>A coding agent with its account: <a href="https://claude.com/claude-code">Claude Code</a>, Codex or Cursor.</li>
+  </ul>
+
+  <h2>Privacy</h2>
+  <ul>
+    <li>Your statements and ledger stay on your computer. Kingsmint has no server and collects nothing.</li>
+    <li>The agent sends what it reads (statements, ledger files, query results) to its provider, under the terms of your account with them.</li>
+    <li>Network access: the app downloads Python packages, and month-end exchange rates from the ECB.</li>
+  </ul>
+
+  <h2>Other ways to use it</h2>
+  <ul>
+    <li>Claude Code plugin: <code>claude plugin marketplace add kingsmint/kingsmint</code></li>
+    <li>Claude app (chat or Cowork): ask about your money from any chat.</li>
+  </ul>
+  <p>See the <a href="https://github.com/kingsmint/kingsmint#readme">README</a> for both.</p>
+</main>
+<footer>
+  <a href="https://github.com/kingsmint/kingsmint">GitHub</a> ·
+  <a href="https://github.com/kingsmint/kingsmint/blob/main/src/kingsmint/CHANGELOG.md">Changelog</a> ·
+  <a href="https://github.com/kingsmint/kingsmint/blob/main/LICENSE">MIT License</a>
+</footer>
+<script>
+  // The dmg's name has the version in it, so ask GitHub for the latest one; the link to the release page stays if this fails.
+  fetch("https://api.github.com/repos/kingsmint/kingsmint/releases/latest")
+    .then(r => r.json())
+    .then(release => {
+      const dmg = (release.assets || []).find(a => a.name.endsWith(".dmg"));
+      if (dmg) document.getElementById("download-mac").href = dmg.browser_download_url;
+    })
+    .catch(() => {});
+</script>
+</body>
+</html>
