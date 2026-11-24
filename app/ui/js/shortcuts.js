@@ -1,4 +1,5 @@
 // The app's keyboard shortcuts, on its page and in Fava's frames (fava.js).
+import { app } from "./app.svelte.js";
 import { pane, showView } from "./rail.js";
 import { active, dock, tabs } from "./state.js";
 import { defaultAgent, newTab, showTab } from "./terminal.js";
@@ -18,8 +19,19 @@ export function shortcut(e) {
     e.preventDefault();
     return zoom(0);
   }
-  // ⌘1-6 in the order of the rail: inbox, the overview's views, Fava; ⌘J shows or hides the agent's sidebar
-  const rail = { 1: () => pane("inbox"), 2: "overview", 3: "txns", 4: "spending", 5: "runway", 6: () => pane("fava") }[e.key];
+  // ⌘1-9 in the order of the rail: inbox, the overview's views, Fava, the pinned views; ⌘J shows or hides the agent's sidebar
+  const pin = (i) => app.pins[i] && (() => showView(app.pins[i].view));
+  const rail = {
+    1: () => pane("inbox"),
+    2: "overview",
+    3: "txns",
+    4: "spending",
+    5: "runway",
+    6: () => pane("fava"),
+    7: pin(0),
+    8: pin(1),
+    9: pin(2),
+  }[e.key];
   if (rail) {
     e.preventDefault();
     typeof rail === "string" ? showView(rail) : rail();

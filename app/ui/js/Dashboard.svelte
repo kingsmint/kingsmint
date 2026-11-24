@@ -16,7 +16,7 @@
   import { stepToFava } from "./fava.js";
   import { t, tAgent } from "./i18n.js";
   import { saveSoon, showPart, visible } from "./panels.js";
-  import { railKey } from "./rail.js";
+  import { pinKey, pinOf, railKey, togglePin, VIEWS } from "./rail.js";
   import Spark from "./Spark.svelte";
   import { assign, dock, favas, overviews } from "./state.js";
   import { tell } from "./tasks.js";
@@ -43,7 +43,7 @@
   }
   // the rail marks the view of the overview it goes to
   $effect(() => {
-    if (app.overview.id === id) app.overview.key = railKey(view);
+    if (app.overview.id === id) Object.assign(app.overview, { key: railKey(view), view: pinKey(view) });
   });
   // what a split starts with, and what a split view's layout saves
   const current = () => ({ view: $state.snapshot(view), unit, period });
@@ -256,6 +256,9 @@
     return path(v.account);
   };
   const crumbs = $derived(crumbsOf(view));
+  // a pin's name on the rail: transactions by their filter (the rail's icon says they are transactions), else the title
+  const pinLabel = (v) =>
+    (v.name === "txns" && (v.payee ?? (v.account && name(v.account)))) || crumbs.at(-1)?.label || t("overview");
   // an account and its parents, each to its detail
   const path = (account) =>
     account.split(":").map((_, i, p) => {
@@ -817,6 +820,17 @@
             <h1>{c.label}</h1>
           {/if}
         {/each}
+        <!-- ★ pins the view on the rail; the rail's own views have their buttons there -->
+        {#if pinOf(view) >= 0 || !Object.values(VIEWS).some((v) => pinKey(v) === pinKey(view))}
+        <button
+          type="button"
+          class="pin"
+          class:on={pinOf(view) >= 0}
+          title={t(pinOf(view) >= 0 ? "unpinView" : "pinView")}
+          onclick={() => togglePin(view, pinLabel(view))}
+          ><wa-icon name="star"></wa-icon></button
+        >
+        {/if}
       </nav>
     {/if}
     {#if d?.periods?.length}

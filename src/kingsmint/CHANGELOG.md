@@ -14,6 +14,9 @@ here is the installed version.
 - The app's rail opens the overview's Transactions, Where the money went and Runway, in the overview used last
   (⌘-click: in a new one beside). ⌘1-6 follow the rail: Inbox, Overview, Transactions, Where the money went,
   Runway, Fava; ⌘J shows or hides the agent. ⌘6 shows the Fava view used last again.
+- The overview's ★ pins a view (an account, a report) on the app's rail, per ledger: a click opens it in the
+  overview used last, ⌘7-9 the first three, right-click renames or unpins it; more than three go in a "…" menu.
+  A pin of transactions is named by their payee or account, and each pin has the icon of its kind of view.
 - The Kingsmint app's icons come from one set, Lucide, in the same style everywhere; a button that gives a task
   to the agent has sparkles.
 - The Kingsmint app has an **Overview**: five tiles for a month (cash flow, the top spending category, net worth,

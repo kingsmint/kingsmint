@@ -33,7 +33,10 @@ export function save() {
     if (url && layout.panels[id]) layout.panels[id].params = { url };
   }
   const { open, pinned, width } = app.sidebar;
-  invoke("save_tabs", { dir: app.current, tabs: { layout, side: side.toJSON(), sidebar: { open, pinned, width } } });
+  invoke("save_tabs", {
+    dir: app.current,
+    tabs: { layout, side: side.toJSON(), sidebar: { open, pinned, width }, pins: app.pins },
+  });
 }
 export let saveTimer;
 export const saveSoon = () => {
@@ -220,6 +223,7 @@ export async function loadLayout(dir) {
   const saved = await invoke("load_tabs", { dir });
   assign({ restoring: true });
   Object.assign(app.sidebar, saved?.sidebar ?? {}, { wide: false });
+  app.pins = saved?.pins ?? [];
   if (Object.keys(saved?.side?.panels ?? {}).length) {
     try {
       side.fromJSON(saved.side);

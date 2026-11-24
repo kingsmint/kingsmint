@@ -1695,3 +1695,26 @@ button wa-icon,
 wa-button:not([variant="brand"]) .agent-icon {
   color: var(--wa-color-brand-fill-loud);
 }
+
+/* the pinned views (rail.js): a label that does not fit ends with … */
+#rail .pin span {
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dashboard .crumbs .pin {
+  align-self: center;
+  color: var(--wa-color-text-quiet);
+  font-size: 0.9em;
+}
+.dashboard .crumbs .pin.on {
+  color: var(--wa-color-warning-fill-loud);
+}
+.dashboard .crumbs .pin.on wa-icon::part(svg) {
+  fill: currentColor;
+}
+#pin-menu input {
+  margin: 4px 8px;
+  width: calc(100% - 16px);
+}
