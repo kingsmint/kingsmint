@@ -7,6 +7,7 @@ export const app = $state({
   home: "", // the user's home folder, for ~ in paths
   imported: true, // the ledger has an imported statement; false: a new ledger, which the inbox starts
   appSettings: {}, // the app's settings, on this computer
+  claude: "", // the kingsmint extension in the Claude app: "missing", "old", "current"; "" without the Claude app
   lang: "en", // the app's language
   ledgerLang: "en", // the open ledger's: tasks for its agent
   inboxSeen: "", // the inbox and check the inbox panel shows

@@ -3,6 +3,7 @@
 <script>
   import { app } from "./app.svelte.js";
   import { t } from "./i18n.js";
+  import { installClaude, saveApp } from "./settings.js";
   import { ask } from "./tasks.js";
   import { installAgent } from "./terminal.js";
 
@@ -28,6 +29,16 @@
     <span>{t("noAgent")}</span>
     <button type="button" onclick={() => installAgent("claude")}>{t("installClaude")}</button>
     <button type="button" onclick={() => installAgent("codex")}>{t("installCodex")}</button>
+  </p>
+{/if}
+<!-- the Claude app without the extension (until "Not now"), or with an older one -->
+{#if app.current && (app.claude === "old" || (app.claude === "missing" && !app.appSettings.claudeNotNow))}
+  <p id="claude-extension" class="banner">
+    <span>{t(app.claude === "old" ? "claudeOld" : "claudeMissing")}</span>
+    <button type="button" onclick={installClaude}>{t(app.claude === "old" ? "claudeUpdate" : "claudeAdd")}</button>
+    {#if app.claude === "missing"}
+      <button type="button" onclick={() => saveApp({ claudeNotNow: true })}>{t("notNow")}</button>
+    {/if}
   </p>
 {/if}
 {#if app.agentNote}<p id="agent-note" class="banner">{app.agentNote}</p>{/if}

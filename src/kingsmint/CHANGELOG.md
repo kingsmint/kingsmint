@@ -7,6 +7,8 @@ here is the installed version.
 
 ## Unreleased
 
+- The Kingsmint app offers to add Kingsmint to the Claude app, and to update it there when it is older: a button
+  above the panels and in the settings. The Claude app then asks you to install it; no download from GitHub.
 - The Kingsmint app's charts are sharp and use the app's font, and a month on their axis shows the full year
   ("Oct 2025", not "Oct 25", which read as a day).
 - The Kingsmint app's settings have **Check for updates**: it offers a newer version, or says that you have the newest.
