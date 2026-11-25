@@ -2,11 +2,14 @@
 statement was imported, and whether the ledger needs changes of a newer kingsmint. The check and `kingsmint upgrade`
 run again only when a ledger file changed."""
 
+import re
+import sys
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+import jj_versions
 from inbox import imported, kingsmint
 
 SKIP = {".venv", ".git", ".jj", "inbox", "documents", "node_modules"}
@@ -23,6 +26,25 @@ def newest(folder: Path) -> float:
         except OSError:  # a file removed meanwhile
             pass
     return t
+
+
+def upgrade(ledger: Path) -> None:
+    """A ledger made with an older kingsmint gets the changes that kingsmint makes itself (`kingsmint upgrade --apply`),
+    when the app opens it, before Fava loads it; they are saved as a version, which the owner can undo. What needs the
+    agent stays: the state offers it (State.upgrade)."""
+    if "kingsmint upgrade --done" not in kingsmint(ledger, "upgrade"):
+        return
+    out = kingsmint(ledger, "upgrade", "--apply")
+    applied = re.findall(r"^applied the ledger changes of kingsmint (\S+)", out, re.M)
+    if not applied or not jj_versions.enabled(ledger):
+        return
+    at = re.search(r"^ledger is at kingsmint (\S+)", out, re.M)
+    body = "\n".join(f"- the changes of kingsmint {v} (src/kingsmint/CHANGELOG.md)" for v in applied)
+    try:
+        jj_versions.save(ledger, f"Upgrade the ledger to kingsmint {at[1] if at else applied[-1]}\n\n{body}\n\n"
+                                 "Made by `kingsmint upgrade --apply` when the Kingsmint app opened the ledger.")
+    except jj_versions.VersionError as e:  # the changes stay unsaved; the next version takes them
+        print(f"cannot save the upgrade: {e}", file=sys.stderr)
 
 
 @dataclass

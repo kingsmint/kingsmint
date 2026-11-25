@@ -35,3 +35,20 @@ def test_upgrade(tmp_path, monkeypatch):
     out["upgrade"] = "nothing to change: the ledger is at kingsmint 0.2.4, installed 0.2.4\n"
     os.utime(tmp_path / "main.beancount", (1e9, 2e9))
     assert not c.state().upgrade
+
+
+def test_upgrade_at_start(tmp_path, monkeypatch):
+    """The app makes the changes kingsmint can and saves them as a version; a ledger at the newest version is left."""
+    calls, saved = [], []
+    out = {("upgrade",): "## 0.2.0\n\n- x\n\nApply these ..., then run `kingsmint upgrade --done`.\n",
+           ("upgrade", "--apply"): "applied the ledger changes of kingsmint 0.2.0\nledger is at kingsmint 0.2.4\n"}
+    monkeypatch.setattr(ledger_state, "kingsmint", lambda ledger, *a: calls.append(a) or out[a])
+    monkeypatch.setattr(ledger_state.jj_versions, "enabled", lambda ledger: True)
+    monkeypatch.setattr(ledger_state.jj_versions, "save", lambda ledger, message: saved.append(message))
+    ledger_state.upgrade(tmp_path)
+    assert calls == [("upgrade",), ("upgrade", "--apply")]
+    assert saved[0].startswith("Upgrade the ledger to kingsmint 0.2.4\n\n- the changes of kingsmint 0.2.0")
+    out[("upgrade",)] = "nothing to change: the ledger is at kingsmint 0.2.4, installed 0.2.4\n"
+    calls.clear()
+    ledger_state.upgrade(tmp_path)
+    assert calls == [("upgrade",)] and len(saved) == 1
