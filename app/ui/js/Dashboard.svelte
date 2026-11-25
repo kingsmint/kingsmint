@@ -85,7 +85,7 @@
   const date = (m, o) => new Intl.DateTimeFormat(app.lang, o).format(new Date(m.slice(0, 4), m.slice(5) - 1));
   // a period's name: a year as it is, a month in the app's language
   const periodName = (p) => (p.length === 4 ? p : date(p, { month: "long", year: "numeric" }));
-  const periodShort = (p) => (p.length === 4 ? p : date(p, { month: "short", year: "2-digit" }));
+  const periodShort = (p) => (p.length === 4 ? p : date(p, { month: "short", year: "numeric" })); // "Oct 2025": "Oct 25" reads as a day
   // the texts that name the period and its comparisons
   const L = $derived(
     unit === "year"

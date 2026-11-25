@@ -22,7 +22,7 @@
     TooltipComponent,
   } from "echarts/components";
   import * as echarts from "echarts/core";
-  import { CanvasRenderer } from "echarts/renderers";
+  import { SVGRenderer } from "echarts/renderers";
   import { app } from "./app.svelte.js";
   import { dark } from "./util.js";
 
@@ -34,7 +34,7 @@
     LegendComponent,
     MarkLineComponent,
     TooltipComponent,
-    CanvasRenderer,
+    SVGRenderer,
   ]);
 
   let {
@@ -55,7 +55,7 @@
   let el;
 
   $effect(() => {
-    const chart = echarts.init(el, dark.matches ? "dark" : null);
+    const chart = echarts.init(el, dark.matches ? "dark" : null, { renderer: "svg" }); // SVG: sharp text at any pixel ratio and zoom
     const compact = new Intl.NumberFormat(app.lang, { ...unit, notation: "compact" });
     const exact = new Intl.NumberFormat(app.lang, { ...unit, maximumFractionDigits: 2 });
     // numbers come as exact strings (Decimal); a column with a value that is not a number is not a series
@@ -77,6 +77,7 @@
     const axis = (o) => ({ type: "value", axisLabel: { formatter: (v) => compact.format(v) }, ...o });
     chart.setOption({
       backgroundColor: "transparent",
+      textStyle: { fontFamily: getComputedStyle(el).fontFamily }, // the app's font, not ECharts' sans-serif
       color: colors,
       animation: false, // a hidden window pauses requestAnimationFrame, and the bars would stay at zero
       tooltip: { trigger: "axis", valueFormatter: (v) => exact.format(v) },
