@@ -1,5 +1,6 @@
-"""The ledger's state, which the page polls: the statements waiting in inbox/, what `kingsmint check` says, and whether a
-statement was imported. The check runs again only when a ledger file changed."""
+"""The ledger's state, which the page polls: the statements waiting in inbox/, what `kingsmint check` says, whether a
+statement was imported, and whether the ledger needs changes of a newer kingsmint. The check and `kingsmint upgrade`
+run again only when a ledger file changed."""
 
 import threading
 from collections.abc import Callable
@@ -29,6 +30,7 @@ class State:
     inbox: list[str]  # statements waiting in inbox/
     check: str  # output of `kingsmint check`: empty when the ledger is fine
     imported: bool  # a statement was imported (documents/ holds one): false for a new ledger
+    upgrade: bool  # `kingsmint upgrade` lists changes for a ledger made with an older kingsmint
 
 
 class Checker:
@@ -36,7 +38,7 @@ class Checker:
 
     def __init__(self, ledger: Path, reload: Callable[[], None]):
         self.ledger, self.reload = ledger, reload
-        self.seen: tuple[float, str] | None = None
+        self.seen: tuple[float, str, bool] | None = None
         self.lock = threading.Lock()  # polls come in parallel; one check at a time
 
     def state(self) -> State:
@@ -51,5 +53,7 @@ class Checker:
                 # files missing. When the files have not changed for the whole check, Fava loads again, from complete files.
                 if not first and newest(self.ledger) == t:
                     self.reload()
-                self.seen = (t, text)
-            return State(waiting, self.seen[1], imported(self.ledger))
+                # `upgrade --done` writes .kingsmint-version, a ledger file: this runs again after it
+                upgrade = "kingsmint upgrade --done" in kingsmint(self.ledger, "upgrade")
+                self.seen = (t, text, upgrade)
+            return State(waiting, self.seen[1], imported(self.ledger), self.seen[2])

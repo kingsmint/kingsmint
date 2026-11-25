@@ -57,6 +57,8 @@ def test_upgrade(tmp_path, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert out.index("- add rule B") < out.index("- add rule C")  # oldest first
     assert "not yet" not in out and "not ledger" not in out and "- old" not in out and "0.2.0" not in out
+    template = Path(out.split("The template these refer to: ")[1].splitlines()[0])
+    assert (template / "main.beancount").exists()
     cli.upgrade(["--done"])
     assert (tmp_path / ".kingsmint-version").read_text() == "0.3.0\n"
     cli.upgrade([])

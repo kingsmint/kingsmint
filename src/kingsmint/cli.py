@@ -254,6 +254,7 @@ def upgrade(args):
     for v, text in todo:
         print(f"## {v}\n\n{text}\n")
     if todo:
+        print(f"The template these refer to: {skills_source('template')}")
         print("Apply these to the ledger (they keep the owner's own edits), then run `kingsmint upgrade --done`.")
 
 
@@ -261,10 +262,10 @@ SKILLS = Path(".claude/skills")
 SKILLS_PREFIX = "kingsmint-"  # the copies; other skills in .claude/skills/ are the owner's
 
 
-def skills_source():
-    """The skills of this kingsmint: in the package (a wheel), or beside it in a checkout."""
+def skills_source(name="skills"):
+    """The skills (or the template) of this kingsmint: in the package (a wheel), or beside it in a checkout."""
     here = Path(__file__).parent
-    return next(p for p in [here / "skills", here.parent.parent / "skills"] if p.is_dir())
+    return next(p for p in [here / name, here.parent.parent / name] if p.is_dir())
 
 
 def skills():

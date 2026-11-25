@@ -12,6 +12,7 @@ export const ACTIONS = {
   setup: () => [tAgent("setup") + tAgent("save"), "kingsmint import", tAgent("beforeSetup")],
   import: () => [tAgent("import") + tAgent("save"), "kingsmint import", tAgent("beforeImport")],
   fix: () => [tAgent("fix") + tAgent("save"), "kingsmint check", tAgent("beforeFix")],
+  upgrade: () => [tAgent("upgrade"), "kingsmint upgrade", tAgent("beforeUpgrade")],
   close: () => {
     const month = lastMonth(app.ledgerLang);
     return [tAgent("close", { month }) + tAgent("save"), "kingsmint coverage", tAgent("beforeClose", { month })];
