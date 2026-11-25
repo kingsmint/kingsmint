@@ -22,6 +22,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel.force-include]
 "skills" = "kingsmint/skills"  # `kingsmint skills` copies them into a ledger, from the version the ledger runs
+"template" = "kingsmint/template"  # the changes of `kingsmint upgrade` refer to it
 
 [dependency-groups]
 dev = [

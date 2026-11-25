@@ -193,6 +193,18 @@ enum Start {
     Sample,
 }
 
+/// pyproject.toml of a ledger made by an older release of the app takes that release's wheel (make_ledger): the
+/// ledger then follows the app to its release, and `kingsmint upgrade` lists what the ledger needs (ledger_state.py).
+/// Never to an older release; a git or path source is the owner's choice and stays.
+fn follow_app(pyproject: &str, ours: &str) -> Option<String> {
+    let version = |s: &str| s.split('.').map(|n| n.parse::<u32>().unwrap_or(0)).collect::<Vec<_>>();
+    let prefix = format!("{KINGSMINT_GIT}/releases/download/v");
+    let start = pyproject.find(&prefix)? + prefix.len();
+    let old = &pyproject[start..start + pyproject[start..].find('/')?];
+    let wheel = |v: &str| format!("{prefix}{v}/kingsmint-{v}-py3-none-any.whl");
+    (version(old) < version(ours) && pyproject.contains(&wheel(old))).then(|| pyproject.replace(&wheel(old), &wheel(ours)))
+}
+
 /// `uv sync` installs the kingsmint version the ledger pins; a new ledger then records that version. The server runs
 /// with the ledger's Python and exits when its stdin closes, so it leaves no orphan, also when the app is killed.
 fn start_server(l: &Arc<Ledger>, start: Start, resources: &Path) {
@@ -206,6 +218,15 @@ fn start_server(l: &Arc<Ledger>, start: Start, resources: &Path) {
             Err(e) => Err(format!("cannot run {what}: {e}")),
         }
     };
+    // a development or test build leaves the ledger's kingsmint as it is
+    if start == Start::Existing && !cfg!(debug_assertions) && option_env!("KINGSMINT_REV").is_none() {
+        let p = l.dir.join("pyproject.toml");
+        if let Some(text) = std::fs::read_to_string(&p).ok().and_then(|t| follow_app(&t, env!("CARGO_PKG_VERSION"))) {
+            if let Err(e) = std::fs::write(&p, text) {
+                eprintln!("kingsmint: cannot write {}: {e}", p.display());
+            }
+        }
+    }
     eprintln!("kingsmint: {} sync in {}", uv().display(), l.dir.display());
     if let Err(e) = run(quiet(uv()).arg("sync"), "uv sync") {
         return fail(e);
@@ -923,6 +944,16 @@ mod tests {
         assert_eq!(extension_state(true, Some("0.1.8"), "0.2.4"), "old");
         assert_eq!(extension_state(true, Some("0.2.10"), "0.2.4"), "current");
         assert_eq!(extension_state(true, Some("0.2.4"), "0.2.4"), "current");
+    }
+
+    #[test]
+    fn ledger_follows_app() {
+        let wheel = |v: &str| format!("kingsmint = {{ url = \"{KINGSMINT_GIT}/releases/download/v{v}/kingsmint-{v}-py3-none-any.whl\" }}\n");
+        assert_eq!(follow_app(&wheel("0.2.3"), "0.2.10"), Some(wheel("0.2.10")));
+        assert_eq!(follow_app(&wheel("0.2.4"), "0.2.4"), None);
+        assert_eq!(follow_app(&wheel("0.3.0"), "0.2.4"), None); // never down
+        assert_eq!(follow_app("kingsmint = { git = \"x\", tag = \"v0.1.0\" }\n", "0.2.4"), None);
+        assert_eq!(follow_app("kingsmint = { path = \"/src/kingsmint\", editable = true }\n", "0.2.4"), None);
     }
 
     #[test]

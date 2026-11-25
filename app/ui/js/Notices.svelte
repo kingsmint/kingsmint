@@ -8,10 +8,10 @@
   import { installAgent } from "./terminal.js";
 
   let fixing = $state(false); // for 3 s after a click: one task per click
-  async function fix() {
+  async function fix(act = "fix") {
     fixing = true;
     try {
-      await ask("fix");
+      await ask(act);
     } finally {
       setTimeout(() => (fixing = false), 3000);
     }
@@ -22,6 +22,14 @@
   <p id="check" class="banner" title={app.check}>
     <span>{t("problems")}</span>
     <button type="button" disabled={fixing} onclick={fix}><wa-icon class="agent-icon" name="sparkles"></wa-icon> {t("fix")}</button>
+  </p>
+{/if}
+{#if app.upgrade}
+  <p id="upgrade" class="banner">
+    <span>{t("upgradeLedger")}</span>
+    <button type="button" disabled={fixing} onclick={() => fix("upgrade")}
+      ><wa-icon class="agent-icon" name="sparkles"></wa-icon> {t("upgradeAsk")}</button
+    >
   </p>
 {/if}
 {#if !app.installed.length}

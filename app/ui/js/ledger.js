@@ -117,6 +117,7 @@ function applyState(status) {
     }
   }
   app.waiting = inbox;
+  app.upgrade = status.upgrade;
   const seen = `${inbox.join("\n")}\0${check}\0${app.imported}`;
   if (seen !== app.inboxSeen) {
     assign({ inboxSeen: seen });

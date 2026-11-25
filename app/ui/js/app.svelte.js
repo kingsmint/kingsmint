@@ -28,6 +28,7 @@ export const app = $state({
   pins: [], // the views pinned on the rail: { label, view }, saved with the ledger's layout
   reports: 0, // the ledger's reports (reports/*.toml): the rail shows Reports once there is one
   check: null, // what `kingsmint check` said: "" when the ledger is fine, null while it is not known
+  upgrade: false, // the ledger needs changes of a newer kingsmint (`kingsmint upgrade` lists them)
   agentNote: "", // an agent's question that only the user answers, above the panels
   dropping: false, // files are dragged over the window
   popup: null, // the open menu: { kind: "tab", api, x, y, isTerm, isFava, terminals } or { kind: "add", group, side, x, y },

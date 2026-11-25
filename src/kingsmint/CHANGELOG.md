@@ -11,6 +11,11 @@ here is the installed version.
   with the extension's tools, not with the ledger's own kingsmint, which may be another version.
 - The Kingsmint app offers to add Kingsmint to the Claude app, and to update it there when it is older: a button
   above the panels and in the settings. The Claude app then asks you to install it; no download from GitHub.
+- After the Kingsmint app updates itself, a ledger it made takes kingsmint of the app's new version when it opens;
+  before, it stayed at the version it was made with. When the new version brings changes for the ledger, a banner
+  above the panels offers to go through them with the agent, who applies only what you agree to.
+- `kingsmint upgrade` names the template its changes refer to: the package has it now, so the agent no longer
+  looks for it on GitHub.
 - The Kingsmint app's charts are sharp and use the app's font, and a month on their axis shows the full year
   ("Oct 2025", not "Oct 25", which read as a day).
 - The Kingsmint app's settings have **Check for updates**: it offers a newer version, or says that you have the newest.

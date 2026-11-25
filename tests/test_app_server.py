@@ -114,7 +114,7 @@ def test_rpc_query_and_reports(tmp_path):
     (tmp_path / "reports" / "broken.toml").write_text('name = "no query"\n')
     assert methods["reports"]() == [{"file": "broken.toml", "error": "KeyError: 'query'"},
                                     {"file": "food.toml", "name": "Food", "query": "SELECT 1", "view": "bar"}]
-    assert methods["state"]() == {"inbox": [], "check": "", "imported": False}  # no kingsmint here: no check
+    assert methods["state"]() == {"inbox": [], "check": "", "imported": False, "upgrade": False}  # no kingsmint here: no check
 
 
 def test_rpc_answers_on_the_first_stdout_and_exits_with_stdin():
