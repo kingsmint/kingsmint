@@ -47,7 +47,8 @@ To ask about your money from any chat in the Claude app (chat or Cowork), downlo
    to your other computers.
 2. [`kingsmint.mcpb`](https://github.com/kingsmint/kingsmint/releases/latest/download/kingsmint.mcpb), the
    server, which runs on your computer (Claude installs its Python and dependencies): double-click it
-   on each computer, and Claude asks to install it.
+   on each computer, and Claude asks to install it. The Kingsmint app ships it too, and offers to install it and to
+   update it.
 
 The extension only reads the ledger, the one the Kingsmint app opened last. Importing and categorizing happen in
 the Kingsmint app. See [`desktop/README.md`](desktop/README.md). To build both files from a checkout:

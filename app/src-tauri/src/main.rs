@@ -581,6 +581,38 @@ fn feedback() -> Result<(), String> {
     system_open(format!("mailto:feedback@kingsmint.org?subject=Kingsmint%20feedback&body={body}").as_ref())
 }
 
+/// The kingsmint extension of the Claude app (desktop/manifest.json), which the app ships in dist/ in its own version:
+/// "missing", "old" or "current" when the Claude app is on this computer, else "".
+#[tauri::command]
+fn claude_extension(app: State<App>) -> &'static str {
+    let Ok(claude) = app.handle.path().data_dir().map(|d| d.join("Claude")) else { return "" };
+    let manifest = claude.join("Claude Extensions").join("local.mcpb.kingsmint.kingsmint").join("manifest.json");
+    let installed = std::fs::read_to_string(manifest).ok()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+        .and_then(|m| m["version"].as_str().map(String::from));
+    extension_state(claude.is_dir(), installed.as_deref(), env!("CARGO_PKG_VERSION"))
+}
+
+fn extension_state(claude: bool, installed: Option<&str>, ours: &str) -> &'static str {
+    let v = |s: &str| s.split('.').map(|n| n.parse::<u32>().unwrap_or(0)).collect::<Vec<_>>();
+    match installed {
+        _ if !claude => "",
+        None => "missing",
+        Some(i) if v(i) < v(ours) => "old",
+        _ => "current",
+    }
+}
+
+/// Opens the shipped extension: the Claude app asks the user to install it.
+#[tauri::command]
+fn claude_extension_install(app: State<App>) -> Result<(), String> {
+    let mcpb = app.resources.join("dist").join("kingsmint.mcpb");
+    if !mcpb.is_file() {
+        return Err(format!("not in this build: {}", mcpb.display()));
+    }
+    system_open(mcpb.as_os_str())
+}
+
 fn system_open(what: &std::ffi::OsStr) -> Result<(), String> {
     let opener = if cfg!(target_os = "macos") { "open" } else if cfg!(windows) { "explorer" } else { "xdg-open" };
     Command::new(opener).arg(what).spawn().map(|_| ()).map_err(|e| e.to_string())
@@ -857,7 +889,7 @@ fn main() {
             })?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![log, setup_log, rpc, agents, ledger_dir, recent_ledgers, open_ledger, new_ledger, sample_ledger, server_url, app_settings, save_app_settings, inbox_add, inbox_remove, inbox_reveal, open_url, feedback, check_updates, load_tabs, save_tabs, pty_start, pty_write, pty_resize, pty_kill])
+        .invoke_handler(tauri::generate_handler![log, setup_log, rpc, agents, ledger_dir, recent_ledgers, open_ledger, new_ledger, sample_ledger, server_url, app_settings, save_app_settings, inbox_add, inbox_remove, inbox_reveal, open_url, feedback, check_updates, claude_extension, claude_extension_install, load_tabs, save_tabs, pty_start, pty_write, pty_resize, pty_kill])
         .build(tauri::generate_context!())
         .expect("cannot build the app")
         .run(|handle, event| {
@@ -882,6 +914,15 @@ mod tests {
         assert_eq!(agent_command("claude", Some(id), "dane", true).unwrap(),
                    format!("claude --resume {id} -n 'dane' || claude --session-id {id} -n 'dane'"));
         assert!(agent_command("claude", Some("x; rm -rf ~"), "x", false).is_err());
+    }
+
+    #[test]
+    fn claude_extension_state() {
+        assert_eq!(extension_state(false, None, "0.2.4"), "");
+        assert_eq!(extension_state(true, None, "0.2.4"), "missing");
+        assert_eq!(extension_state(true, Some("0.1.8"), "0.2.4"), "old");
+        assert_eq!(extension_state(true, Some("0.2.10"), "0.2.4"), "current");
+        assert_eq!(extension_state(true, Some("0.2.4"), "0.2.4"), "current");
     }
 
     #[test]

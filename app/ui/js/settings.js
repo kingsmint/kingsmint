@@ -24,6 +24,11 @@ export function saveApp(change) {
   invoke("save_app_settings", { settings: { ...app.appSettings } });
   applyZoom();
 }
+// The kingsmint extension in the Claude app (claude_extension in main.rs): at start, and when the window comes back,
+// after the user installed it in the Claude app.
+export const checkClaude = async () => (app.claude = await invoke("claude_extension").catch(() => ""));
+// The Claude app asks the user to install the extension this app ships.
+export const installClaude = () => invoke("claude_extension_install").catch(console.error);
 export function setLang(value) {
   assign({ lang: value, appSettings: { ...app.appSettings, lang: value } });
   invoke("save_app_settings", { settings: app.appSettings });

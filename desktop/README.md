@@ -9,7 +9,8 @@ Install two files from the [latest release](https://github.com/kingsmint/kingsmi
 1. `kingsmint.plugin`, the skill that explains your money: **Plugins** in the sidebar, then **Add > Upload plugin**. It syncs to your other
    computers.
 2. `kingsmint.mcpb`, the server that reads the ledger on your computer: double-click it on each
-   computer, and Claude asks to install it; extensions do not sync. The first start takes a minute or two: Claude
+   computer, and Claude asks to install it; extensions do not sync. With the Kingsmint app, use its **Add to
+   Claude** instead (in its settings): it also offers the update when the app is newer. The first start takes a minute or two: Claude
    downloads Python and the packages.
 
 ## Use it

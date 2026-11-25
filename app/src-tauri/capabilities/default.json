@@ -27,6 +27,8 @@
     "allow-open-url",
     "allow-feedback",
     "allow-check-updates",
+    "allow-claude-extension",
+    "allow-claude-extension-install",
     "allow-load-tabs",
     "allow-save-tabs",
     "allow-pty-start",

@@ -11,3 +11,8 @@ cp -R ui/node_modules/@awesome.me/webawesome/dist-cdn dist/vendor/@awesome.me/we
 mkdir -p dist/vendor/lucide-static
 cp -R ui/node_modules/lucide-static/icons dist/vendor/lucide-static/
 cp ui/i18n.json dist/
+# the Claude app's extension, which the app offers to install (claude_extension in main.rs); with the developer's uv
+# or the sidecar of this machine (scripts/fetch-sidecars.sh)
+UV=$(command -v uv || ls src-tauri/binaries/uv-"$(rustc -vV | sed -n 's/^host: //p')"* | head -1)
+"$UV" run --no-project --python '>=3.11' python ../desktop/build.py dist >/dev/null
+rm dist/kingsmint.plugin
