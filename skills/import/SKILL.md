@@ -12,9 +12,11 @@ or else in the language the user writes in.
    `version` in `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`. When `pyproject.toml` takes kingsmint from `git`
    without `tag = "v<version>"`, run `uv add "git+https://github.com/kingsmint/kingsmint" --tag v<version>`; a `path`
    source is a checkout the user develops, leave it. A copy in the ledger comes from the ledger's own kingsmint:
-   skip this match. Then, in both cases, run `uv run kingsmint upgrade`. When it lists changes, the ledger was made with an older kingsmint: propose
-   them to the user in one message, in plain words, with the why. After the user agrees, apply them so that the
-   owner's own edits stay, run `uv run kingsmint upgrade --done`, and commit `Upgrade the ledger to kingsmint
+   skip this match. Then, in both cases, run `uv run kingsmint upgrade --apply`: it makes the changes of the newer
+   versions that kingsmint can make itself. When it printed `applied the ledger changes of kingsmint …`, commit
+   `Upgrade the ledger to kingsmint <version>` with those versions in the body. When it lists changes, they need you:
+   propose them to the user in one message, in plain words, with the why. After the user agrees, apply them so that
+   the owner's own edits stay, run `uv run kingsmint upgrade --done`, and commit `Upgrade the ledger to kingsmint
    <version>` with the changes and their why in the body. When the user declines, go on without them.
 1. List `inbox/`. Remove exact duplicates (same checksum, or the same text from `kingsmint.pdf.pdf_text`) before importing.
 2. Run `uv run kingsmint import`. `nothing to import`: tell the user where to put statements and stop.

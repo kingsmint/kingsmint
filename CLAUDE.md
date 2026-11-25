@@ -16,6 +16,10 @@ their own directory (`ROOT = Path.cwd()`).
   `pyproject.toml`, `.claude-plugin/plugin.json`, `desktop/manifest.json`, `app/src-tauri/tauri.conf.json`,
   `app/src-tauri/Cargo.toml` and `Cargo.lock`, the CHANGELOG heading and `uv.lock`, and
   `ref` set to `v<version>`. Then tag that commit `v<version>` and push the tag; the release workflow checks both.
+- A change to `template/` that existing ledgers need gets a migration in `src/kingsmint/migrations.py` for its
+  version, with its case in `tests/test_migrations.py`, besides its `### Ledger` line: `kingsmint upgrade --apply`
+  makes the change when the app opens a ledger, and the line tells the agent what to do where the migration finds
+  text the owner changed. A suggestion the owner may decline (marked "Optional") stays a line only.
 - A commit message says what changed in the first line, and in the body why: the problem, what the user
   reported, what was tested. `src/kingsmint/CHANGELOG.md` gets a line for each change a user notices; a change to `template/` also gets
   a line under `### Ledger`, saying what to change in an existing ledger and why.

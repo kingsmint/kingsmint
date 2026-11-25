@@ -248,6 +248,7 @@ if __name__ == "__main__":
             versions.init(ledger.parent, first)
         except versions.VersionError as e:  # the ledger works without versions; History offers to turn them on
             print(f"cannot start the versions: {e}", file=sys.stderr)
+    ledger_state.upgrade(ledger.parent)
     app = make_app(ledger, ui)
     rpc.serve(app.state.methods, out)
     logging.getLogger("werkzeug").setLevel(logging.WARNING)  # not a line per request

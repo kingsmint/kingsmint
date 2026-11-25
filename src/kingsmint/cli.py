@@ -12,7 +12,8 @@
   fava [FAVA OPTIONS]          open Fava on http://localhost:5050
   rates                        refresh month-end USD/EUR rates from the ECB
   doctor                       check the tools and the ledger files
-  upgrade [--done]             what to change in a ledger made with an older kingsmint; --done: it is changed
+  upgrade [--apply|--done]     what to change in a ledger made with an older kingsmint; --apply: make the changes
+                               that kingsmint can, list the rest; --done: it is changed
   skills                       copy this kingsmint's skills into .claude/skills/ of the ledger, for any agent
   runway                       liquid money, monthly baseline and runway in months, as JSON (saved queries in main.beancount)
   sample                       fill a new ledger with made-up statements, to try kingsmint
@@ -29,7 +30,7 @@ from beancount import loader
 from beancount.core import data, inventory
 from beancount.parser import printer
 
-from kingsmint import importer, merge, rates, sample
+from kingsmint import importer, merge, migrations, rates, sample
 from kingsmint.banks import CSV_PARSERS, PARSERS
 from kingsmint.pdf import pdf_text
 
@@ -238,8 +239,43 @@ def pin(installed):
                   f"checkout, or take the release: `uv add \"git+https://github.com/kingsmint/kingsmint\" --tag v{installed}`")
 
 
+def check_text() -> str:
+    """What `kingsmint check` says of the ledger: empty when it passes."""
+    p = subprocess.run([sys.executable, "-c", "import sys; sys.argv[1:] = ['check']; from kingsmint.cli import main; main()"],
+                       capture_output=True, text=True, encoding="utf-8")
+    return (p.stdout + p.stderr).strip() if p.returncode else ""
+
+
+def apply_upgrade():
+    """The ledger changes of the newer versions, oldest first, made by their migrations (migrations.py). It stops at the
+    first version whose changes need the agent, or whose changes make `kingsmint check` worse (then undone): the ledger
+    is at the version before, and the rest is listed as `upgrade` lists it."""
+    have, todo = pending()
+    template = skills_source("template")
+    before = check_text() if todo else ""
+    for i, (v, text) in enumerate(todo):
+        led = migrations.Ledger(Path.cwd(), template)
+        left = migrations.MIGRATIONS[v](led) if v in migrations.MIGRATIONS else [text]
+        if not left and (after := check_text()) and after != before:
+            led.restore()
+            left = [f"The changes of {v} made `kingsmint check` fail, so kingsmint undid them; make them by hand:\n\n"
+                    f"{text}\n\nThe check said:\n{after}"]
+        if left:
+            print(f"## {v}\n\n" + "\n".join(f"- {s}" if not s.startswith("- ") else s for s in left) + "\n")
+            for later, text in todo[i + 1:]:
+                print(f"## {later}\n\n{text}\n")
+            print(f"The template these refer to: {template}")
+            print("Apply these to the ledger (they keep the owner's own edits), then run `kingsmint upgrade --done`.")
+            return
+        VERSION_FILE.write_text(v + "\n", encoding="utf-8")
+        print(f"applied the ledger changes of kingsmint {v}")
+    upgrade(["--done"])
+
+
 def upgrade(args):
     installed = releases()[0][0]
+    if args == ["--apply"]:
+        return apply_upgrade()
     if args == ["--done"]:
         VERSION_FILE.write_text(installed + "\n", encoding="utf-8")
         print(f"ledger is at kingsmint {installed}")
@@ -336,7 +372,7 @@ def main():
         rates.main()
     elif cmd == "doctor":
         doctor()
-    elif cmd == "upgrade" and args in ([], ["--done"]):
+    elif cmd == "upgrade" and args in ([], ["--apply"], ["--done"]):
         upgrade(args)
     elif cmd == "skills" and not args:
         skills()
