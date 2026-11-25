@@ -573,6 +573,14 @@ fn open_url(url: String) -> Result<(), String> {
     system_open(url.as_ref())
 }
 
+/// Opens an email to the authors in the system's mail app, with the app's version and system for a bug report.
+#[tauri::command]
+fn feedback() -> Result<(), String> {
+    let (v, os, arch) = (env!("CARGO_PKG_VERSION"), std::env::consts::OS, std::env::consts::ARCH);
+    let body = format!("%0A%0A---%0AKingsmint%20{v}%2C%20{os}%20{arch}");
+    system_open(format!("mailto:feedback@kingsmint.org?subject=Kingsmint%20feedback&body={body}").as_ref())
+}
+
 fn system_open(what: &std::ffi::OsStr) -> Result<(), String> {
     let opener = if cfg!(target_os = "macos") { "open" } else if cfg!(windows) { "explorer" } else { "xdg-open" };
     Command::new(opener).arg(what).spawn().map(|_| ()).map_err(|e| e.to_string())
@@ -835,7 +843,7 @@ fn main() {
             })?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![log, setup_log, rpc, agents, ledger_dir, recent_ledgers, open_ledger, new_ledger, sample_ledger, server_url, app_settings, save_app_settings, inbox_add, inbox_remove, inbox_reveal, open_url, load_tabs, save_tabs, pty_start, pty_write, pty_resize, pty_kill])
+        .invoke_handler(tauri::generate_handler![log, setup_log, rpc, agents, ledger_dir, recent_ledgers, open_ledger, new_ledger, sample_ledger, server_url, app_settings, save_app_settings, inbox_add, inbox_remove, inbox_reveal, open_url, feedback, load_tabs, save_tabs, pty_start, pty_write, pty_resize, pty_kill])
         .build(tauri::generate_context!())
         .expect("cannot build the app")
         .run(|handle, event| {

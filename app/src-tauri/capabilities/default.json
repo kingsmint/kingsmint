@@ -25,6 +25,7 @@
     "allow-inbox-remove",
     "allow-inbox-reveal",
     "allow-open-url",
+    "allow-feedback",
     "allow-load-tabs",
     "allow-save-tabs",
     "allow-pty-start",

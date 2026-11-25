@@ -5,6 +5,10 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
+## Unreleased
+
+- The Kingsmint app's rail has **Feedback**, above Settings: it opens an email to feedback@kingsmint.org in your mail app.
+
 ## 0.2.3
 
 - The Kingsmint app updates itself: at start it asks whether to install a newer release, then restarts. The app of
