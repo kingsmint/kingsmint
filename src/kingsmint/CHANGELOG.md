@@ -5,7 +5,7 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
-## Unreleased
+## 0.2.5
 
 - The Kingsmint app no longer flashes "Loading" when you go from one transaction to another: the detail keeps
   the transaction before until the next one comes.
