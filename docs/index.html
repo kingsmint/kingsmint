@@ -50,6 +50,11 @@
   th { color: var(--muted); font-weight: 600; }
   ul { padding-left: 20px; }
   code { font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--card); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+  figure { margin: 32px 0; }
+  figure img { display: block; width: 100%; height: auto; filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.18)); }
+  figcaption { color: var(--muted); font-size: 15px; text-align: center; margin-top: 12px; }
+  /* the first screenshot is wider than the text, up to the window's width */
+  .hero-shot { width: min(1100px, calc(100vw - 32px)); position: relative; left: 50%; transform: translateX(-50%); margin-top: 8px; }
   footer { border-top: 1px solid var(--line); margin-top: 64px; padding-top: 20px; padding-bottom: 40px; color: var(--muted); font-size: 14px; }
   footer a { color: var(--muted); }
 </style>
@@ -71,6 +76,8 @@
       The Windows installer is not signed yet: when Windows says “Windows protected your PC”, choose More info, then Run anyway.</p>
     <p class="note">macOS (Apple silicon and Intel) and Windows. Free and open source (MIT).</p>
   </header>
+
+  <figure class="hero-shot"><img src="img/overview-agent.webp" width="1800" height="1123" alt="The Kingsmint overview of a month, and the agent explaining why July cost more"></figure>
 
   <h2>What it does</h2>
   <div class="features">
@@ -99,6 +106,12 @@
     <li>The agent categorizes them and asks you only about what the statements cannot show.</li>
     <li>See your net worth, income and expenses in Fava, or ask the agent: "Why was my profit lower in March?"</li>
   </ol>
+
+  <figure><img src="img/inbox.webp" width="1800" height="1123" alt="Drop the statements from your bank into the inbox." loading="lazy"><figcaption>Drop the statements from your bank into the inbox.</figcaption></figure>
+  <figure><img src="img/setup-agent.webp" width="1800" height="1123" alt="The agent reads them, proposes your accounts and asks only what the statements cannot tell." loading="lazy"><figcaption>The agent reads them, proposes your accounts and asks only what the statements cannot tell.</figcaption></figure>
+  <figure><img src="img/expenses.webp" width="1800" height="1123" alt="See where the money went, against last month and the 12-month average." loading="lazy"><figcaption>See where the money went, against last month and the 12-month average.</figcaption></figure>
+  <figure><img src="img/runway.webp" width="1800" height="1123" alt="Know how many months your money lasts, and what is essential." loading="lazy"><figcaption>Know how many months your money lasts, and what is essential.</figcaption></figure>
+  <figure><img src="img/fava.webp" width="1800" height="1123" alt="Everything is plain Beancount, with all of Fava's reports." loading="lazy"><figcaption>Everything is plain Beancount, with all of Fava's reports.</figcaption></figure>
 
   <h2>Supported banks</h2>
   <table>

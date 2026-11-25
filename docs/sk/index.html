@@ -50,6 +50,11 @@
   th { color: var(--muted); font-weight: 600; }
   ul { padding-left: 20px; }
   code { font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--card); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+  figure { margin: 32px 0; }
+  figure img { display: block; width: 100%; height: auto; filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.18)); }
+  figcaption { color: var(--muted); font-size: 15px; text-align: center; margin-top: 12px; }
+  /* the first screenshot is wider than the text, up to the window's width */
+  .hero-shot { width: min(1100px, calc(100vw - 32px)); position: relative; left: 50%; transform: translateX(-50%); margin-top: 8px; }
   footer { border-top: 1px solid var(--line); margin-top: 64px; padding-top: 20px; padding-bottom: 40px; color: var(--muted); font-size: 14px; }
   footer a { color: var(--muted); }
 </style>
@@ -71,6 +76,8 @@
       Inštalátor pre Windows zatiaľ nie je podpísaný: keď Windows ukáže „Windows protected your PC“, klikni More info a potom Run anyway.</p>
     <p class="note">macOS (Apple silicon aj Intel) a Windows. Zadarmo a open source (MIT).</p>
   </header>
+
+  <figure class="hero-shot"><img src="../img/overview-agent.webp" width="1800" height="1123" alt="Prehľad mesiaca v Kingsmint a agent, ktorý vysvetľuje, prečo bol júl drahší"></figure>
 
   <h2>Čo robí</h2>
   <div class="features">
@@ -99,6 +106,12 @@
     <li>Agent ich roztriedi a pýta sa ťa iba na to, čo z výpisov nevyčíta.</li>
     <li>Pozri si majetok, príjmy a výdavky v prehľade a vo Fave, alebo sa opýtaj agenta: „Prečo bol môj zisk v marci nižší?“</li>
   </ol>
+
+  <figure><img src="../img/inbox.webp" width="1800" height="1123" alt="Vlož výpisy zo svojej banky do schránky." loading="lazy"><figcaption>Vlož výpisy zo svojej banky do schránky.</figcaption></figure>
+  <figure><img src="../img/setup-agent.webp" width="1800" height="1123" alt="Agent ich prečíta, navrhne tvoje účty a pýta sa iba na to, čo z výpisov nevyčíta." loading="lazy"><figcaption>Agent ich prečíta, navrhne tvoje účty a pýta sa iba na to, čo z výpisov nevyčíta.</figcaption></figure>
+  <figure><img src="../img/expenses.webp" width="1800" height="1123" alt="Pozri sa, kam išli peniaze, oproti minulému mesiacu a priemeru za 12 mesiacov." loading="lazy"><figcaption>Pozri sa, kam išli peniaze, oproti minulému mesiacu a priemeru za 12 mesiacov.</figcaption></figure>
+  <figure><img src="../img/runway.webp" width="1800" height="1123" alt="Zisti, na koľko mesiacov ti peniaze vystačia a čo je nevyhnutné." loading="lazy"><figcaption>Zisti, na koľko mesiacov ti peniaze vystačia a čo je nevyhnutné.</figcaption></figure>
+  <figure><img src="../img/fava.webp" width="1800" height="1123" alt="Všetko je obyčajný Beancount so všetkými prehľadmi Favy." loading="lazy"><figcaption>Všetko je obyčajný Beancount so všetkými prehľadmi Favy.</figcaption></figure>
   <p>Appka aj agent hovoria po slovensky.</p>
 
   <h2>Podporované banky</h2>
