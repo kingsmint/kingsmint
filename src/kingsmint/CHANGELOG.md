@@ -7,6 +7,8 @@ here is the installed version.
 
 ## Unreleased
 
+- The Kingsmint app's charts are sharp and use the app's font, and a month on their axis shows the full year
+  ("Oct 2025", not "Oct 25", which read as a day).
 - The Kingsmint app's settings have **Check for updates**: it offers a newer version, or says that you have the newest.
 
 ## 0.2.4
