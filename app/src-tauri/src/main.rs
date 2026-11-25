@@ -748,15 +748,29 @@ fn stop(handle: &tauri::AppHandle) {
     kill_ptys(&app);
 }
 
+/// The settings' "Check for updates": as at start, and it also says when there is no update or the check failed.
+#[tauri::command]
+fn check_updates(handle: tauri::AppHandle) {
+    tauri::async_runtime::spawn(check_update(handle, true));
+}
+
 /// A release asks at start whether to install a newer one: latest.json of the newest GitHub release, whose files
 /// are signed with the key in tauri.conf.json. Offline, or a release without latest.json: the app starts as it is.
-async fn check_update(handle: tauri::AppHandle) {
+/// `asked`: the user asked, so a dialog also says that the app is the newest, or why the check failed.
+async fn check_update(handle: tauri::AppHandle, asked: bool) {
     use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
     use tauri_plugin_updater::UpdaterExt;
+    let say = |text: String, kind| if asked { handle.dialog().message(text).title("Update").kind(kind).show(|_| {}) };
     let update = match async { handle.updater()?.check().await }.await {
         Ok(Some(u)) => u,
-        Ok(None) => return,
-        Err(e) => return eprintln!("kingsmint: update check: {e}"),
+        Ok(None) => {
+            let v = handle.package_info().version.to_string();
+            return say(format!("Kingsmint {v} is the newest version."), MessageDialogKind::Info);
+        }
+        Err(e) => {
+            eprintln!("kingsmint: update check: {e}");
+            return say(format!("The update check failed: {e}"), MessageDialogKind::Error);
+        }
     };
     let text = format!("Kingsmint {} is available; you have {}. Install it and restart?", update.version, update.current_version);
     let h = handle.clone();
@@ -822,7 +836,7 @@ fn main() {
             }
             app.manage(state);
             if !cfg!(debug_assertions) {
-                tauri::async_runtime::spawn(check_update(app.handle().clone()));
+                tauri::async_runtime::spawn(check_update(app.handle().clone(), false));
             }
             // the app's own page shows the start screen and waits for the server; then it goes to the server's page
             let window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
@@ -843,7 +857,7 @@ fn main() {
             })?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![log, setup_log, rpc, agents, ledger_dir, recent_ledgers, open_ledger, new_ledger, sample_ledger, server_url, app_settings, save_app_settings, inbox_add, inbox_remove, inbox_reveal, open_url, feedback, load_tabs, save_tabs, pty_start, pty_write, pty_resize, pty_kill])
+        .invoke_handler(tauri::generate_handler![log, setup_log, rpc, agents, ledger_dir, recent_ledgers, open_ledger, new_ledger, sample_ledger, server_url, app_settings, save_app_settings, inbox_add, inbox_remove, inbox_reveal, open_url, feedback, check_updates, load_tabs, save_tabs, pty_start, pty_write, pty_resize, pty_kill])
         .build(tauri::generate_context!())
         .expect("cannot build the app")
         .run(|handle, event| {
