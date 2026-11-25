@@ -1,5 +1,6 @@
 """Kingsmint MCP server for the Claude app: reads the ledger on this computer to answer questions; it never changes it."""
 
+import json
 import os
 import subprocess
 import sys
@@ -14,10 +15,13 @@ import versions
 
 HERE = Path(__file__).parent  # in the bundle, holds the kingsmint package (desktop/build.py copies it)
 PORT = 5057
+VERSION = json.loads((HERE.parent / "manifest.json").read_text(encoding="utf-8"))["version"]
 
-mcp = MCPServer("kingsmint", instructions="""Kingsmint keeps a Beancount ledger in a folder on the user's computer.
+mcp = MCPServer("kingsmint", instructions=f"""Kingsmint keeps a Beancount ledger in a folder on the user's computer.
 These tools only read it, to answer questions about the user's money from any chat. They run on the user's computer,
-not in your sandbox.
+not in your sandbox. They are the kingsmint extension {VERSION}: give this version when the user asks which one runs.
+- Use these tools, not `uv run kingsmint` in the ledger folder: that is the ledger's own kingsmint, which may be another
+  version, and its commands change the ledger.
 - Answer with numbers from kingsmint_query (bean-query SQL), and say which periods kingsmint_coverage shows as
   missing when they affect the answer. kingsmint_history tells why the ledger looks as it does.
 - Do not change the ledger's files. Importing statements, categories, rules and fixes happen in the Kingsmint app,
