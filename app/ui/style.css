@@ -1626,6 +1626,13 @@ select.lang {
 /* a transaction: who and when, the amount against the payee's average, what to do with it, then its postings and
    details beside the payee's other payments */
 
+/* the transaction before, while the next one loads: dimmed only when the load takes longer than a blink, and not
+   to be changed */
+.dashboard .txn.stale {
+  pointer-events: none;
+  opacity: 0.5;
+  transition: opacity 0.15s 0.2s;
+}
 .dashboard .txn .headline {
   align-items: center;
   margin-bottom: 0.75em;
