@@ -1,13 +1,14 @@
 <!-- The rail: the ledger's badge (its menu, and a dot for its check), then, in the order the user drags them to and
      without the ones hidden by right-click (rail.js), Inbox, Overview and its views, the pinned views
      (right-click: rename or unpin; past PINS_ON_RAIL in a "…" menu), Reports (once the ledger has one,
-     or while they show), Fava, the agent's sidebar, Settings and History. A button shows its panel, and one that was closed comes back; it is "on" while its panel shows. -->
+     or while they show), Fava, the agent's sidebar; at the bottom Feedback (an email), Settings and History. A button shows its panel, and one that was closed comes back; it is "on" while its panel shows. -->
 <script>
   import { app } from "./app.svelte.js";
   import { closeHistory, showHistory } from "./history.js";
   import { t } from "./i18n.js";
   import { badgeOf, basename, closeMenu, showMenu } from "./ledger.js";
   import { moveRail, pane, PINS_ON_RAIL, RAIL_LABELS, railHidden, railKey, railOrder, showView } from "./rail.js";
+  import { invoke } from "./util.js";
 
   const badge = $derived(app.current ? badgeOf(app.current) : { text: "K", color: "" });
   const state = $derived(app.check === null ? "" : app.check === "" ? "ok" : "bad");
@@ -171,9 +172,13 @@
     <wa-icon name="plus"></wa-icon>
   </button>
 {/if}
+<button id="feedback" class="pane bottom" title={t("feedbackNote")} onclick={() => invoke("feedback")}>
+  <wa-icon name="mail"></wa-icon>
+  <span>{t("feedback")}</span>
+</button>
 <button
   id="show-settings"
-  class="pane bottom"
+  class="pane"
   class:on={app.shown.settings}
   title={t("settings")}
   onclick={() => pane("settings")}
