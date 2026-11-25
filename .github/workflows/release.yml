@@ -4,6 +4,8 @@ name: release
 # and the Kingsmint app for macOS, signed and notarized, and for Windows (x64, ARM), not signed. Its secrets: APPLE_CERTIFICATE (the Developer ID Application
 # .p12, base64), APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY ("Developer ID Application: <name> (<team>)"),
 # and an App Store Connect API key for the notarization: APPLE_API_ISSUER, APPLE_API_KEY (its ID), APPLE_API_KEY_P8.
+# TAURI_SIGNING_PRIVATE_KEY (no password) signs the app's updates; its public key is in app/src-tauri/tauri.conf.json.
+# The release's latest.json lists them: the installed apps find it at releases/latest/download/latest.json.
 # Without APPLE_CERTIFICATE and APPLE_API_KEY_P8 the Mac app is skipped. The release has kingsmint's wheel too: the
 # app's new ledgers install it (app/src-tauri/src/main.rs, make_ledger).
 on:
@@ -76,12 +78,14 @@ jobs:
         working-directory: app/src-tauri
         run: |
           printf '%s' "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/notary.p8"
-          APPLE_API_KEY_PATH="$RUNNER_TEMP/notary.p8" npx --yes @tauri-apps/cli@2.12.6 build --target universal-apple-darwin --bundles app,dmg
+          APPLE_API_KEY_PATH="$RUNNER_TEMP/notary.p8" npx --yes @tauri-apps/cli@2.12.6 build --target universal-apple-darwin --bundles app,dmg --config '{"bundle":{"createUpdaterArtifacts":true}}'
           # Tauri notarizes the app, not the dmg around it: Gatekeeper rejects an unnotarized dmg once downloaded
           dmg=$(ls target/universal-apple-darwin/release/bundle/dmg/*.dmg)
           xcrun notarytool submit "$dmg" --key "$RUNNER_TEMP/notary.p8" --key-id "$APPLE_API_KEY" --issuer "$APPLE_API_ISSUER" --wait
           xcrun stapler staple "$dmg"
           spctl -a -vv -t open --context context:primary-signature "$dmg"
+          # the update beside the dmg, so the artifact has no folders
+          cp target/universal-apple-darwin/release/bundle/macos/Kingsmint.app.tar.gz* "$(dirname "$dmg")"
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -89,10 +93,12 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
       - uses: actions/upload-artifact@v4
         with:
           name: dmg
-          path: app/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          path: app/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*
           if-no-files-found: error
 
   # NSIS installers, not signed: Windows SmartScreen warns before the first start. New ledgers take the release's wheel.
@@ -113,12 +119,15 @@ jobs:
           node-version: 22
       - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
       - run: sh scripts/fetch-sidecars.sh
-      - run: npx --yes @tauri-apps/cli@2.12.6 build --bundles nsis
+      - run: npx --yes @tauri-apps/cli@2.12.6 build --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":true}}'
         working-directory: app/src-tauri
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
       - uses: actions/upload-artifact@v4
         with:
           name: windows-${{ matrix.os }}
-          path: app/src-tauri/target/release/bundle/nsis/*.exe
+          path: app/src-tauri/target/release/bundle/nsis/*.exe*
           if-no-files-found: error
 
   # the only job after the tests that may write to the release; the builds, one with the signing secrets, cannot.
@@ -133,6 +142,18 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           merge-multiple: true
-      - run: gh release upload "$GITHUB_REF_NAME" $(ls *.dmg *.exe 2>/dev/null) --repo "$GITHUB_REPOSITORY"
+      # latest.json for the updater: each platform's update and its signature. The universal Mac app serves both Macs;
+      # a platform not built is left out, and its apps find no update
+      - name: latest.json
+        run: |
+          url="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
+          entry() { if [ -f "$2" ]; then jq -n --arg k "$1" --arg u "$url/$2" --arg s "$(cat "$2.sig")" '{($k): {url: $u, signature: $s}}'; fi; }
+          { entry darwin-aarch64 Kingsmint.app.tar.gz
+            entry darwin-x86_64 Kingsmint.app.tar.gz
+            entry windows-x86_64 Kingsmint_*_x64-setup.exe
+            entry windows-aarch64 Kingsmint_*_arm64-setup.exe
+          } | jq -s --arg v "${GITHUB_REF_NAME#v}" '{version: $v, pub_date: (now | todate), platforms: add}' > latest.json
+          cat latest.json
+      - run: gh release upload "$GITHUB_REF_NAME" $(ls *.dmg *.exe *.app.tar.gz *.sig latest.json 2>/dev/null) --repo "$GITHUB_REPOSITORY"
         env:
           GH_TOKEN: ${{ github.token }}

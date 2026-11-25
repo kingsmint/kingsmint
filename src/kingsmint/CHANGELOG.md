@@ -5,6 +5,11 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
+## Unreleased
+
+- The Kingsmint app updates itself: at start it asks whether to install a newer release, then restarts. The app of
+  0.2.2 and older does not have this yet: install this version once from kingsmint.org.
+
 ## 0.2.2
 
 - The Kingsmint app for Windows, x64 and ARM, is in each release: an installer not signed yet, so Windows

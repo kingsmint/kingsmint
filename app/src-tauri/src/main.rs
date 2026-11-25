@@ -730,6 +730,51 @@ fn pty_resize(session: u64, cols: u16, rows: u16, app: State<App>) -> Result<(),
     }
 }
 
+/// Stops the ledger's server and the terminals: at exit, and before an update, whose installer ends the app on Windows.
+fn stop(handle: &tauri::AppHandle) {
+    let app = handle.state::<App>();
+    let ledger = app.ledger.lock().unwrap().take();
+    if let Some(l) = ledger {
+        kill_server(&l);
+    }
+    kill_ptys(&app);
+}
+
+/// A release asks at start whether to install a newer one: latest.json of the newest GitHub release, whose files
+/// are signed with the key in tauri.conf.json. Offline, or a release without latest.json: the app starts as it is.
+async fn check_update(handle: tauri::AppHandle) {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+    use tauri_plugin_updater::UpdaterExt;
+    let update = match async { handle.updater()?.check().await }.await {
+        Ok(Some(u)) => u,
+        Ok(None) => return,
+        Err(e) => return eprintln!("kingsmint: update check: {e}"),
+    };
+    let text = format!("Kingsmint {} is available; you have {}. Install it and restart?", update.version, update.current_version);
+    let h = handle.clone();
+    handle.dialog().message(text).title("Update")
+        .buttons(MessageDialogButtons::OkCancelCustom("Install".into(), "Later".into()))
+        .show(move |yes| if yes {
+            tauri::async_runtime::spawn(async move {
+                let installed = match update.download(|_, _| {}, || {}).await {
+                    Ok(bytes) => {
+                        stop(&h);
+                        update.install(bytes)
+                    }
+                    Err(e) => Err(e),
+                };
+                match installed {
+                    Ok(()) => h.restart(),
+                    Err(e) => {
+                        eprintln!("kingsmint: update: {e}");
+                        h.dialog().message(format!("The update failed: {e}")).kind(MessageDialogKind::Error).blocking_show();
+                        h.restart(); // the server may be stopped already: start again, as the old version
+                    }
+                }
+            });
+        });
+}
+
 fn main() {
     login_path();
     agent_path();
@@ -745,6 +790,7 @@ fn main() {
     }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let config = app.path().app_config_dir()?;
             std::fs::create_dir_all(&config).ok();
@@ -767,6 +813,9 @@ fn main() {
                 open(&state, &dir, Start::Existing).ok(); // a moved or deleted ledger: the user picks again
             }
             app.manage(state);
+            if !cfg!(debug_assertions) {
+                tauri::async_runtime::spawn(check_update(app.handle().clone()));
+            }
             // the app's own page shows the start screen and waits for the server; then it goes to the server's page
             let window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
                 .title("Kingsmint")
@@ -791,12 +840,7 @@ fn main() {
         .expect("cannot build the app")
         .run(|handle, event| {
             if let tauri::RunEvent::Exit = event {
-                let app = handle.state::<App>();
-                let ledger = app.ledger.lock().unwrap().take();
-                if let Some(l) = ledger {
-                    kill_server(&l);
-                }
-                kill_ptys(&app);
+                stop(handle);
             }
         });
 }

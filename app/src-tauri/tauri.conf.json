@@ -39,5 +39,16 @@
       "../server/": "server/",
       "../dist/": "dist/"
     }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk1Q0I3MDY2Nzc3MDg2MEEKUldRS2huQjNabkRMbGJYZ25UUVJ1RVk5eDRUekUvQVVVbllUaXdpTWxtdGNZdWsreEozZUJWa3gK",
+      "endpoints": [
+        "https://github.com/kingsmint/kingsmint/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }
