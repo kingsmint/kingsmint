@@ -646,12 +646,10 @@
   $effect(() => {
     if (view.name !== "txn" || !d) return;
     const { hash, id: tid } = view;
-    // another transaction (not the same one after a change): its change ends
+    // another transaction (not the same one after a change): its change ends; the transaction before stays until
+    // this one comes, so the detail does not flash "loading"
     const same = hash === renamed || untrack(() => (tid ? txn?.meta?.id === tid : txn?.hash === hash));
-    if (!same) {
-      (picking = -1), (typing = null), (splitting = false);
-      txn = undefined;
-    }
+    if (!same) (picking = -1), (typing = null), (splitting = false);
     const n = saves;
     // by id: a transaction changed meanwhile is found again; asked before a change, or while one waits, it is old
     rpc("entry", tid ? { id: tid } : { hash })
@@ -864,7 +862,7 @@
       {@const avg = others.length ? sum(others.map((h) => h.amount)) / others.length : null}
       {@const cats = categoriesOf(txn)}
       {@const multi = txn.postings.some((q) => q.currency !== d.currency)}
-      <div class="txn">
+      <div class="txn" class:stale={!isOpen({ id: txn.meta?.id, hash: txn.hash })}>
         <div class="headline">
           <div class="who">
             {#if typing === "payee"}

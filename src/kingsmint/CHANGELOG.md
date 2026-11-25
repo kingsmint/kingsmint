@@ -7,6 +7,8 @@ here is the installed version.
 
 ## Unreleased
 
+- The Kingsmint app no longer flashes "Loading" when you go from one transaction to another: the detail keeps
+  the transaction before until the next one comes.
 - In the Claude app, Claude tells the version of the kingsmint extension when you ask which one runs, and answers
   with the extension's tools, not with the ledger's own kingsmint, which may be another version.
 - The Kingsmint app offers to add Kingsmint to the Claude app, and to update it there when it is older: a button
