@@ -52,3 +52,25 @@ def test_upgrade_at_start(tmp_path, monkeypatch):
     calls.clear()
     ledger_state.upgrade(tmp_path)
     assert calls == [("upgrade",)] and len(saved) == 1
+
+
+def test_no_check_while_kingsmint_writes(tmp_path, monkeypatch):
+    """While `kingsmint reimport` writes ledger/ (its mark .kingsmint/writing), the last check stands."""
+    from kingsmint import merge
+
+    runs = []
+
+    def fake(ledger, command, *args):
+        if command != "check":
+            return ""
+        runs.append(command)
+        return f"check {len(runs)}"
+
+    monkeypatch.setattr(ledger_state, "kingsmint", fake)
+    (tmp_path / "main.beancount").write_text("")
+    checker = ledger_state.Checker(tmp_path, lambda: None)
+    assert checker.state().check == "check 1"
+    with merge.writing(tmp_path):
+        (tmp_path / "main.beancount").write_text("; half written")
+        assert checker.state().check == "check 1" and len(runs) == 1
+    assert checker.state().check == "check 2" and not (tmp_path / merge.WRITING).exists()

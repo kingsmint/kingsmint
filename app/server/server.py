@@ -3,7 +3,8 @@
 origin: a script in Fava's frame cannot call the app's commands.
 
 The app asks it for the ledger's data on stdin (rpc.py), with the methods in `app.state.methods`: `query` (BQL on
-Fava's loaded ledger), `dashboard`, `transactions` and `entry` (the overview), `reports` (reports/*.toml), `state` (statements
+Fava's loaded ledger), `dashboard`, `transactions` and `entry` (the overview), the changes of transactions (`entry_save`, `rule_preview`,
+`rule_save`, `entry_reset`), `reports` (reports/*.toml), `state` (statements
 waiting, the check, a first import), `inbox`, `settings` and `save_settings`, and the versions (`history`, `versions_init`, `versions_restore`, `versions_save`).
 
 The app runs it in the ledger, with the ledger's Python, so Fava and its kingsmint extensions are the ledger's version:
@@ -17,12 +18,14 @@ It exits when its stdin closes, so it does not outlive the app, also when the ap
 """
 
 import dataclasses
+import functools
 import json
 import logging
 import os
 import re
 import sys
 import tomllib
+from collections import Counter
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -34,8 +37,9 @@ import ledger_settings
 import ledger_state
 import rpc
 from babel.numbers import format_decimal
-from beancount.core.data import Transaction
+from beancount.core.data import Open, Transaction
 from fava.application import create_app
+from fava.beans.funcs import hash_entry
 from fava.helpers import FavaAPIError
 from werkzeug.exceptions import NotFound
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
@@ -43,6 +47,11 @@ from werkzeug.middleware.shared_data import SharedDataMiddleware
 from werkzeug.serving import make_server
 from werkzeug.utils import redirect
 from werkzeug.wrappers import Response
+
+try:
+    import edit
+except ImportError:  # a ledger on a kingsmint without the merge of hand edits: no changes from the app
+    edit = None
 
 
 # The app's tokens on Fava's pages: Web Awesome's theme, the app's adjustments, Fava's colors from them, dark mode;
@@ -123,23 +132,135 @@ def make_app(ledger: Path, ui: Path):
 
     def transactions(start: str, end: str, account: str | None = None) -> dict:
         l, rate = loaded()
-        return dashboard.transactions(l.all_entries, l.options, rate, start, end, account)
+        return dashboard.transactions(l.all_entries, l.options, rate, start, end, account) | {
+            "editable": edit is not None, "accounts": open_accounts(l.all_entries)}
 
-    def entry(hash: str) -> dict | None:
-        """A transaction by Fava's hash (the overview's transaction view); None when the ledger no longer has it (a
-        change of the transaction gives it another hash)."""
+    def open_accounts(entries):
+        return sorted(o.account for o in entries if isinstance(o, Open) and not o.account.startswith("Equity:"))
+
+    def entry(hash: str | None = None, id: str | None = None) -> dict | None:
+        """A transaction (the overview's transaction view) by its `id`, which a change keeps, else by Fava's hash, which
+        each change makes new; None when the ledger no longer has it."""
         l, rate = loaded()
         try:
-            e = l.get_entry(hash)
+            e = (next((x for x in l.all_entries if isinstance(x, Transaction) and x.meta.get("id") == id), None) if id
+                 else l.get_entry(hash))
         except FavaAPIError:
             return None
         if not isinstance(e, Transaction):
             return None
         try:
-            statement = bool(l.statement_path(hash, "document"))
+            statement = bool(l.statement_path(hash_entry(e), "document"))
         except FavaAPIError:
             statement = False
-        return dashboard.entry(e, l.all_entries, l.options, rate, statement)
+        name = e.payee or e.narration
+        used = Counter(p.account for t in l.all_entries if isinstance(t, Transaction) and (t.payee or t.narration) == name
+                       for p in t.postings[1:] if p.account.split(":")[0] in ("Expenses", "Income"))
+        return dashboard.entry(e, l.all_entries, l.options, rate, statement) | {
+            "editable": edit is not None and not edit.editable(e, l.all_entries),
+            "edited": edit is not None and edit.hand_edited(root, e),
+            "fee": edit is not None and edit.imported_fee(root, e),  # the import's bank fee: part of the statement row
+            "suggested": [a for a, _ in used.most_common(5)],  # the payee's categories, the most used first
+            "accounts": open_accounts(l.all_entries)}
+
+    def can_edit(reimport=False):
+        if edit is None:
+            raise ValueError("This ledger's kingsmint is too old to keep changes: update it (the import skill, step 0)")
+        if reimport and not inbox.installed(root):  # checked before a rule is written, which reimport would apply
+            raise ValueError("kingsmint is not installed in this ledger yet")
+
+    def changed_entry(hash: str | None, id: str | None):
+        """The transaction to change, from the files as they are now (their line numbers): by its `id`, which a change
+        keeps, else by Fava's hash, which each change makes new (a transaction kingsmint did not write has no id)."""
+        can_edit()
+        l, _ = loaded()
+        try:
+            e = (next((x for x in l.all_entries if isinstance(x, Transaction) and x.meta.get("id") == id), None) if id
+                 else l.get_entry(hash))
+        except FavaAPIError:
+            e = None
+        if not isinstance(e, Transaction):
+            raise ValueError("The ledger no longer has this transaction")
+        return l, e
+
+    def save_version(message: str) -> str:
+        """A version of the change; its error, which leaves the files written."""
+        try:
+            if versions.enabled(root):
+                versions.save(root, message)
+        except versions.VersionError as e:
+            return str(e)
+        return ""
+
+    def reimport() -> list[str]:
+        """`kingsmint reimport`: the lines that need the user (warnings, failures). Not a conflict: it reports a hand
+        edit that a rule would change and that stays, as the rule's preview showed."""
+        status, out = inbox.run(root, "reimport")
+        if status:  # it stopped: all it said
+            return [line for line in out.splitlines() if line.strip()] or [f"kingsmint reimport failed ({status})"]
+        return [line for line in out.splitlines() if line.startswith(("WARN", "FAIL")) and ": conflict " not in line]
+
+    def entry_save(hash: str | None = None, id: str | None = None, postings: list[dict] | None = None, payee: str | None = None,
+                   note: str | None = None) -> dict:
+        """Writes one transaction's categories ([{account, amount}], the last without an amount; none keeps them),
+        payee and note in its file, where a reimport keeps them; `hash` and `entry`: the transaction now."""
+        try:
+            l, e = changed_entry(hash, id)
+            name, parts = edit.save_entry(root, e, l.all_entries, postings, payee, note)
+        except ValueError as err:  # edit.EditError too
+            return {"error": str(err)}
+        error = ""
+        try:  # changes to one transaction in a row are one version
+            if versions.enabled(root):
+                path = Path(e.meta["filename"]).resolve().relative_to(root.resolve()).as_posix()
+                versions.save_change(root, f"Transaction: {name}", parts, [path])
+        except versions.VersionError as err:
+            error = str(err)
+        l.load_file()
+        return changed(edit.hash_at(l.all_entries, e.meta["filename"], e.meta["lineno"]), error=error)
+
+    def changed(hash: str | None, **result) -> dict:
+        """What a change gives the page: the transaction's new hash and the transaction itself, so the page shows it
+        without asking again."""
+        return result | {"hash": hash, "entry": hash and entry(hash)}
+
+    def rule_preview(account: str, hash: str | None = None, id: str | None = None) -> dict:
+        """What a rule for the counterparty of a transaction would change (edit.rule_preview); nothing is written."""
+        try:
+            l, e = changed_entry(hash, id)
+            return edit.rule_preview(root, e, l.all_entries, account)
+        except ValueError as err:  # edit.EditError too
+            return {"error": str(err)}
+
+    def rule_save(account: str, hash: str | None = None, id: str | None = None) -> dict:
+        """Adds the rule for the counterparty of a transaction and runs `kingsmint reimport`; `messages`: its
+        conflicts and warnings; `hash`: the transaction's new hash."""
+        try:
+            can_edit(reimport=True)
+            l, e = changed_entry(hash, id)
+            what = edit.add_rule(root, e, account)
+            messages = reimport()
+        except ValueError as err:  # edit.EditError too
+            return {"error": str(err)}
+        error = save_version("Rule: " + what)
+        l.load_file()
+        return changed(edit.hash_of(l.all_entries, e.meta.get("id")), messages=messages, error=error)
+
+    def entry_reset(hash: str | None = None, id: str | None = None) -> dict:
+        """The transaction takes the categories and flag the rules give (`kingsmint reset`, then reimport); `hash`:
+        its new hash."""
+        try:
+            can_edit(reimport=True)
+            l, e = changed_entry(hash, id)
+            if "id" not in e.meta:
+                raise ValueError("kingsmint did not write this transaction: no rules apply to it")
+            messages = [line for line in inbox.kingsmint(root, "reset", e.meta["id"]).splitlines()
+                        if line.startswith("FAIL")] + reimport()
+        except ValueError as err:  # edit.EditError too
+            return {"error": str(err)}
+        error = save_version(f"Back to the rules: {e.date} {e.payee or e.narration}")
+        l.load_file()
+        return changed(edit.hash_of(l.all_entries, e.meta["id"]), messages=messages, error=error)
 
     def reports() -> list[dict]:
         """The reports in reports/*.toml: name, query (BQL), view (table, bar, line). A broken file comes with its
@@ -223,6 +344,8 @@ def make_app(ledger: Path, ui: Path):
             return dataclasses.asdict(versions.restore(root, id))
         except versions.VersionError as e:
             return {"error": str(e)}
+        finally:
+            loaded()[0].load_file()  # now: Fava's watcher sees the files later, and a change meanwhile reads old lines
 
     def versions_save(message: str) -> None:
         """A point to return to, before a task for the agent; none without versions."""
@@ -230,12 +353,22 @@ def make_app(ledger: Path, ui: Path):
             versions.save(root, message)
 
     app.state = SimpleNamespace(checker=checker)
+    def exclusive(method):
+        """A change of the ledger's files, under the check's lock: `kingsmint check` never reads the files while a
+        method writes them (a reimport rewrites all of ledger/), so it never reports a ledger half written."""
+        @functools.wraps(method)
+        def run(*args, **kwargs):
+            with checker.lock:
+                return method(*args, **kwargs)
+        return run
+
     app.state.methods = {"query": query, "dashboard": overview, "transactions": transactions, "entry": entry,
-                         "reports": reports,
+                         "entry_save": exclusive(entry_save), "rule_preview": rule_preview,
+                         "rule_save": exclusive(rule_save), "entry_reset": exclusive(entry_reset), "reports": reports,
                          "inbox": inbox_data, "settings": settings_data,
-                         "save_settings": save_settings, "runway_edit": runway_edit, "runway_save": runway_save,
-                         "history": history, "versions_init": versions_init,
-                         "versions_restore": versions_restore, "versions_save": versions_save,
+                         "save_settings": exclusive(save_settings), "runway_edit": runway_edit,
+                         "runway_save": exclusive(runway_save), "history": history, "versions_init": versions_init,
+                         "versions_restore": exclusive(versions_restore), "versions_save": versions_save,
                          "state": lambda: dataclasses.asdict(checker.state())}
     return app
 

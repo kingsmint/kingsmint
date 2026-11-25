@@ -20,14 +20,16 @@ export const reloadFava = (frame) => (frame.src = new URL(favaUrl(frame) || "/fa
 // One more view of Fava: in the group, or in a new group beside it (direction); on the page of url. An inactive one
 // opens behind the active tab, as a browser's ⌘-click.
 export function addFava({ group, direction, url, inactive = false } = {}) {
+  const id = `fava-${crypto.randomUUID().slice(0, 8)}`;
   dock.addPanel({
-    id: `fava-${crypto.randomUUID().slice(0, 8)}`,
+    id,
     component: "fava",
     title: t("fava"),
     params: { url },
     position: group ? { referenceGroup: group, direction } : undefined,
     inactive,
   });
+  return id;
 }
 export const firstFava = () => dock.getPanel([...favas.keys()][0]);
 // Shows Fava's page `path` in the panel `id`, or in a new view beside the group `group` when there is none
@@ -38,10 +40,16 @@ export function showFava(id, path, group) {
 }
 
 // Fava's page `path` in the Fava view used last, as one step of the window's history ({ fava: id }): back goes to
-// where the step came from (the overview), not to the frame's page before, which location.replace() drops
-export function stepToFava(path) {
+// where the step came from (the overview), not to the frame's page before, which location.replace() drops.
+// `from`: the overview's panel, to which the Fava panel then shows a way back (a swipe is not obvious)
+export function stepToFava(path, from) {
   const id = favas.has(lastFava) ? lastFava : [...favas.keys()][0];
-  if (!id) return addFava({ url: path }); // a new view: its first page is no step back
+  if (!id) {
+    const added = addFava({ url: path }); // a new view: its first page is no step back
+    if (from) app.favaBack[added] = from;
+    return;
+  }
+  if (from) app.favaBack[id] = from;
   history.pushState({ fava: id }, "");
   favas.get(id).contentWindow.location.replace(new URL(path, app.serverOrigin).href);
   dock.getPanel(id).api.setActive();

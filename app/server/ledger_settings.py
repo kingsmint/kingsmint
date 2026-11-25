@@ -2,6 +2,7 @@
 Fava's language in main.beancount, the agent's language in CLAUDE.md. Accounts are read only: they come from the
 statements, and the agent changes them."""
 
+import os
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -87,6 +88,14 @@ def accounts(ledger: Path) -> list[Account]:
     return statement_accounts(path.read_text()) if path.exists() else []
 
 
+def write(path: Path, text: str) -> None:
+    """Writes the whole file at once: Fava and `kingsmint check`, which read the ledger meanwhile, see the old text or
+    the new one, never a part."""
+    tmp = path.with_name(f".{path.name}.tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)
+
+
 class SettingsError(Exception):
     pass
 
@@ -119,9 +128,9 @@ def save(ledger: Path, title: str, locale: str, language: str) -> list[str]:
         changed.append(f"agent language {AGENT_LANGUAGES[language]}")
     if not changed:
         return []
-    path.write_text(main)
+    write(path, main)
     if new_claude is not None:
-        claude_path.write_text(new_claude)
+        write(claude_path, new_claude)
     if versions.enabled(ledger):
         versions.save(ledger, "Settings: " + ", ".join(changed))
     return changed
@@ -178,7 +187,7 @@ def save_meta(ledger: Path, entries, changes: dict) -> list[str]:
         if len(parser.parse_string(texts[path])[1]) > len(parser.parse_string(old)[1]):
             raise SettingsError(f"The change would break {path.name}; nothing was written")
     for path, text in texts.items():
-        path.write_text(text, encoding="utf-8")
+        write(path, text)
     changed = [f"{account} " + ", ".join(f"{k} {'none' if v is None else v}" for k, v in edit.items())
                for account, edit in changes.items()]
     if versions.enabled(ledger):

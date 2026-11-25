@@ -9,12 +9,17 @@ statement row (account and amount): it always comes from theirs, so a renamed ac
 followed. Parsed with tree-sitter, because Beancount's parser drops comments.
 """
 
+import contextlib
 import functools
+import os
 import re
 from pathlib import Path
 
 BASE = Path(".kingsmint") / "base"
 ORPHANS = Path(".kingsmint") / "orphans.beancount"
+# there while kingsmint writes ledger/; the app does not check the ledger then. Not in .gitignore: versions are saved
+# after a command, not while it runs
+WRITING = Path(".kingsmint") / "writing"
 HEADER = ("flag", "payee", "narration", "tags_links", "comment")
 BANK = "<bank>"  # the anchor of the first posting, whatever its account is called
 
@@ -146,6 +151,19 @@ def assemble(mine, date, head, meta, postings):
         out += [first + "".join(after.pop(("inline", account), [])) + "\n" + rest,
                 *after.pop(("posting", account), [])]
     return "".join(out)
+
+
+@contextlib.contextmanager
+def writing(root):
+    """Marks that kingsmint writes the ledger's files: a reader that waits for the mark (the app's check) never sees
+    ledger/ half written. The file holds the process id."""
+    mark = root / WRITING
+    mark.parent.mkdir(exist_ok=True)
+    mark.write_text(f"{os.getpid()}\n", encoding="utf-8")
+    try:
+        yield
+    finally:
+        mark.unlink(missing_ok=True)
 
 
 def reset_id(root, tid):

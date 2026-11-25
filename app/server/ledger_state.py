@@ -5,6 +5,7 @@ run again only when a ledger file changed."""
 import re
 import sys
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,6 +14,16 @@ import jj_versions
 from inbox import imported, kingsmint
 
 SKIP = {".venv", ".git", ".jj", "inbox", "documents", "node_modules"}
+WRITING = Path(".kingsmint") / "writing"  # kingsmint.merge.WRITING: kingsmint writes ledger/ (import, reimport, reset)
+STALE = 600  # seconds after which the mark is from a kingsmint that was killed
+
+
+def writing(ledger: Path) -> bool:
+    """Whether kingsmint writes the ledger's files now: a check would see them half written."""
+    try:
+        return time.time() - (ledger / WRITING).stat().st_mtime < STALE
+    except OSError:
+        return False
 
 
 def newest(folder: Path) -> float:
@@ -68,9 +79,12 @@ class Checker:
         waiting = sorted(f.name for f in folder.iterdir() if not f.name.startswith(".")) if folder.exists() else []
         with self.lock:
             t = newest(self.ledger)
-            if not self.seen or self.seen[0] != t:
+            # while kingsmint writes ledger/, the last check stands: the next poll checks the finished files
+            if (not self.seen or self.seen[0] != t) and not writing(self.ledger):
                 first = self.seen is None
                 text = kingsmint(self.ledger, "check").strip()
+                if text:  # the app shows it as Problems; the log keeps it, also after a next check clears it
+                    print(f"kingsmint check:\n{text}", file=sys.stderr, flush=True)
                 # Fava counts a write during its load as seen, so a load during `kingsmint reimport` keeps a ledger with
                 # files missing. When the files have not changed for the whole check, Fava loads again, from complete files.
                 if not first and newest(self.ledger) == t:
@@ -78,4 +92,5 @@ class Checker:
                 # `upgrade --done` writes .kingsmint-version, a ledger file: this runs again after it
                 upgrade = "kingsmint upgrade --done" in kingsmint(self.ledger, "upgrade")
                 self.seen = (t, text, upgrade)
-            return State(waiting, self.seen[1], imported(self.ledger), self.seen[2])
+            # no check yet: kingsmint wrote the ledger since the app opened it
+            return State(waiting, self.seen[1] if self.seen else "", imported(self.ledger), bool(self.seen and self.seen[2]))

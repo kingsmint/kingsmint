@@ -3,8 +3,8 @@
      way back at the top (Esc goes one level up). Each view is a step of the window's history, as a page in a browser:
      the trackpad's swipe (WebKit's, main.rs), ⌘[ and the mouse's back button go back, also from Fava when the overview
      opened it. An account without subaccounts, a payee and a balance open the transactions of the period, with
-     their filter on top; a transaction opens its detail (its postings, statement, the payee's other payments), and
-     from there Fava, where it can be changed.
+     their filter on top; a transaction opens its detail (its postings, statement, the payee's other payments), where
+     it can be changed (TxnEdit.svelte), and from there Fava.
      A split of its group (GroupActions.svelte) opens one more overview beside it, on the same view: each has its own
      period, view and steps of the history. In a wide panel a transaction's detail opens beside the transactions.
      The numbers come from the ledger's server (server/dashboard.py) and load again after the ledger's files change.
@@ -18,6 +18,11 @@
   import { saveSoon, showPart, visible } from "./panels.js";
   import { pinKey, pinOf, railKey, togglePin, VIEWS } from "./rail.js";
   import Spark from "./Spark.svelte";
+  import CategoryPicker from "./CategoryPicker.svelte";
+  import RuleOffer from "./RuleOffer.svelte";
+  import Message from "./Message.svelte";
+  import { toast } from "./toast.js";
+  import TxnEdit from "./TxnEdit.svelte";
   import { assign, dock, favas, overviews } from "./state.js";
   import { tell } from "./tasks.js";
   import { invoke, listen, rpc } from "./util.js";
@@ -71,6 +76,14 @@
   let rows = $state(null);
   let search = $state("");
   let txn = $state(); // the transaction view's: what rpc("entry") gives, null when the ledger no longer has it
+  // the transaction view's changes, in place: the category picked (its index), the payee or note typed, the split
+  // (TxnEdit.svelte); after a change, a toast: Undo, and for one category the rule for the counterparty (RuleOffer)
+  let picking = $state(-1);
+  let typing = $state(null); // "payee" or "note"
+  let splitting = $state(false);
+  // the transactions view's change of a row's category, in place: the row (its hash), the accounts to pick from
+  let listPick = $state(null);
+  let listInfo = $state({ editable: false, accounts: [] });
 
   // numbers in the app's language: money without cents, percentages with one decimal
   const fmt = (o) => new Intl.NumberFormat(app.lang, o);
@@ -274,7 +287,7 @@
     else go(view.name === "account" && parent ? { name: "account", account: parent } : { name: "overview" });
   }
   // Fava's page `path` in the Fava view used last, as a link in a terminal
-  const fava = (path) => stepToFava(path);
+  const fava = (path) => stepToFava(path, id);
   // Fava's journal of the transactions view's filter in the chosen period: Fava's filter takes a quoted string as a
   // case-insensitive regular expression on the payee and the narration
   function favaJournal() {
@@ -330,6 +343,7 @@
     // back and forward: the view of that step, in front; a step into Fava shows that Fava view
     const pop = (e) => {
       if (e.state?.dashboard && (e.state.panel ?? "dashboard") === id) {
+        for (const [f, from] of Object.entries(app.favaBack)) if (from === id) delete app.favaBack[f]; // back here
         view = e.state.dashboard;
         if (api) api.setActive();
         else showPart("dashboard");
@@ -410,13 +424,17 @@
     },
   );
   let asked = 0; // the last request: an older answer that comes later is dropped
+  let rowsOf = ""; // the request whose rows show
   $effect(() => {
     if (listView.name !== "txns" || !range) return;
     const n = ++asked;
     const { prevStart, start, end } = range;
-    rows = null;
-    rpc("transactions", { start: prevStart ?? start, end, ...(listView.account && { account: listView.account }) })
-      .then((r) => n === asked && (rows = r.rows))
+    const args = { start: prevStart ?? start, end, ...(listView.account && { account: listView.account }) };
+    // other rows: none until they come; the same rows again (after a change): the old ones until then, no flash
+    if (JSON.stringify(args) !== rowsOf) rows = null;
+    rowsOf = JSON.stringify(args);
+    rpc("transactions", args)
+      .then((r) => n === asked && ((rows = r.rows), (listInfo = { editable: !!r.editable, accounts: r.accounts ?? [] })))
       .catch(() => {});
   });
   // spending as a positive number when the filter is an Expenses account, as the overview shows it
@@ -606,18 +624,155 @@
 
   // a transaction's detail, its way back the view it was opened from
   const openTxn = (r) =>
-    go({ name: "txn", hash: r.hash, parent: view.name === "txn" ? view.parent : $state.snapshot(view) });
+    go({ name: "txn", hash: r.hash, id: r.id, parent: view.name === "txn" ? view.parent : $state.snapshot(view) });
+  // whether a row is the transaction that shows: by its id, which a change keeps
+  const isOpen = (r) => view.name === "txn" && (view.id ? view.id === r.id : view.hash === r.hash);
   const editInFava = (hash) => fava(`/ledger/journal/?time=${encodeURIComponent(favaTime)}#context-${hash}`);
   const statementOf = (hash) => fava(`/ledger/statement/?entry_hash=${hash}&key=document`);
+  // after a change: the transaction's new hash in the same step of the history; the overview loads again
+  // after a change: the transaction as the server gives it back, at once; the overview loads again behind it
+  let renamed = null; // the new hash of the transaction a change saved: the view does not load it again
+  function changed(hash, entry) {
+    splitting = false;
+    renamed = hash;
+    if (entry) txn = entry;
+    if (hash && hash !== view.hash) {
+      view = { ...view, hash };
+      history.replaceState({ dashboard: $state.snapshot(view), panel: id }, "");
+    }
+    load();
+  }
   // the transaction view's transaction, again after the ledger changes
   $effect(() => {
     if (view.name !== "txn" || !d) return;
-    const hash = view.hash;
-    txn = undefined;
-    rpc("entry", { hash })
-      .then((e) => view.hash === hash && (txn = e))
+    const { hash, id: tid } = view;
+    // another transaction (not the same one after a change): its change ends
+    const same = hash === renamed || untrack(() => (tid ? txn?.meta?.id === tid : txn?.hash === hash));
+    if (!same) {
+      (picking = -1), (typing = null), (splitting = false);
+      txn = undefined;
+    }
+    const n = saves;
+    // by id: a transaction changed meanwhile is found again; asked before a change, or while one waits, it is old
+    rpc("entry", tid ? { id: tid } : { hash })
+      .then((e) => view.hash === hash && n === saves && !waiting && (txn = e))
       .catch(() => {});
   });
+  const FEES = "Expenses:Bank:Fees";
+  // a transaction's categories: the postings after the statement row, without the fee the import wrote beside the
+  // category (x.fee, from the server); a fee a split by hand added is a category
+  function categoriesOf(x) {
+    const after = x.postings.slice(1);
+    const fee = x.fee ? after.find((p) => p.account === FEES) : null;
+    return after.filter((p) => p !== fee);
+  }
+  // as entry_save takes them: an amount on each but the last, which gets the rest
+  const asPostings = (list) =>
+    list.map((p, i) => (i < list.length - 1 ? { account: p.account, amount: String(Math.abs(p.number)) } : { account: p.account }));
+  // Changes go to the server one after another, each to its transaction by `id`, which a change keeps (Fava's hash
+  // changes with each): a second change made quickly never names a transaction that is gone. `saves` counts them, so
+  // a transaction asked for before a change, which comes after it, does not replace the one the change gave back.
+  let queue = Promise.resolve();
+  let saves = 0;
+  const refOf = (x) => ((x.id ?? x.meta?.id) ? { id: x.id ?? x.meta.id } : { hash: x.hash });
+  const shows = (ref) => view.name === "txn" && txn && (ref.id ? txn.meta.id === ref.id : txn.hash === ref.hash);
+  const problem = (text) => toast(Message, { text }, { variant: "danger", duration: 0 });
+  // The transaction a change gives back shows only after the last change waiting: an earlier one's would replace
+  // what was typed since, which shows already.
+  let waiting = 0;
+  let latest = null; // the last change's answer while others wait
+  function save(method, ref, args = {}) {
+    waiting++;
+    const run = queue.then(async () => {
+      saves++;
+      const r = await rpc(method, { ...ref, ...args }).catch((e) => ({ error: String(e) }));
+      saves++;
+      waiting--;
+      const problems = [r.error, ...(r.messages ?? [])].filter(Boolean);
+      if (problems.length) problem(problems.join("\n"));
+      if (r.hash !== undefined) latest = { ref, r };
+      else if (!waiting) load(); // nothing written: the rows load again, without what showed before the save
+      if (waiting) return r.hash === undefined ? null : r;
+      const last = latest;
+      latest = null;
+      if (last?.r.entry && shows(last.ref)) changed(last.r.hash, last.r.entry);
+      else if (last) load();
+      return r.hash === undefined ? null : r;
+    });
+    queue = run.catch(() => {});
+    return run;
+  }
+  // after a new category: Undo, and when it is the only one, the rule for the counterparty. Undo shows the old
+  // categories at once (`show`), as the change showed the new ones, and saves them behind.
+  function offerRule(ref, account, before, rule, show) {
+    const undo = () => (show(), save("entry_save", ref, { postings: before }));
+    if (rule) toast(RuleOffer, { ref, account, undo, apply: () => save("rule_save", ref, { account }) }, { duration: 0 });
+    else toast(Message, { text: t("txnSaved"), action: t("runwayUndo"), act: undo });
+  }
+  async function pickCategory(i, account) {
+    picking = -1;
+    const list = categoriesOf(txn);
+    if (list[i].account === account) return;
+    const ref = refOf(txn);
+    const before = asPostings(list);
+    const postings = asPostings(list.map((p, j) => (j === i ? { ...p, account } : p)));
+    list[i].account = account; // shows at once, with its message; the transaction the server gives back replaces it
+    const saved = save("entry_save", ref, { postings });
+    offerRule(ref, account, before, list.length === 1, () => {
+      if (shows(ref)) categoriesOf(txn).forEach((p, j) => before[j] && (p.account = before[j].account));
+    });
+    // the error's toast replaced the message; a change typed since stays
+    if (!(await saved) && !waiting && shows(ref)) list[i].account = before[i].account;
+  }
+  async function typed(key, value) {
+    typing = null;
+    const before = key === "payee" ? txn.payee : (txn.meta.note ?? "");
+    if (value.trim() === before) return;
+    const ref = refOf(txn);
+    if (key === "payee") txn.payee = value.trim();
+    else txn.meta.note = value.trim(); // shows at once, with its message; the transaction the server gives back replaces it
+    const saved = save("entry_save", ref, { [key]: value });
+    const undo = () => {
+      if (shows(ref) && key === "payee") txn.payee = before;
+      else if (shows(ref)) txn.meta.note = before; // shows at once, as the change did
+      save("entry_save", ref, { [key]: before });
+    };
+    toast(Message, { text: t("txnSaved"), action: t("runwayUndo"), act: undo });
+    if ((await saved) || waiting || !shows(ref)) return; // the error's toast replaced the message; a change since stays
+    if (key === "payee") txn.payee = before;
+    else txn.meta.note = before;
+  }
+  // Enter saves what was typed, Esc and a click elsewhere leave it
+  function typingKey(e, key) {
+    if (e.key === "Enter") typed(key, e.currentTarget.value);
+    else if (e.key === "Escape") {
+      e.stopPropagation();
+      typing = null;
+    }
+  }
+  const focus = (el) => el.focus();
+  // back to the categories the rules give: kingsmint reset, then reimport
+  let resetting = $state(false);
+  async function reset() {
+    resetting = true;
+    await save("entry_reset", refOf(txn));
+    resetting = false;
+  }
+  async function pickRow(r, account) {
+    listPick = null;
+    const before = accountOf(r);
+    if (account === before) return;
+    const ref = refOf(r);
+    // shows at once; the rows loaded after the change replace it. The row by its id: a change gives it another hash
+    const put = (a) => {
+      const row = rows?.find((x) => (r.id ? x.id === r.id : x.hash === r.hash));
+      if (row && booked(listView.account ?? "")) row.others = [a];
+      else if (row) row.account = a;
+    };
+    put(account);
+    save("entry_save", ref, { postings: [{ account }] }); // an error's toast replaces the message
+    offerRule(ref, account, [{ account: before }], true, () => put(before));
+  }
   // an amount in its own currency; a commodity that is not a currency (a fund) by its name
   function units(n, currency) {
     try {
@@ -707,10 +862,20 @@
     {:else}
       {@const others = txn.history.filter((h) => h.hash !== txn.hash)}
       {@const avg = others.length ? sum(others.map((h) => h.amount)) / others.length : null}
+      {@const cats = categoriesOf(txn)}
+      {@const multi = txn.postings.some((q) => q.currency !== d.currency)}
       <div class="txn">
         <div class="headline">
           <div class="who">
-            <h2>{txn.payee}</h2>
+            {#if typing === "payee"}
+              <input class="inline title" type="text" value={txn.payee} aria-label={t("payee")} use:focus
+                onkeydown={(e) => typingKey(e, "payee")} onblur={() => (typing = null)} />
+            {:else if txn.editable}
+              <h2><button type="button" class="editable" title={t("changePayee")} onclick={() => (typing = "payee")}
+                >{txn.payee} <wa-icon name="pencil"></wa-icon></button></h2>
+            {:else}
+              <h2>{txn.payee}</h2>
+            {/if}
             <span class="muted">
               {new Intl.DateTimeFormat(app.lang, { dateStyle: "full" }).format(new Date(txn.date))}{#if txn.narration && txn.narration !== txn.payee}{` · ${txn.narration}`}{/if}
             </span>
@@ -730,28 +895,75 @@
             <button type="button" class="action" onclick={() => statementOf(txn.hash)}>{t("openStatement")} <wa-icon name="external-link"></wa-icon></button>
           {/if}
           <button type="button" class="action" onclick={() => editInFava(txn.hash)}>{t("editInFava")} <wa-icon name="external-link"></wa-icon></button>
+          {#if listView !== view}
+            <button type="button" class="action close" title={t("closeDetail")} onclick={up}
+              ><wa-icon name="panel-right-close"></wa-icon> {t("close")}</button
+            >
+          {/if}
         </div>
         <div class="panels">
           <section>
-            <h2>{t("postings")}</h2>
-            <table>
-              <tbody>
-                {#each txn.postings as p}
-                  <tr class="link" title={t("filterAccount")} onclick={() => go({ name: "txns", account: p.account })}>
-                    <td>{p.account}</td>
-                    <td class="num">{units(p.number, p.currency)}</td>
-                    {#if txn.postings.some((q) => q.currency !== d.currency)}
-                      <td class="num muted">{p.value == null ? "–" : cents(p.value)}</td>
+            <h2 class="postings-head">
+              {t("postings")}
+              {#if txn.edited}
+                <span class="tag" title={t("editedTitle")}>{t("editedByHand")}</span>
+                <button type="button" class="more" title={t("byRulesTitle")} disabled={resetting} onclick={reset}
+                  >{resetting ? t("ruleApplying") : t("byRules")}</button
+                >
+              {/if}
+            </h2>
+            {#if splitting}
+              <TxnEdit {txn} save={(args) => save("entry_save", refOf(txn), args)} cancel={() => (splitting = false)} />
+            {:else}
+              <table class="postings">
+                <tbody>
+                  {#each txn.postings as p}
+                    {@const i = cats.indexOf(p)}
+                    {#if txn.editable && i >= 0}
+                      <tr class="link cat-row" title={t("changeCategory")} onclick={() => (picking = i)}>
+                        <td>
+                          {#if picking === i}
+                            <CategoryPicker accounts={txn.accounts} suggested={txn.suggested} value={p.account}
+                              pick={(a) => pickCategory(i, a)} cancel={() => (picking = -1)} />
+                          {:else}
+                            <span class="cat">{p.account} <wa-icon name="pencil"></wa-icon></span>
+                          {/if}
+                        </td>
+                        <td class="num">{units(p.number, p.currency)}</td>
+                        {#if multi}<td class="num muted">{p.value == null ? "–" : cents(p.value)}</td>{/if}
+                      </tr>
+                    {:else}
+                      <tr class="link" title={t("filterAccount")} onclick={() => go({ name: "txns", account: p.account })}>
+                        <td>{p.account}</td>
+                        <td class="num">{units(p.number, p.currency)}</td>
+                        {#if multi}<td class="num muted">{p.value == null ? "–" : cents(p.value)}</td>{/if}
+                      </tr>
                     {/if}
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-            {#if Object.keys(txn.meta).length}
+                  {/each}
+                </tbody>
+              </table>
+              {#if txn.editable && cats.length && !multi}
+                <button type="button" class="more" onclick={() => ((splitting = true), (picking = -1))}
+                  >+ {t("splitMore")}</button
+                >
+              {/if}
+            {/if}
+            {#if txn.editable}
+              <h2>{t("note")}</h2>
+              {#if typing === "note"}
+                <input class="inline" type="text" value={txn.meta.note ?? ""} aria-label={t("note")} use:focus
+                  onkeydown={(e) => typingKey(e, "note")} onblur={() => (typing = null)} />
+              {:else}
+                <button type="button" class="editable note" class:muted={!txn.meta.note} onclick={() => (typing = "note")}
+                  >{txn.meta.note || t("addNote")} <wa-icon name="pencil"></wa-icon></button
+                >
+              {/if}
+            {/if}
+            {#if Object.keys(txn.meta).some((k) => k !== "note" || !txn.editable)}
               <h2>{t("details")}</h2>
               <table>
                 <tbody>
-                  {#each Object.entries(txn.meta) as [k, v]}
+                  {#each Object.entries(txn.meta).filter(([k]) => k !== "note" || !txn.editable) as [k, v]}
                     <tr><td class="muted">{k}</td><td class="meta">{v}</td></tr>
                   {/each}
                 </tbody>
@@ -768,11 +980,11 @@
                 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
                 <li
                   class="item"
-                  class:on={h.hash === txn.hash}
+                  class:on={h.id ? h.id === txn.meta.id : h.hash === txn.hash}
                   role="button"
                   tabindex="0"
-                  onclick={() => h.hash !== txn.hash && openTxn(h)}
-                  onkeydown={(e) => e.key === "Enter" && h.hash !== txn.hash && openTxn(h)}
+                  onclick={() => !isOpen(h) && openTxn(h)}
+                  onkeydown={(e) => e.key === "Enter" && !isOpen(h) && openTxn(h)}
                 >
                   <span class="main">{fullDay(h.date)}</span>
                   <span class="num amount">{signed(h.amount)}</span>
@@ -1188,7 +1400,7 @@
             <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role: the row holds buttons, a button cannot -->
             <li
               class="item"
-              class:on={view.hash === r.hash}
+              class:on={isOpen(r)}
               role="button"
               tabindex="0"
               title={t("openTransaction")}
@@ -1232,14 +1444,26 @@
                   <td colspan="3">{periodName(m)}</td><td class="num">{cents(sums[m])}</td><td></td><td></td>
                 </tr>
               {/if}
-              <tr class="link" class:on={view.hash === r.hash} title={t("openTransaction")} onclick={() => openTxn(r)}>
+              <tr class="link" class:on={isOpen(r)} title={t("openTransaction")} onclick={() => openTxn(r)}>
                 <td class="date">{i && shown[i - 1].date === r.date ? "" : day(r.date)}</td>
                 <td class="what" title={r.narration}>
                   {@render payeeButton(r)}{#if r.narration && r.narration !== r.payee}<span class="muted"
                       >{r.narration}</span
                     >{/if}
                 </td>
-                <td>{@render accountButton(r)}</td>
+                <td class="cat-cell">
+                  {#if listPick === r.hash}
+                    <CategoryPicker accounts={listInfo.accounts} value={accountOf(r)} pick={(a) => pickRow(r, a)}
+                      cancel={() => (listPick = null)} />
+                  {:else}
+                    {@render accountButton(r)}
+                    {#if listInfo.editable && r.id && r.others.length === 1}
+                      <button type="button" class="pen" title={t("changeCategory")}
+                        onclick={(e) => (e.stopPropagation(), (listPick = r.hash))}><wa-icon name="pencil"></wa-icon></button
+                      >
+                    {/if}
+                  {/if}
+                </td>
                 <td class="num">{cents(r.amount)}</td>
                 <td class="num muted">{cents(r.balance ?? r.run)}</td>
                 <td class="doc">{@render statementButton(r)}</td>

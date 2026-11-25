@@ -90,6 +90,10 @@ The tree grows from the user's transactions; there is no default tree.
 
 ## Editing one transaction
 
+The owner also changes transactions in the Kingsmint app (category, split, payee, note) and adds rules there for a
+counterparty: the app writes the same edits to `ledger/` and to the top of `rules.beancount`, with a comment
+`; <counterparty>: from the app, <date>`. Treat them as the owner's answers.
+
 Find its file and line by date and amount, then change it in place:
 ```
 uv run bean-query -q main.beancount "SELECT date, filename, lineno, entry_meta('id') AS id, account, number
