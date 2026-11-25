@@ -2,3 +2,4 @@
 __pycache__/
 .idea/
 desktop/dist/
+.DS_Store
