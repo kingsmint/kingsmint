@@ -7,6 +7,8 @@ here is the installed version.
 
 ## Unreleased
 
+- In the Claude app, Claude tells the version of the kingsmint extension when you ask which one runs, and answers
+  with the extension's tools, not with the ledger's own kingsmint, which may be another version.
 - The Kingsmint app offers to add Kingsmint to the Claude app, and to update it there when it is older: a button
   above the panels and in the settings. The Claude app then asks you to install it; no download from GitHub.
 - The Kingsmint app's charts are sharp and use the app's font, and a month on their axis shows the full year
