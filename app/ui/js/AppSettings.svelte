@@ -1,8 +1,9 @@
-<!-- The app's settings, on this computer: the agent of new tabs and the terminals' font size. -->
+<!-- The app's settings, on this computer: the agent of new tabs and the terminals' font size; and a check for a newer version. -->
 <script>
   import { app } from "./app.svelte.js";
   import { t } from "./i18n.js";
   import { saveApp } from "./settings.js";
+  import { invoke } from "./util.js";
 
   const agents = $derived([...app.installed, ""]);
   const agent = $derived(app.appSettings.agent ?? app.installed[0] ?? "");
@@ -26,5 +27,10 @@
       value={app.appSettings.fontSize ?? 13}
       onchange={(e) => saveApp({ fontSize: Math.min(20, Math.max(10, +e.target.value || 13)) })}
     ></wa-input>
+  </div>
+  <div>
+    <wa-button size="small" appearance="filled" onclick={() => invoke("check_updates")}
+      ><wa-icon slot="start" name="refresh-cw"></wa-icon>{t("checkUpdates")}</wa-button
+    >
   </div>
 </form>

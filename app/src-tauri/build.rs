@@ -2,7 +2,7 @@
 // not Fava's frames on the ledger's server. This makes the allow-<command> permissions for them.
 const COMMANDS: &[&str] = &["log", "setup_log", "rpc", "agents", "ledger_dir", "recent_ledgers", "open_ledger", "new_ledger",
     "sample_ledger", "server_url", "app_settings", "save_app_settings",
-    "inbox_add", "inbox_remove", "inbox_reveal", "open_url", "feedback",
+    "inbox_add", "inbox_remove", "inbox_reveal", "open_url", "feedback", "check_updates",
     "load_tabs", "save_tabs", "pty_start", "pty_write", "pty_resize", "pty_kill"];
 
 fn main() {
