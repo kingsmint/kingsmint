@@ -1,9 +1,12 @@
-<!-- The content of a Fava panel: an iframe on Fava's page in params.url, from the ledger's server. -->
+<!-- The content of a Fava panel: an iframe on Fava's page in params.url, from the ledger's server. A page the
+     overview opened (a statement, Edit in Fava) has a bar above it, the way back to the overview. -->
 <script>
   import { untrack } from "svelte";
   import { app } from "./app.svelte.js";
   import { forget } from "./fava.js";
-  import { favas } from "./state.js";
+  import { t } from "./i18n.js";
+  import { showPart } from "./panels.js";
+  import { dock, favas } from "./state.js";
   import { zoomFrame } from "./zoom.js";
 
   let { api, params } = $props();
@@ -21,4 +24,25 @@
   });
 </script>
 
-<div class="fava-pane"><iframe bind:this={frame} title="Fava"></iframe></div>
+{#snippet back(from)}
+  <!-- the press is not dockview's (it would make this panel active again); the switch after the click is done -->
+  <div class="fava-back">
+    <button
+      type="button"
+      class="more"
+      onpointerdown={(e) => e.preventDefault()}
+      onclick={() =>
+        setTimeout(() => {
+          const panel = dock.getPanel(from);
+          if (panel && from !== "dashboard") panel.api.setActive();
+          else showPart("dashboard"); // the rail's overview, also when the split it came from is closed
+          delete app.favaBack[api.id];
+        })}><wa-icon name="arrow-left"></wa-icon> {t("backToOverview")}</button
+    >
+  </div>
+{/snippet}
+
+<div class="fava-pane">
+  {#if app.favaBack[api.id]}{@render back(app.favaBack[api.id])}{/if}
+  <iframe bind:this={frame} title="Fava"></iframe>
+</div>

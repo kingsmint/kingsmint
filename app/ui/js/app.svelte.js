@@ -36,4 +36,5 @@ export const app = $state({
   cover: null, // over the panels: "welcome" (no ledger open), "status" (the wait for the server), or null
   status: { message: "", failed: false, log: [] }, // the wait: the message, and the last lines of uv
   renaming: null, // the panel whose tab title is a field (the tab menu's Rename)
+  favaBack: {}, // {Fava panel: the overview panel whose step opened its page}: the panel shows the way back to it
 });

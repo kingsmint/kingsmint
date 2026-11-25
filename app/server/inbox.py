@@ -10,14 +10,24 @@ from pathlib import Path
 from babel.dates import format_date
 
 
-def kingsmint(ledger: Path, command: str, *args: str) -> str:
-    """The output lines of a kingsmint command, its errors included."""
+def installed(ledger: Path) -> Path | None:
+    """The ledger's kingsmint command; None before `uv sync` installs it."""
     exe = ledger / ".venv" / ("Scripts/kingsmint.exe" if sys.platform == "win32" else "bin/kingsmint")
-    if not exe.exists():  # `uv sync` has not installed it yet
-        return ""
+    return exe if exe.exists() else None
+
+
+def kingsmint(ledger: Path, *args: str) -> str:
+    """The output lines of a kingsmint command, its errors included; "" before it is installed."""
+    return run(ledger, *args)[1]
+
+
+def run(ledger: Path, *args: str) -> tuple[int, str]:
+    """A kingsmint command's exit status and output, its errors included; (0, "") before it is installed."""
+    if not (exe := installed(ledger)):
+        return 0, ""
     # not the server's stdin: on Windows, starting a child with it waits while the RPC thread reads it (rpc.py)
-    out = subprocess.run([exe, command, *args], cwd=ledger, capture_output=True, text=True, stdin=subprocess.DEVNULL)
-    return out.stdout + out.stderr
+    out = subprocess.run([exe, *args], cwd=ledger, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    return out.returncode, out.stdout + out.stderr
 
 
 @dataclass

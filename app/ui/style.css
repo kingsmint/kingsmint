@@ -160,15 +160,30 @@ body.resizing iframe {
   background: var(--wa-color-surface-default);
 }
 .fava-pane {
+  display: flex;
+  flex-direction: column;
   height: 100%;
   overflow: hidden;
   position: relative;
 }
 .fava-pane iframe {
+  flex: 1;
   border: 0;
   width: 100%;
-  height: 100%;
+  min-height: 0;
   display: block;
+}
+/* above a page the overview opened: the way back to it */
+.fava-back {
+  flex-shrink: 0;
+  padding: 0.4em 0.75em;
+  border-bottom: 1px solid var(--wa-color-surface-border);
+  background: var(--wa-color-surface-lowered);
+}
+.fava-back button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
 }
 /* a panel's tab */
 .tab-btn {
@@ -1735,4 +1750,219 @@ wa-button:not([variant="brand"]) .agent-icon {
 }
 .rail-item.drop-after {
   box-shadow: 0 4px 0 -1px var(--wa-color-brand-on-loud);
+}
+
+/* a transaction's change in place: a pencil shows what can be changed; the category picker (CategoryPicker.svelte)
+   opens under its row, the payee and the note become a text field, the split (TxnEdit.svelte) replaces the postings */
+.dashboard wa-icon[name="pencil"] {
+  font-size: 0.8em;
+  opacity: 0.45;
+  color: var(--wa-color-text-quiet);
+}
+.dashboard .txns .pen wa-icon {
+  opacity: 0;
+}
+.dashboard .editable:hover wa-icon,
+.dashboard .cat-row:hover wa-icon,
+.dashboard tr:hover .pen wa-icon,
+.dashboard .pen:focus-visible wa-icon {
+  opacity: 1;
+}
+.dashboard .editable {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: text;
+}
+.dashboard .editable.note {
+  display: block;
+  margin-bottom: 1.5em;
+  padding: 0.3em 0.5em;
+}
+/* the note's text field where its text was, the payee's where the title was */
+.dashboard input.inline {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 1.5em;
+  padding: 0.3em 0.5em;
+  border: 1px solid var(--wa-color-surface-border);
+  border-radius: 4px;
+  font: inherit;
+}
+.dashboard .txn section > .more {
+  display: block;
+  margin: -1em 0 1.5em;
+}
+.dashboard .txn .postings-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+.dashboard .txn .postings-head .tag {
+  font-size: 0.75em;
+  font-weight: normal;
+}
+.dashboard .txn .postings-head .more {
+  font-size: 0.8em;
+  font-weight: normal;
+}
+.dashboard .txn .close {
+  margin-left: auto;
+}
+/* in the list, the pencil over the end of the category, which the column cuts */
+.dashboard .txns td.cat-cell {
+  position: relative;
+}
+.dashboard .txns td.cat-cell:has(.picker) {
+  overflow: visible;
+}
+.dashboard .txns .pen {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0 0.6em;
+  background: var(--wa-color-brand-fill-quiet);
+  opacity: 0;
+}
+.dashboard .txns tr:hover .pen,
+.dashboard .txns .pen:focus-visible {
+  opacity: 1;
+}
+.dashboard input.inline.title {
+  margin: 0;
+  font-size: 1.3em;
+  font-weight: 600;
+}
+.dashboard .pen {
+  margin-left: 0.25em;
+  padding: 0 0.25em;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.dashboard .picker {
+  position: relative;
+}
+.dashboard .picker input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 16em;
+  padding: 0.2em 0.4em;
+  font: inherit;
+}
+.dashboard .picker ul {
+  position: absolute;
+  z-index: 10;
+  top: 100%;
+  left: 0;
+  min-width: 100%;
+  margin: 2px 0 0;
+  padding: 0.25em 0;
+  list-style: none;
+  border: 1px solid var(--wa-color-surface-border);
+  border-radius: 6px;
+  background: var(--wa-color-surface-raised);
+  box-shadow: var(--wa-shadow-m);
+}
+.dashboard .picker li {
+  padding: 0.3em 0.75em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dashboard .picker li.on {
+  background: var(--wa-color-brand-fill-quiet);
+}
+.dashboard .picker li .muted {
+  margin-left: 0.5em;
+  font-size: 0.85em;
+}
+.dashboard .txn-edit {
+  margin-bottom: 1.5em;
+}
+.dashboard .txn-edit table {
+  width: 100%;
+  margin-bottom: 0.5em;
+}
+.dashboard .txn-edit .cat {
+  padding: 0.2em 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+.dashboard .txn-edit .cat.empty {
+  color: var(--wa-color-text-quiet);
+}
+.dashboard .txn-edit input[type="number"] {
+  width: 8em;
+  font: inherit;
+  text-align: right;
+}
+.dashboard .txn-edit .error {
+  margin: 0.5em 0;
+}
+.dashboard .txn-edit .buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5em;
+}
+
+/* the bar after a change (Saved, Undo, the rule's question): at the bottom of the pane, over the content */
+/* a toast's message (toast.js): its text, then its buttons; the rule's transactions under them */
+.toast-message {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em;
+}
+.toast-message > span {
+  flex: 1 1 12em;
+  white-space: pre-wrap;
+}
+.toast-message .buttons {
+  display: flex;
+  gap: 0.5em;
+}
+.toast-message .more {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--wa-color-text-link);
+  font: inherit;
+  cursor: pointer;
+}
+.toast-message .rule-rows {
+  display: block; /* a table scrolls only as a block */
+  width: 100%;
+  max-height: 40vh;
+  overflow: auto;
+  font-size: 0.85em;
+}
+.toast-message .rule-rows td {
+  padding: 0.15em 0.4em;
+  white-space: nowrap;
+}
+.toast-message .muted,
+.toast-message tr.muted {
+  color: var(--wa-color-text-quiet);
+}
+/* under the tabs, not over them; a toast stands out from the page: a tinted ground, a border and a shadow */
+wa-toast {
+  --width: 32rem;
+  padding-top: 3.5rem;
+}
+wa-toast-item::part(toast-item) {
+  border: 1px solid var(--wa-color-brand-border-normal);
+  background: var(--wa-color-brand-fill-quiet);
+  color: var(--wa-color-brand-on-quiet);
+  box-shadow: var(--wa-shadow-l);
+}
+wa-toast-item[variant="danger"]::part(toast-item) {
+  border-color: var(--wa-color-danger-border-normal);
+  background: var(--wa-color-danger-fill-quiet);
+  color: var(--wa-color-danger-on-quiet);
 }

@@ -154,7 +154,8 @@ def runway():
 def reimport():
     if not any(f.is_file() for f in Path("documents").rglob("*") if f.name != ".keep"):
         sys.exit("nothing in documents/ to reimport from; run in the ledger directory")
-    importer.main(["--force", "documents"], clear=True)
+    with merge.writing(Path.cwd()):
+        importer.main(["--force", "documents"], clear=True)
 
 
 def old_files():
@@ -353,7 +354,8 @@ def main():
         f = Path(args[0])
         print(pdf_text(f) if f.suffix.lower() == ".pdf" else f.read_text(encoding="utf-8-sig"))
     elif cmd == "import":
-        importer.main(args)
+        with merge.writing(Path.cwd()):
+            importer.main(args)
     elif cmd == "scan":
         importer.scan([Path(a) for a in args] or [importer.ROOT / "inbox"])
     elif cmd == "rules":
@@ -361,7 +363,8 @@ def main():
     elif cmd == "reimport":
         reimport()
     elif cmd == "reset" and len(args) == 1:
-        merge.reset_id(Path.cwd(), args[0])
+        with merge.writing(Path.cwd()):
+            merge.reset_id(Path.cwd(), args[0])
     elif cmd == "check":
         check()
     elif cmd == "coverage":

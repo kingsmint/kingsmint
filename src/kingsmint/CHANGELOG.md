@@ -23,6 +23,14 @@ here is the installed version.
 - The Kingsmint app's charts are sharp and use the app's font, and a month on their axis shows the full year
   ("Oct 2025", not "Oct 25", which read as a day).
 - The Kingsmint app's settings have **Check for updates**: it offers a newer version, or says that you have the newest.
+- The Kingsmint app changes a transaction without Fava, in place: click its category (in its detail or in the
+  list of transactions) and type a few letters of another; click its payee or note to change them. **Split over
+  several categories** gives each part an amount. `kingsmint reimport` keeps these changes. After a new category,
+  the app offers to move the counterparty's other transactions there too, with a rule in `rules.beancount`.
+  A transaction changed by hand is marked so in its detail, with **Back to the rules**.
+- A statement or a Fava page that the Kingsmint app's overview opened has **Back to the overview** above it.
+- The Kingsmint app no longer shows Problems while `kingsmint import`, `reimport` or `reset` writes the ledger:
+  they mark it with `.kingsmint/writing`, and the app checks the ledger when they finish.
 
 ## 0.2.4
 

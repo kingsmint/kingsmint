@@ -168,7 +168,7 @@ def transactions(entries, options, rate, start: str, end: str, account: str | No
                 seen[payee].add(m)
             if m >= lo:
                 rows.append({"date": e.date.isoformat(), "payee": payee, "narration": e.narration,
-                             "account": p.account, "amount": money(n if booked else -n), "hash": hash_entry(e),
+                             "account": p.account, "amount": money(n if booked else -n), "hash": hash_entry(e), "id": e.meta.get("id"),
                              "others": [o.account for o in e.postings if o.account != p.account],
                              "document": "document" in e.meta} | ({"balance": money(balance)} if booked else {}))
     payees = defaultdict(lambda: [Decimal(0), 0])
@@ -325,5 +325,6 @@ def entry(e, entries, options, rate, statement: bool) -> dict:
                       "value": money(led.value(p.units.number, p.units.currency, e.date))} for p in e.postings],
         "meta": {k: str(v) for k, v in e.meta.items() if k not in ("filename", "lineno") and not k.startswith("__")},
         "statement": statement,
-        "history": [{"date": t.date.isoformat(), "hash": hash_entry(t), "amount": amount(t)} for t in reversed(same)],
+        "history": [{"date": t.date.isoformat(), "hash": hash_entry(t), "id": t.meta.get("id"), "amount": amount(t)}
+                    for t in reversed(same)],
     }

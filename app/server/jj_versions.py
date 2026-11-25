@@ -5,6 +5,7 @@ a new version, so it can be undone too."""
 import os
 import re
 import subprocess
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -54,6 +55,28 @@ def save(ledger: Path, message: str) -> None:
     if not enabled(ledger):
         raise VersionError("This ledger has no versions")
     jj(ledger, "commit", "-m", message)
+
+
+def save_change(ledger: Path, subject: str, parts: list[str], paths: list[str], within: float = 900) -> None:
+    """Saves a version "<subject>: <parts>", or adds the change to the last version when that one is "<subject>: ..."
+    too, is younger than `within` seconds, and the change touches only `paths` (relative to the ledger): a run of
+    changes to one transaction is one version, which names all its parts."""
+    if not enabled(ledger):
+        raise VersionError("This ledger has no versions")
+    head = f"{subject}: "
+    last = jj(ledger, "log", "--no-graph", "-r", "@-", "-T",
+              'committer.timestamp().utc().format("%s") ++ "\x1f" ++ description').strip()
+    when, _, message = last.partition("\x1f")
+    changed = {p.replace("\\", "/") for p in jj(ledger, "diff", "-r", "@", "--name-only").splitlines()}
+    if message.startswith(head) and "\n" not in message and when.isdigit() and changed <= set(paths) \
+            and time.time() - int(when) < within:
+        old = message[len(head):].split(", ")
+        try:  # into the last version; one that jj keeps (pushed, immutable) refuses, and the change is a new version
+            jj(ledger, "squash", "--into", "@-", "-m", head + ", ".join(dict.fromkeys(old + parts)))
+            return
+        except VersionError:
+            pass
+    jj(ledger, "commit", "-m", head + ", ".join(parts))
 
 
 @dataclass

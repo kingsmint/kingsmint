@@ -77,3 +77,25 @@ def test_restore_keeps_statements_of_the_same_name(tmp_path):
     done = versions.restore(d, first)
     assert sorted(done.back) == ["s-2.pdf", "s.pdf"]
     assert sorted((d / "inbox" / n).read_text() for n in done.back) == ["A", "B"]
+
+
+def test_changes_to_one_transaction_are_one_version(tmp_path):
+    d = tmp_path
+    (d / "ledger").mkdir()
+    (d / "main.beancount").write_text("; main\n")
+    (d / "ledger" / "a.beancount").write_text("v0\n")
+    versions.init(d, "Start")
+    subject = "Transaction: 2025-01-05 Spotify"
+    for i, part in enumerate(["note", "category", "note"]):
+        (d / "ledger" / "a.beancount").write_text(f"v{i + 1}\n")
+        versions.save_change(d, subject, [part], ["ledger/a.beancount"])
+    messages = [v.message for v in versions.history(d)]
+    assert messages[0] == f"{subject}: note, category" and messages[1] == "Start"  # one version, its parts once
+    (d / "ledger" / "a.beancount").write_text("v9\n")
+    (d / "main.beancount").write_text("; changed by the agent\n")  # another file changed too: a version of its own
+    versions.save_change(d, subject, ["note"], ["ledger/a.beancount"])
+    versions.save_change(d, "Transaction: 2025-01-06 Lidl", ["category"], ["ledger/a.beancount"])  # no change
+    assert [v.message for v in versions.history(d)][:3] == [
+        "Transaction: 2025-01-06 Lidl: category", f"{subject}: note", f"{subject}: note, category"]
+    versions.restore(d)  # undo takes back the last version that changed files (Lidl changed none), not the batch before
+    assert (d / "ledger" / "a.beancount").read_text() == "v3\n"
