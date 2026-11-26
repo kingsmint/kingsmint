@@ -7,8 +7,11 @@ transactions that only the rules categorize; one whose postings were edited by h
 the rules' postings back.
 """
 
+import base64
+import binascii
 import datetime as dt
 import re
+import unicodedata
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -16,6 +19,7 @@ from beancount.core.data import Close, Open
 from beancount.parser import parser
 from fava.beans.funcs import hash_entry
 
+from dashboard import CASH
 from kingsmint import importer, merge
 from kingsmint.banks.common import Txn
 from ledger_settings import write
@@ -300,3 +304,70 @@ def add_rule(root: Path, e, account: str) -> str:
         raise EditError("The rule would break rules.beancount; nothing was written")
     write(path, out)
     return f"{label} -> {account}"
+
+
+RECEIPTS = {".pdf", ".jpg", ".jpeg", ".png", ".heic", ".webp"}
+RECEIPT_MAX = 10 * 1024 * 1024  # the page makes a photo smaller; a scan from the phone is far below this
+
+
+def slug(text: str) -> str:
+    """A file name's part from a text: "Stavebniny Ďurčo" -> "stavebniny-durco"."""
+    ascii_ = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "-", ascii_.lower()).strip("-") or "receipt"
+
+
+def add_cash(root: Path, entries, currency: str, date: str, amount, account: str, payee: str,
+             receipt: dict | None = None) -> str:
+    """Appends a cash payment to cash.beancount, as its example: `account` gets the amount, Expenses:Cash the
+    negative amount. A `receipt` ({name, data}: the file's name and its bytes in base64; the page has them from a
+    file, a paste or the iPhone's camera) goes to documents/Expenses/Cash/<date>.<payee>.<ext>, linked with
+    `document:`. Returns the version's message."""
+    path = root / "cash.beancount"
+    if not path.exists():
+        raise EditError("The ledger has no cash.beancount")
+    try:
+        day = dt.date.fromisoformat(date)
+    except (TypeError, ValueError):
+        raise EditError(f"Not a date: {date!r}") from None
+    try:
+        number = Decimal(str(amount).replace(",", ".")).quantize(Decimal("0.01"))
+    except InvalidOperation:
+        raise EditError(f"Not an amount: {amount!r}") from None
+    if not number.is_finite() or number <= 0:
+        raise EditError("The amount is more than 0")
+    if not (payee := plain(payee or "", "Payee")):
+        raise EditError("Name the payee or what was paid")
+    opened = {o.account: o.date for o in entries if isinstance(o, Open)}
+    closed = {c.account: c.date for c in entries if isinstance(c, Close)}
+    for a in (account, CASH):
+        if a not in opened or opened[a] > day or closed.get(a, dt.date.max) <= day:
+            raise EditError(f"{a!r} is not open on {day}")
+    if not account.startswith("Expenses:") or account == CASH:
+        raise EditError("The category is an expense other than Expenses:Cash")
+    data = target = None
+    if receipt:
+        suffix = Path(str(receipt.get("name", ""))).suffix.lower()
+        if suffix not in RECEIPTS:
+            raise EditError(f"A receipt is one of {', '.join(sorted(RECEIPTS))}")
+        try:
+            data = base64.b64decode(str(receipt.get("data", "")), validate=True)
+        except binascii.Error:
+            raise EditError("The receipt's data are not base64") from None
+        if not data or len(data) > RECEIPT_MAX:
+            raise EditError(f"A receipt has 1 byte to {RECEIPT_MAX // 1024 // 1024} MB")
+        folder, n = root / "documents" / "Expenses" / "Cash", 1
+        target = folder / f"{day}.{slug(payee)}{suffix}"
+        while target.exists():
+            n += 1
+            target = folder / f"{day}.{slug(payee)}-{n}{suffix}"
+    text = path.read_text(encoding="utf-8")
+    entry = (f'\n{day} * "{payee}"\n' + (f'  document: "{target.name}"\n' if target else "")
+             + f"  {account}  {number} {currency}\n  {CASH}  {-number} {currency}\n")
+    out = text + ("" if not text or text.endswith("\n") else "\n") + entry
+    if len(parser.parse_string(out)[1]) > len(parser.parse_string(text)[1]):
+        raise EditError("The payment would break cash.beancount; nothing was written")
+    if target:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+    write(path, out)
+    return f"Cash: {day} {payee} {number} {currency}"

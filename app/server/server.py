@@ -4,7 +4,7 @@ origin: a script in Fava's frame cannot call the app's commands.
 
 The app asks it for the ledger's data on stdin (rpc.py), with the methods in `app.state.methods`: `query` (BQL on
 Fava's loaded ledger), `dashboard`, `transactions` and `entry` (the overview), the changes of transactions (`entry_save`, `rule_preview`,
-`rule_save`, `entry_reset`), `reports` (reports/*.toml), `state` (statements
+`rule_save`, `entry_reset`, `cash_save`), `reports` (reports/*.toml), `state` (statements
 waiting, the check, a first import), `inbox`, `settings` and `save_settings`, and the versions (`history`, `versions_init`, `versions_restore`, `versions_save`).
 
 The app runs it in the ledger, with the ledger's Python, so Fava and its kingsmint extensions are the ledger's version:
@@ -219,6 +219,19 @@ def make_app(ledger: Path, ui: Path):
         l.load_file()
         return changed(edit.hash_at(l.all_entries, e.meta["filename"], e.meta["lineno"]), error=error)
 
+    def cash_save(date: str, amount: str, account: str, payee: str, receipt: dict | None = None) -> dict:
+        """Adds a cash payment to cash.beancount (edit.add_cash), with its receipt; a version of it."""
+        try:
+            can_edit()
+            l, _ = loaded()
+            message = edit.add_cash(root, l.all_entries, (l.options["operating_currency"] or ["EUR"])[0], date,
+                                    amount, account, payee, receipt)
+        except ValueError as err:  # edit.EditError too
+            return {"error": str(err)}
+        error = save_version(message)
+        l.load_file()
+        return {"saved": True, "error": error, "version": not error and versions.enabled(root)}
+
     def changed(hash: str | None, **result) -> dict:
         """What a change gives the page: the transaction's new hash and the transaction itself, so the page shows it
         without asking again."""
@@ -364,7 +377,8 @@ def make_app(ledger: Path, ui: Path):
 
     app.state.methods = {"query": query, "dashboard": overview, "transactions": transactions, "entry": entry,
                          "entry_save": exclusive(entry_save), "rule_preview": rule_preview,
-                         "rule_save": exclusive(rule_save), "entry_reset": exclusive(entry_reset), "reports": reports,
+                         "rule_save": exclusive(rule_save), "entry_reset": exclusive(entry_reset), "cash_save": exclusive(cash_save),
+                         "reports": reports,
                          "inbox": inbox_data, "settings": settings_data,
                          "save_settings": exclusive(save_settings), "runway_edit": runway_edit,
                          "runway_save": exclusive(runway_save), "history": history, "versions_init": versions_init,

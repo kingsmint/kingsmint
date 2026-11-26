@@ -18,6 +18,7 @@
   import { saveSoon, showPart, visible } from "./panels.js";
   import { pinKey, pinOf, railKey, togglePin, VIEWS } from "./rail.js";
   import Spark from "./Spark.svelte";
+  import CashEntry from "./CashEntry.svelte";
   import CategoryPicker from "./CategoryPicker.svelte";
   import RuleOffer from "./RuleOffer.svelte";
   import Message from "./Message.svelte";
@@ -84,6 +85,27 @@
   // the transactions view's change of a row's category, in place: the row (its hash), the accounts to pick from
   let listPick = $state(null);
   let listInfo = $state({ editable: false, accounts: [] });
+  let cashing = $state(false); // the form of a cash payment (CashEntry.svelte) shows above the transactions
+  // after a save: Undo, which returns to the version before it; a payment out of the months shown shows its month,
+  // else it would not be in the rows
+  function cashDone(r) {
+    cashing = false;
+    if (!r) return;
+    if (r.error) problem(r.error);
+    else if (r.version)
+      toast(Message, {
+        text: t("cashSaved"),
+        action: t("runwayUndo"),
+        act: () => rpc("versions_restore").then((u) => (u.error && problem(u.error), load())),
+      });
+    else toast(Message, { text: t("cashSaved") });
+    // a year that is not over shows its full months only (d.ends): a payment after them shows in its month
+    const m = r.date.slice(0, 7);
+    const shows = unit === "year" ? m.slice(0, 4) === d?.period && m <= d.ends.at(-1) : m === d?.period;
+    if (shows) return load();
+    unit = "month";
+    pick(m);
+  }
 
   // numbers in the app's language: money without cents, percentages with one decimal
   const fmt = (o) => new Intl.NumberFormat(app.lang, o);
@@ -369,6 +391,13 @@
       else showPart("dashboard");
     };
     document.addEventListener("km-go", goTo);
+    // ⌘N (shortcuts.js): the transactions, with the form of a cash payment
+    const cash = () => {
+      if ((overviews.has(app.overview.id) ? app.overview.id : "dashboard") !== id) return;
+      if (view.name !== "txns") go({ name: "txns" });
+      cashing = true;
+    };
+    document.addEventListener("km-cash", cash);
     // an account's link in a terminal (fava.js openLink): its detail in the month or year of Fava's time filter
     const account = (e) => {
       if (api) return; // the rail's overview opens it
@@ -392,6 +421,7 @@
       off.then((unlisten) => unlisten());
       document.removeEventListener("km-ledger", load);
       document.removeEventListener("km-account", account);
+      document.removeEventListener("km-cash", cash);
       document.removeEventListener("km-overview", restore);
       document.removeEventListener("km-go", goTo);
       removeEventListener("keydown", key);
@@ -451,7 +481,7 @@
     let run = 0;
     return rows
       .filter((r) => r.date >= range.start && matches(r) && inDays(r))
-      .map((r) => ({ ...r, amount: r.amount * sign, run: (run += r.amount * sign) }))
+      .map((r) => ({ ...r, amount: r.amount * sign, cash: r.cash && r.cash * sign, run: (run += r.amount * sign) }))
       .reverse();
   });
   // the same filter in the period before
@@ -836,6 +866,15 @@
   {/if}
 {/snippet}
 
+<!-- a row's amount; a cash payment's (dashboard.transactions `cash`) is muted: it counts 0, spent when withdrawn -->
+{#snippet amountOf(r)}
+  {#if r.cash != null}
+    <span class="muted" title={t("cashRowTitle")}>{t("cashRow")} {cents(r.cash)}</span>
+  {:else}
+    {sign === 1 && r.amount > 0 && layout === "list" ? "+" : ""}{cents(r.amount)}
+  {/if}
+{/snippet}
+
 {#snippet statementButton(r)}
   {#if r.document}
     <button
@@ -845,7 +884,7 @@
       onclick={(e) => {
         e.stopPropagation();
         statementOf(r.hash);
-      }}>{t("statementShort")}</button
+      }}>{t(r.cash == null ? "statementShort" : "cashReceipt")}</button
     >
   {/if}
 {/snippet}
@@ -1126,6 +1165,15 @@
           {/each}
         </ul>
         <p class="muted note">{t(L.note)}</p>
+        {#if d.cash?.withdrawn || d.cash?.entered}
+          <!-- cash: withdrawn, entered in cash.beancount, and the rest that stays in Expenses:Cash -->
+          <p class="muted note">
+            <button type="button" class="more" onclick={() => go({ name: "txns", account: "Expenses:Cash" })}
+              >{t("cashLine", { withdrawn: eur(d.cash.withdrawn), entered: eur(d.cash.entered),
+                rest: eur(d.cash.withdrawn - d.cash.entered) })}</button
+            >
+          </p>
+        {/if}
       </section>
     </div>
   {:else if view.name === "account"}
@@ -1379,6 +1427,16 @@
           <p class="muted note">{t("dragDays")}</p>
         </div>
       {/if}
+      <!-- a cash payment: its form where the button was, the payment then in the rows below -->
+      {#if cashing && listInfo.editable}
+        <CashEntry accounts={listInfo.accounts} done={cashDone} />
+      {:else if listInfo.editable}
+        <div class="cash-add">
+          <wa-button size="small" variant="brand" appearance="outlined" title={t("cashTitle")} onclick={() => (cashing = true)}
+            ><wa-icon slot="start" name="plus"></wa-icon>{t("cashAdd")}</wa-button
+          >
+        </div>
+      {/if}
       {#if shown.length && layout === "list"}
         <!-- the days, the newest first, each with its sum; a row: the payee over what it is, the amount over the
              running total -->
@@ -1414,7 +1472,7 @@
                 </span>
               </span>
               <span class="trail">
-                <span class="num amount">{sign === 1 && r.amount > 0 ? "+" : ""}{cents(r.amount)}</span>
+                <span class="num amount">{@render amountOf(r)}</span>
                 <span class="num run" title={r.balance == null ? t("runningTitle") : ""}
                   >{r.balance == null ? t("running") : t("balance")} {cents(r.balance ?? r.run)}</span
                 >
@@ -1462,7 +1520,7 @@
                     {/if}
                   {/if}
                 </td>
-                <td class="num">{cents(r.amount)}</td>
+                <td class="num">{@render amountOf(r)}</td>
                 <td class="num muted">{cents(r.balance ?? r.run)}</td>
                 <td class="doc">{@render statementButton(r)}</td>
               </tr>

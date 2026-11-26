@@ -1,4 +1,5 @@
 """The desktop app's server (app/server/server.py): Fava under /fava with the app's files, and the RPC methods."""
+import base64
 import importlib.util
 import re
 import shutil
@@ -8,6 +9,8 @@ from pathlib import Path
 import pytest
 from decimal import Decimal
 
+from beancount import loader
+from beancount.core.data import Document
 from werkzeug.test import Client
 
 SERVER = Path(__file__).parent.parent / "app" / "server"
@@ -230,3 +233,54 @@ def test_runway_edit_and_save(ledger, tmp_path):
     methods["runway_save"](changes={"Assets:Me:Bank:VUB:Savings": {"liquid": None},
                                     "Expenses:Cash": {"need": "unknown", "cut": 0.5}})
     assert accounts.read_text() == before  # the undo: the old values
+
+
+def test_cash_save(ledger, tmp_path):
+    """A cash payment from the app goes to cash.beancount with its receipt; the overview shows the cash withdrawn,
+    entered and the rest."""
+    root = tmp_path / "ledger"
+    shutil.copytree(ledger, root)
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    shutil.copy(SERVER.parent / "ui" / "i18n.json", ui)
+    methods = server.make_app(root / "main.beancount", ui).state.methods
+    d = methods["dashboard"]()
+    day = d["period"] + "-20"
+    assert d["cash"] == {"withdrawn": 100.0, "entered": 0.0}  # the sample withdraws 100 each month
+
+    receipt = {"name": "Bloček.JPG", "data": base64.b64encode(b"jpeg").decode()}
+    assert methods["cash_save"](date=day, amount="12,5", account="Expenses:Food:Groceries", payee="Trh Ďurčo",
+                                receipt=receipt) == {"saved": True, "error": "", "version": False}
+    assert methods["cash_save"](date=day, amount="3", account="Expenses:Gifts", payee="Trh Ďurčo",
+                                receipt=None) == {"saved": True, "error": "", "version": False}
+    moved = root / "documents" / "Expenses" / "Cash" / f"{day}.trh-durco.jpg"
+    assert moved.read_bytes() == b"jpeg"
+    text = (root / "cash.beancount").read_text()
+    assert text.endswith(f'\n{day} * "Trh Ďurčo"\n  document: "{moved.name}"\n  Expenses:Food:Groceries  12.50 EUR\n'
+                         f'  Expenses:Cash  -12.50 EUR\n\n{day} * "Trh Ďurčo"\n  Expenses:Gifts  3.00 EUR\n'
+                         '  Expenses:Cash  -3.00 EUR\n')
+    d = methods["dashboard"]()
+    assert d["cash"] == {"withdrawn": 100.0, "entered": 15.5} and d["flows"]["Expenses:Cash"][-1] == 84.5
+    # in the transactions, a cash payment is one row of its category, which counts 0: spent when withdrawn
+    rows = methods["transactions"](start=d["period"], end=d["period"])["rows"]
+    mine = [r for r in rows if r["payee"] == "Trh Ďurčo"]
+    assert [(r["account"], r["amount"], r["cash"]) for r in mine] == [
+        ("Expenses:Food:Groceries", 0.0, -12.5), ("Expenses:Gifts", 0.0, -3.0)]
+    flows = d["flows"]
+    assert abs(sum(r["amount"] for r in rows) - (flows["Income"][-1] - flows["Expenses"][-1])) < 0.05
+    cash = methods["transactions"](start=d["period"], end=d["period"], account="Expenses:Cash")["rows"]
+    assert sorted(r["amount"] for r in cash) == [-100.0, 3.0, 12.5] and not any("cash" in r for r in cash)
+    assert methods["entry"](hash=mine[0]["hash"])["amount"] == -12.5  # the detail: what the category got
+    entries, errors, _ = loader.load_file(str(root / "main.beancount"))
+    assert not [e for e in errors if "cash" in str(e.source.get("filename", "")) or "document" in e.message.lower()]
+    assert any(isinstance(e, Document) and e.filename == str(moved) for e in entries)  # Fava finds the receipt
+
+    before = (root / "cash.beancount").read_text()
+    for bad in (dict(amount="0"), dict(amount="x"), dict(amount="-5"), dict(payee='Trh "X"'), dict(payee="a\nb"),
+                dict(payee=" "), dict(account="Expenses:Cash"), dict(account="Assets:Me:Bank:Current"),
+                dict(account="Expenses:Nope"), dict(date="2026-13-01"), dict(date="1999-01-01"),
+                dict(receipt={"name": "virus.exe", "data": "eA=="}), dict(receipt={"name": "a.pdf", "data": "not base64!"}),
+                dict(receipt={"name": "a.pdf", "data": ""})):
+        args = dict(date=day, amount="5", account="Expenses:Gifts", payee="Trh") | bad
+        assert methods["cash_save"](**args)["error"], bad
+    assert (root / "cash.beancount").read_text() == before

@@ -99,3 +99,16 @@ def test_changes_to_one_transaction_are_one_version(tmp_path):
         "Transaction: 2025-01-06 Lidl: category", f"{subject}: note", f"{subject}: note, category"]
     versions.restore(d)  # undo takes back the last version that changed files (Lidl changed none), not the batch before
     assert (d / "ledger" / "a.beancount").read_text() == "v3\n"
+
+
+def test_restore_leaves_receipts_out_of_inbox(tmp_path):
+    # undo of a cash payment: its receipt is not a statement, it goes with the version
+    d = tmp_path
+    (d / "main.beancount").write_text("x\n")
+    versions.init(d, "New ledger")
+    (d / "documents" / "Expenses" / "Cash").mkdir(parents=True)
+    (d / "documents" / "Expenses" / "Cash" / "2026-11-20.trh.jpg").write_text("jpeg")
+    (d / "documents" / "s.pdf").write_text("statement")
+    versions.save(d, "Cash: 2026-11-20 Trh")
+    assert versions.restore(d).back == ["s.pdf"]
+    assert not (d / "inbox" / "2026-11-20.trh.jpg").exists() and not (d / "documents" / "Expenses" / "Cash").exists()
