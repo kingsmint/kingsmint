@@ -27,6 +27,13 @@ here is the installed version.
   **Hidden**, where **Bring back** returns it. **Add**, or **Recurring payment** in a transaction's detail, confirms
   a payee that was not found. The decisions are lines in `rules.beancount`. The month close of the explain skill
   names new and more expensive subscriptions.
+- The Kingsmint app has budgets: a limit per expense category for a month, a quarter or a year (**Set budget** in a
+  category's view, beside the category's average month of the last 12), and a limit for a tag with a start and an
+  optional end date, such as the advances for a fence (paid 5 500 of 8 000, 2 500 left), with its payments. A tile
+  in the overview counts the budgets within their limits and shows the three nearest to them; its detail shows each
+  budget's spending, what is left, per day, and the periods before. Yellow from 75 % or when the spending runs ahead
+  of the days, red over the limit. Fava shows the category budgets too. The month close names the budgets over or
+  near their limit.
 - A rule the Kingsmint app adds to `rules.beancount` goes in a paragraph of its own above the first rule: before, it
   could come between a comment and the rule the comment explains, or join the template's last comment.
 
@@ -35,6 +42,10 @@ here is the installed version.
 - Optional: in `rules.beancount`, under the payee rules, add the comment
   `; DATE custom "recurring" "Payee" "include" "monthly" (or "quarterly", "yearly"; or "ignore"): the owner confirmed`
   `; the payee's payments as recurring in the app (or not).`, so the agent knows what the lines the app writes mean.
+- Create `budgets.beancount` as in the kingsmint template (its header comment), add `include "budgets.beancount"`
+  after `include "cash.beancount"` in `main.beancount`, and add the template's paragraph "Budgets live in" to
+  `CLAUDE.md`, before "Talk to the owner". Why: the app writes the budgets there, and the agent needs to know where
+  they are.
 
 ## 0.2.5
 

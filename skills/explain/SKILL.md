@@ -49,7 +49,12 @@ The month is the last full calendar month. Done when the user has the summary be
      is in neither, and tell the owner to confirm it in the app's **Recurring payments**;
    - runway: `uv run kingsmint runway` (months of the baseline that the liquid money covers).
    Give the causes in plain words, as in "A change between periods". End with what to watch next month.
-4. Commit: `Close <month>`, with the three main numbers of the summary in the body.
+4. Budgets, when `budgets.beancount` has entries: name each budget over its limit or at 75 % of it or more.
+   An account's `custom "budget"` (the newest entry on or before the month's end; `0` ends it) against the spending
+   of the account and its subaccounts in its period (the month, or the quarter or year so far); a tag's
+   `custom "budget-tag"` against `SELECT sum(number(convert(position, 'EUR', date))) WHERE account ~ '^Expenses'
+   AND 'TAG' IN tags AND date >= START` (and `date <= END`). Say what is left, and per day until the period ends.
+5. Commit: `Close <month>`, with the three main numbers of the summary in the body.
 
 ## A change between periods
 

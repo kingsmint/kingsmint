@@ -20,6 +20,8 @@
   import Spark from "./Spark.svelte";
   import CashEntry from "./CashEntry.svelte";
   import CategoryPicker from "./CategoryPicker.svelte";
+  import BudgetForm from "./BudgetForm.svelte";
+  import Budgets from "./Budgets.svelte";
   import RuleOffer from "./RuleOffer.svelte";
   import Message from "./Message.svelte";
   import { toast } from "./toast.js";
@@ -214,6 +216,15 @@
 
   // the tiles: a main number, a line under it, the comparisons, a small chart, a state, and the detail they open;
   // `empty` says why data are missing
+  // the budgets, the worst first: over the limit, then near it, then by the share spent (server/budgets.py)
+  const RANK = { bad: 0, warn: 1, good: 2 };
+  const ranked = $derived(
+    [...(d?.budgets?.accounts ?? []), ...(d?.budgets?.tags ?? [])].sort(
+      (x, y) => RANK[x.state] - RANK[y.state] || y.share - x.share,
+    ),
+  );
+  const worst = $derived(ranked[0]);
+  const count = (state) => ranked.filter((x) => x.state === state).length;
   const tiles = $derived.by(() => {
     if (!d) return [];
     const has = !!d.period;
@@ -277,6 +288,19 @@
         meter: runway && Math.min(runway.months / d.goal, 1),
         state: runway && level(runway.months),
         go: { name: "runway" },
+      },
+      {
+        id: "budgets",
+        title: t("budgets"),
+        empty: !worst && t("budgetsNone"),
+        open: true, // with no budget yet, its detail offers to make one
+        // how many are within their limits, those over or near them, and the three worst by the share of their limits:
+        // the periods differ, the shares compare
+        value: worst && t("budgetsOk", { ok: count("good"), n: ranked.length }),
+        sub: worst && (["bad", "warn"].filter(count).map((s) => t(`budgets_${s}`, { n: count(s) })).join(" · ") || t("budgets_good")),
+        compare: ranked.slice(0, 3).map((x) => [x.name ?? name(x.account), fmt({ style: "percent" }).format(x.share)]),
+        state: worst?.state,
+        go: { name: "budgets" },
       },
     ];
   });
@@ -1342,7 +1366,8 @@
         {/if}
       </nav>
     {/if}
-    {#if d?.periods?.length && view.name !== "tags" && view.name !== "recurring"}<!-- the tags' list: each tag over all its dates -->
+    <!-- the tags' list: each tag over all its dates; budgets have their own periods -->
+    {#if d?.periods?.length && !["tags", "recurring", "budgets"].includes(view.name)}
       <div class="period">
         {#if !listView.all && unit === "year" && d.months < 12}
           <span class="muted">{t("ytd", { months: date(d.ends.at(-1), { month: "long" }) })}</span>
@@ -1374,7 +1399,7 @@
           type="button"
           class="tile"
           data-state={tile.empty ? "" : tile.state || ""}
-          disabled={!tile.go || !!tile.empty}
+          disabled={!tile.go || (!!tile.empty && !tile.open)}
           onclick={() => go(tile.go)}
         >
           <span class="title">{tile.title}</span>
@@ -1512,6 +1537,19 @@
         >{t("transactions")} <wa-icon name="chevron-right"></wa-icon></button
       >
     </div>
+    {#if view.account.startsWith("Expenses:") && d.budgets?.file}
+      {@const b = d.budgets.accounts.find((x) => x.account === view.account)}
+      <div class="account-budget" data-state={b?.state}>
+        {#if b}
+          <button type="button" class="more" onclick={() => go({ name: "budgets" })}>{t("budget")}</button>
+          <span
+            >{t("budgetsNow")} ({t(`budget_${b.period}`)}): {eur(b.spent)} / {eur(b.limit)} · {t(b.left < 0 ? "budgetOver" : "budgetLeft")}
+            {eur(Math.abs(b.left))}</span
+          >
+        {/if}
+        <BudgetForm account={view.account} budget={b} averages={d.budgets.averages} today={d.budgets.today} currency={d.currency} label={t(b ? "budgetChange" : "budgetSet")} onsaved={load} />
+      </div>
+    {/if}
     <Chart
       type="bar"
       columns={[t(unit), name(view.account)]}
@@ -2009,6 +2047,8 @@
     </div>
   {:else if view.name === "txn"}
     {@render txnView()}
+  {:else if view.name === "budgets" && d.budgets}
+    <Budgets data={d.budgets} currency={d.currency} onchanged={load} openAccount={(a) => open(a)} {openTxn} />
   {:else if view.name === "runway" && runway}
     {@const withCash = cashOf(rw) !== rw.liquid || cash !== runway.liquid}
     <div class="runway-head">

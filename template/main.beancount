@@ -12,6 +12,7 @@ include "rules.beancount"
 include "prices.beancount"
 include "property.beancount"
 include "cash.beancount"
+include "budgets.beancount"
 include "ledger/*/*.beancount"
 
 ; Fava: number format of this locale (for example sk_SK: 1 098 707,95; en_US: 1,098,707.95)

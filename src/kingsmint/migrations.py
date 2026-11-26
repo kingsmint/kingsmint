@@ -107,4 +107,18 @@ def v0_2_0(led: Ledger) -> list[str]:
     return left
 
 
-MIGRATIONS = {"0.1.9": v0_1_9, "0.2.0": v0_2_0}
+def v0_2_6(led: Ledger) -> list[str]:
+    left = []
+    led.add_file("budgets.beancount")
+    cash = 'include "cash.beancount"\n'
+    if not led.replace("main.beancount", cash, cash + 'include "budgets.beancount"\n', 'include "budgets.beancount"'):
+        left.append('In `main.beancount`, add `include "budgets.beancount"` after the other includes of the ledger\'s '
+                    "own files, before `include \"ledger/*/*.beancount\"`.")
+    budgets = led.paragraph("CLAUDE.md", "Budgets live in")
+    if not led.replace("CLAUDE.md", "\n\nTalk to the owner", f"\n\n{budgets}\n\nTalk to the owner", "budgets.beancount"):
+        left.append('In `CLAUDE.md`, before "Talk to the owner", add the paragraph about `budgets.beancount` from the '
+                    "template.")
+    return left
+
+
+MIGRATIONS = {"0.1.9": v0_1_9, "0.2.0": v0_2_0, "0.2.6": v0_2_6}

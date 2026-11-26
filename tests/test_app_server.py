@@ -286,3 +286,25 @@ def test_cash_save(ledger, tmp_path):
         args = dict(date=day, amount="5", account="Expenses:Gifts", payee="Trh") | bad
         assert methods["cash_save"](**args)["error"], bad
     assert (root / "cash.beancount").read_text() == before
+
+
+def test_budgets_in_the_overview(tmp_path, monkeypatch):
+    """The budgets go with the overview: the forms only when main.beancount loads budgets.beancount, and a budgets
+    failure leaves the rest of the overview."""
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    shutil.copy(SERVER.parent / "ui" / "i18n.json", ui)
+    main = 'option "operating_currency" "EUR"\n2000-01-01 open Assets:Cash EUR\n2000-01-01 open Expenses:Food\n'
+    (tmp_path / "main.beancount").write_text(main)
+    (tmp_path / "budgets.beancount").write_text("")
+    methods = server.make_app(tmp_path / "main.beancount", ui).state.methods
+    assert methods["budgets"]()["file"] is False  # there, but not included: what the app wrote would not count
+    (tmp_path / "main.beancount").write_text(main + 'include "budgets.beancount"\n')
+    methods = server.make_app(tmp_path / "main.beancount", ui).state.methods
+    assert methods["budgets"]()["file"] is True
+
+    import budgets
+
+    monkeypatch.setattr(budgets, "overview", lambda *a: 1 / 0)
+    d = methods["dashboard"]()
+    assert d["budgets"]["errors"] == ["Budgets: division by zero"] and "runway" in d
