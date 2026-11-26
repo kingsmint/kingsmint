@@ -181,7 +181,8 @@ def transactions(entries, options, rate, start: str, end: str, account: str | No
                              "account": p.account, "amount": money(0 if cash else n if booked else -n),
                              **({"cash": money(-n)} if cash else {}), "hash": hash_entry(e), "id": e.meta.get("id"),
                              "others": [o.account for o in e.postings if o.account != p.account],
-                             "document": "document" in e.meta} | ({"balance": money(balance)} if booked else {}))
+                             "document": "document" in e.meta, "tags": sorted(e.tags or ())}
+                            | ({"balance": money(balance)} if booked else {}))
     payees = defaultdict(lambda: [Decimal(0), 0])
     for r in rows:
         payees[r["payee"]][0] += Decimal(str(r["amount"]))
@@ -334,6 +335,7 @@ def entry(e, entries, options, rate, statement: bool) -> dict:
     same = [t for t in led.txns if since < t.date <= e.date and (t.payee or t.narration) == name]
     return {
         "hash": hash_entry(e), "date": e.date.isoformat(), "flag": e.flag, "payee": name, "narration": e.narration,
+        "tags": sorted(e.tags or ()),
         "amount": amount(e), "transfer": not any(p.account.split(":")[0] in ("Income", "Expenses") for p in e.postings),
         "postings": [{"account": p.account, "number": float(p.units.number), "currency": p.units.currency,
                       "value": money(led.value(p.units.number, p.units.currency, e.date))} for p in e.postings],
@@ -342,3 +344,26 @@ def entry(e, entries, options, rate, statement: bool) -> dict:
         "history": [{"date": t.date.isoformat(), "hash": hash_entry(t), "id": t.meta.get("id"), "amount": amount(t)}
                     for t in reversed(same)],
     }
+
+
+def spent(led: Ledger, e) -> Decimal:
+    """What a transaction spent in the operating currency: expenses less income. A cash payment (cash.beancount) moves
+    money from `Expenses:Cash` to its category: the category counts, not the cash it came from, which was spent when
+    withdrawn and is in the tag only if the withdrawal is. The app's tag filter counts the same (its rows' `cash`)."""
+    return sum((led.value(p.units.number, p.units.currency, e.date) or Decimal(0) for p in e.postings
+                if p.account.split(":")[0] in ("Income", "Expenses")
+                and not (p.account == CASH and p.units.number < 0)), Decimal(0))
+
+
+def tags(entries, options, rate) -> dict:
+    """Each tag of the transactions: what they spent (expenses less income, in the operating currency), how many, the
+    first and the last date; the largest first (by size: a refund makes a total negative). A tag's transactions are the transactions view's tag filter."""
+    led = Ledger(entries, options, rate)
+    found = defaultdict(list)
+    for e in led.txns:
+        for t in e.tags or ():
+            found[t].append(e)
+    return {"currency": led.currency, "tags": sorted(
+        ({"tag": t, "total": money(sum((spent(led, e) for e in es), Decimal(0))), "count": len(es),
+          "first": min(e.date for e in es).isoformat(), "last": max(e.date for e in es).isoformat()}
+         for t, es in found.items()), key=lambda x: (-abs(x["total"]), x["tag"]))}

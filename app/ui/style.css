@@ -993,6 +993,7 @@ select.lang {
   zoom: var(--zoom, 1);
   height: 100%;
   overflow: auto;
+  container-type: size; /* for the detail's height (cqh): the panel's, not the window's */
   background: var(--wa-color-surface-default);
 }
 /* a transaction's detail beside the transactions: the list scrolls, the detail stays in sight */
@@ -1011,7 +1012,8 @@ select.lang {
 .dashboard .pane.detail {
   position: sticky;
   top: 0;
-  max-height: 100vh;
+  box-sizing: border-box; /* the padding inside the height */
+  max-height: 100cqh; /* 100vh is taller than the panel (banners, tabs): its end would show only at the list's */
   overflow: auto;
   padding-top: 0.5em;
 }
@@ -1453,12 +1455,19 @@ select.lang {
 .dashboard .chip button:hover {
   background: var(--wa-color-neutral-fill-quiet);
 }
+.dashboard .chip.pick-tag {
+  padding-right: 0.6em;
+  cursor: pointer;
+}
+.dashboard .chip.pick-tag:hover {
+  background: var(--wa-color-neutral-fill-quiet);
+}
 .dashboard .filter input[type="search"] {
   flex: 1 1 14em;
   max-width: 24em;
-  padding: 0.25em 0.6em;
+  padding: 0.25em 0.8em;
   border: 1px solid var(--wa-color-surface-border);
-  border-radius: 4px;
+  border-radius: 999px;
   background: var(--wa-color-surface-default);
   color: inherit;
   font: inherit;
@@ -1510,7 +1519,31 @@ select.lang {
 
 /* the transactions as a list: a day's header with its sum, which stays on top while its rows scroll; a row in two
    lines, the payee over what it is, the amount over the running total */
-/* the transactions' chart: low, above the list */
+/* the transactions' chart, then their categories (expenses beside income), above the list; each folds (<details>) */
+.dashboard .list-head {
+  margin: 0.5em 0 0.3em;
+}
+.dashboard .list-head .more {
+  margin-left: 0.75em;
+}
+.dashboard :is(.fold summary, .list-head > span) {
+  margin-bottom: 0.3em;
+  font-size: var(--wa-font-size-s);
+  color: var(--wa-color-text-quiet);
+  cursor: pointer;
+}
+.dashboard .cat-groups {
+  --min-column-size: 20em; /* wa-grid's: below two of these, one under the other */
+  align-items: start;
+}
+.dashboard .fold.cats table {
+  width: 100%;
+  margin-bottom: 0.3em;
+}
+.dashboard .fold.cats td {
+  padding: 4px 8px;
+}
+/* the transactions' chart: low */
 .dashboard .txchart {
   margin-bottom: 0.5em;
 }
@@ -1917,12 +1950,7 @@ wa-button:not([variant="brand"]) .agent-icon {
   justify-content: flex-end;
   gap: 0.5em;
 }
-/* a cash payment's button and form, at the right above the transactions */
-.dashboard .cash-add {
-  display: flex;
-  justify-content: flex-end;
-  margin: 0.5em 0 0.75em;
-}
+/* a cash payment's form (its button is in the list's header) */
 /* the form of a cash payment (CashEntry.svelte): a card over the transactions' width, its fields in a row as the
    columns, a label over each; a narrow pane wraps them */
 .dashboard .cash-entry {
@@ -2061,4 +2089,27 @@ wa-toast-item[variant="danger"]::part(toast-item) {
   border-color: var(--wa-color-danger-border-normal);
   background: var(--wa-color-danger-fill-quiet);
   color: var(--wa-color-danger-on-quiet);
+}
+/* tags (TagField.svelte, the tags views) */
+.dashboard .bars.tags button {
+  grid-template-columns: minmax(5em, 12em) 1fr 7em 17em; /* one width for the dates: the bars line up */
+}
+/* the table has no "·" between them, as the list has */
+.dashboard .txns .pick.hashtag {
+  margin-left: 0.5em;
+}
+.dashboard .txlist .item.chosen,
+.dashboard tbody tr.chosen {
+  /* tbody: as specific as the stripes' tr:nth-child(2n), which would clear every other chosen row */
+  background: var(--wa-color-brand-fill-quiet);
+}
+.dashboard .tag-bar {
+  flex-wrap: wrap;
+}
+.dashboard .tag-bar span {
+  flex: none; /* not the edit bar's flex: 1, which would stretch the chips */
+}
+.dashboard .tag-bar > .tags {
+  flex: 1;
+  margin: 0;
 }

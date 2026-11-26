@@ -121,6 +121,28 @@ comments:
 - `uv run kingsmint reset <id>` gives a transaction back the postings and flag kingsmint wrote; notes, tags
   and narration stay. Then `reimport` applies the current rules.
 
+## Tags
+
+A tag groups transactions across categories: a trip, a building project, advances for one contract. The owner names
+the transactions ("tag the holiday expenses from 1 to 14 July as #croatia-2026"); tags never come from rules.
+
+1. Turn the name into a tag Beancount takes: only `A-Z a-z 0-9 - _ / .`, without accents, lower case, words joined by
+   `-` (`Záloha plot` → `zaloha-plot`). Any other character drops the whole transaction out of the ledger.
+   Reuse an existing tag when one fits: `uv run bean-query -q main.beancount "SELECT DISTINCT tags"`.
+2. Pick the transactions with a query for what the owner said (dates, accounts, payees), e.g.
+   `uv run bean-query -q main.beancount "SELECT date, payee, narration, account, number, filename, lineno
+   WHERE date >= 2026-07-01 AND date <= 2026-07-14 AND account ~ '^Expenses:'"`.
+3. Show them to the owner as a numbered list (date, payee, amount, category) and ask which to tag. Stop here
+   until the owner confirms.
+4. Add ` #<tag>` to the first line of each confirmed transaction, in its file (`filename`, `lineno`): after the
+   narration and other tags, before links (`^…`). In `ledger/`, `reimport` keeps tags per `id`; in
+   `cash.beancount` and other files written by hand they stay as written. Remove a tag the same way.
+5. Run `uv run kingsmint check`: it prints nothing new. `SELECT count(*) WHERE '<tag>' IN tags` gives the number
+   of transactions confirmed. Commit, naming the tag.
+
+The app shows each tag's total, dates and categories under Overview → Tags, and the owner adds and removes tags there
+too.
+
 ## Rule gotchas
 
 - Backslashes are doubled inside Beancount strings: `"\\bBP\\b"`.
