@@ -1917,6 +1917,95 @@ wa-button:not([variant="brand"]) .agent-icon {
   justify-content: flex-end;
   gap: 0.5em;
 }
+/* a cash payment's button and form, at the right above the transactions */
+.dashboard .cash-add {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0.5em 0 0.75em;
+}
+/* the form of a cash payment (CashEntry.svelte): a card over the transactions' width, its fields in a row as the
+   columns, a label over each; a narrow pane wraps them */
+.dashboard .cash-entry {
+  margin: 0.5em 0 1em;
+  padding: 0.75em 1em;
+  border: 1px solid var(--wa-color-surface-border);
+  border-radius: var(--wa-border-radius-l);
+}
+.dashboard .cash-entry h2 {
+  margin: 0 0 0.5em;
+}
+.dashboard .cash-entry .fields,
+.dashboard .cash-entry .foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75em;
+}
+.dashboard .cash-entry .foot {
+  margin-top: 0.75em;
+  justify-content: space-between;
+}
+.dashboard .cash-entry .fields > *,
+.dashboard .cash-entry .receipt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+}
+.dashboard .cash-entry .fields > * > span:first-child,
+.dashboard .cash-entry .receipt > span:first-child {
+  font-size: var(--wa-font-size-s);
+  color: var(--wa-color-text-quiet);
+}
+.dashboard .cash-entry .date {
+  flex: 0 0 auto;
+}
+.dashboard .cash-entry .amount {
+  flex: 0 0 8em;
+}
+.dashboard .cash-entry .category {
+  flex: 1 1 14em;
+}
+.dashboard .cash-entry .payee {
+  flex: 2 1 16em;
+}
+.dashboard .cash-entry input,
+.dashboard .cash-entry .cat {
+  box-sizing: border-box;
+  width: 100%;
+  height: 2em;
+  padding: 0.2em 0.4em;
+  border: 1px solid var(--wa-color-surface-border);
+  border-radius: var(--wa-border-radius-m);
+  background: var(--wa-color-surface-default);
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: text;
+}
+.dashboard .cash-entry .picker input {
+  min-width: 0;
+}
+.dashboard .cash-entry .receipt {
+  flex: 1 1 20em;
+}
+.dashboard .cash-entry .buttons {
+  display: flex;
+  gap: 0.5em;
+}
+/* the field a receipt is pasted into: a right click offers "Import from iPhone" on a Mac */
+.dashboard .cash-entry .drop {
+  padding: 0.4em 0.6em;
+  border: 1px dashed var(--wa-color-surface-border);
+  border-radius: var(--wa-border-radius-m);
+  color: var(--wa-color-text-quiet);
+}
+.dashboard .cash-entry .drop:empty::before {
+  content: attr(data-hint);
+}
+.dashboard .cash-entry .error {
+  margin: 0.5em 0 0;
+  color: var(--wa-color-danger-on-quiet);
+}
 
 /* the bar after a change (Saved, Undo, the rule's question): at the bottom of the pane, over the content */
 /* a toast's message (toast.js): its text, then its buttons; the rule's transactions under them */

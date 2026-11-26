@@ -14,6 +14,7 @@ from beancount.core import account as acc
 from beancount.core.data import Open, Query, Transaction
 from fava.beans.funcs import hash_entry
 
+CASH = "Expenses:Cash"  # cash spent when withdrawn; cash.beancount moves it to the categories
 GOAL = 6  # months of the baseline that the liquid money should cover
 
 
@@ -67,8 +68,9 @@ def overview(entries, errors, options, rate, period: str | None = None, unit: st
     """`period` (a month YYYY-MM or a year YYYY, by `unit`; else the last full month, or its year) and the 12 periods
     before it, from the first with transactions. `window`: their labels; `ends`: the last month of each (YYYY-MM);
     `flows`: the Income and Expenses accounts and their parents, an amount per period; `accounts`: the balances at
-    each end; `months`: how many months of each year count. A year that is not over counts its months up to the last
-    full one, and so do the years before it, as Fava's Trends report compares them; a year before it whose statements
+    each end; `cash`: in the chosen period, the cash withdrawn and the cash payments entered (cash.beancount): the
+    difference is the cash nobody categorized; `months`: how many months of each year count. A year that is not over
+    counts its months up to the last full one, and so do the years before it, as Fava's Trends report compares them; a year before it whose statements
     start after January is left out."""
     led = Ledger(entries, options, rate)
     r = runway(entries, errors, options, led.currency)
@@ -101,6 +103,7 @@ def overview(entries, errors, options, rate, period: str | None = None, unit: st
     lo, hi = ends[0], ends[-1]
     flows = defaultdict(lambda: defaultdict(Decimal))  # an Income or Expenses account or its parent -> period -> amount
     units = defaultdict(lambda: defaultdict(lambda: defaultdict(Decimal)))  # account -> month (lo: before) -> currency -> units
+    cash = [Decimal(0), Decimal(0)]  # in the chosen period: withdrawn (to Expenses:Cash), entered (out of it)
     for e in led.txns:
         k = key(e.date)
         if k > hi:
@@ -113,6 +116,8 @@ def overview(entries, errors, options, rate, period: str | None = None, unit: st
                 n = led.value(p.units.number, p.units.currency, e.date)
                 if n is None:
                     continue
+                if p.account == CASH and bucket[k] == sel:
+                    cash[n < 0] += abs(n)
                 for a in acc.parents(p.account):
                     flows[a][bucket[k]] += -n if root == "Income" else n
 
@@ -130,6 +135,7 @@ def overview(entries, errors, options, rate, period: str | None = None, unit: st
     history = [balances(k) for k in ends]
     return result | {
         "window": names,
+        "cash": {"withdrawn": money(cash[0]), "entered": money(cash[1])},
         "ends": [label(k) for k in ends],
         "flows": {a: [money(f.get(w, Decimal(0))) for w in window] for a, f in sorted(flows.items())
                   if any(f.get(w) for w in window)},
@@ -142,7 +148,8 @@ def transactions(entries, options, rate, start: str, end: str, account: str | No
     """The postings from month `start` to month `end` (YYYY-MM) under `account` (else all income and expenses), money
     in positive: income and expenses with the sign turned, assets and liabilities as booked, with the account's
     `balance` after each. Each with its entry's `others` accounts, `hash` (Fava's, for its statement and context
-    pages), and whether it names a statement (`document`). `merchants`: their payees, `recurring` when the payee was
+    pages), and whether it names a statement (`document`); a cash payment's category `cash`: its amount, which counts 0
+    (it was spent when withdrawn). `merchants`: their payees, `recurring` when the payee was
     paid in each of the 3 months up to `end`."""
     led = Ledger(entries, options, rate)
     lo, hi = (key(dt.date.fromisoformat(m + "-01")) for m in (start, end))
@@ -152,11 +159,14 @@ def transactions(entries, options, rate, start: str, end: str, account: str | No
         m = key(e.date)
         if m > hi or (m < min(lo, hi - 2) and not booked):
             continue
-        for p in e.postings:
-            if account:
-                if p.account != account and not p.account.startswith(account + ":"):
-                    continue
-            elif p.account.split(":")[0] not in ("Income", "Expenses"):
+        shown = [p for p in e.postings if (p.account == account or p.account.startswith(account + ":") if account
+                                            else p.account.split(":")[0] in ("Income", "Expenses"))]
+        # a cash payment (cash.beancount) moves an amount from Expenses:Cash to its category: it was spent when
+        # withdrawn, so its category's row shows the amount as `cash` and counts 0, and Expenses:Cash has no row
+        cash = (not booked and len(shown) > 1 and any(p.account == CASH for p in shown)
+                and sum(p.units.number for p in shown) == 0)
+        for p in shown:
+            if cash and p.account == CASH:
                 continue
             # shortcut: a balance in another currency is summed at the rate of each day, not of the last one
             n = led.value(p.units.number, p.units.currency, e.date)
@@ -168,7 +178,8 @@ def transactions(entries, options, rate, start: str, end: str, account: str | No
                 seen[payee].add(m)
             if m >= lo:
                 rows.append({"date": e.date.isoformat(), "payee": payee, "narration": e.narration,
-                             "account": p.account, "amount": money(n if booked else -n), "hash": hash_entry(e), "id": e.meta.get("id"),
+                             "account": p.account, "amount": money(0 if cash else n if booked else -n),
+                             **({"cash": money(-n)} if cash else {}), "hash": hash_entry(e), "id": e.meta.get("id"),
                              "others": [o.account for o in e.postings if o.account != p.account],
                              "document": "document" in e.meta} | ({"balance": money(balance)} if booked else {}))
     payees = defaultdict(lambda: [Decimal(0), 0])
@@ -313,6 +324,9 @@ def entry(e, entries, options, rate, statement: bool) -> dict:
     def amount(t):
         values = [(p.account.split(":")[0], led.value(p.units.number, p.units.currency, t.date)) for p in t.postings]
         flows = [-v for root, v in values if root in ("Income", "Expenses") and v is not None]
+        if flows and not sum(flows) and any(p.account == CASH for p in t.postings):
+            # a cash payment: what its categories got from Expenses:Cash
+            return money(sum(-v for p, (_, v) in zip(t.postings, values) if p.account != CASH and v is not None))
         return money(sum(flows) if flows else sum(v for _, v in values if v and v > 0))
 
     name = e.payee or e.narration

@@ -36,6 +36,12 @@ export function shortcut(e) {
     e.preventDefault();
     typeof rail === "string" ? showView(rail) : rail();
   }
+  // ⌘N: a cash payment, in the overview's transactions (Dashboard.svelte)
+  if (e.code === "KeyN" && !e.shiftKey) {
+    e.preventDefault();
+    showView("txns");
+    document.dispatchEvent(new Event("km-cash"));
+  }
   if (e.key === "j") {
     e.preventDefault();
     pane("side");

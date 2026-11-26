@@ -14,6 +14,7 @@ JJ = os.environ.get("KINGSMINT_JJ") or "jj"
 
 # The files a restore leaves as they are: which kingsmint the ledger runs. Going back to the accounting of last month
 # must not quietly install last month's kingsmint, whose template the ledger no longer matches.
+RECEIPTS = "Expenses/Cash/"  # in documents/: the receipts of cash payments (server/edit.py add_cash)
 KEEP = '~(root-file:"pyproject.toml" | root-file:"uv.lock" | root-file:".kingsmint-version" | root-file:".python-version")'
 
 
@@ -115,7 +116,7 @@ class Restored:
 def restore(ledger: Path, id: str | None = None) -> Restored:
     """Returns to version `id`, or without it, undoes the last change: the files become as they were, saved as a new
     version. Unsaved changes are saved first. Statements in documents/ that the old version lacks go to inbox/; one
-    whose name is taken there by another file gets a number (s-2.pdf)."""
+    whose name is taken there by another file gets a number (s-2.pdf). Receipts of cash payments go with the version."""
     if id is not None and not re.fullmatch(r"[0-9a-f]{4,}", id):
         raise VersionError(f"bad version id {id}")
     if not enabled(ledger):  # else jj finds a repository above the ledger and restores that one
@@ -134,7 +135,8 @@ def restore(ledger: Path, id: str | None = None) -> Restored:
         kept = set()
     documents = ledger / "documents"
     statements = [(f.name, f.read_bytes()) for f in sorted(documents.rglob("*")) if f.is_file()
-                  and f.relative_to(ledger).as_posix() not in kept] if documents.exists() else []
+                  and f.relative_to(ledger).as_posix() not in kept
+                  and not f.relative_to(documents).as_posix().startswith(RECEIPTS)] if documents.exists() else []
     jj(ledger, "restore", "--from", target, KEEP)
     inbox = ledger / "inbox"
     inbox.mkdir(exist_ok=True)
