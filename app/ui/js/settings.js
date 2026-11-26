@@ -7,6 +7,7 @@ import { refreshInbox } from "./inbox.js";
 import { welcome } from "./ledger.js";
 import { titles, visible } from "./panels.js";
 import { assign, favas } from "./state.js";
+import { retheme } from "./terminal.js";
 import { invoke } from "./util.js";
 import { applyZoom } from "./zoom.js";
 
@@ -18,11 +19,49 @@ export const APP_LANGUAGES = [
 export function loadSettings() {
   document.dispatchEvent(new Event("km-settings")); // the ledger's: the component loads them again
 }
-// Saves a change of the app's settings ({ agent } or { fontSize }) on this computer.
+// Saves a change of the app's settings ({ agent }, { fontSize }, { theme } or { mode }) on this computer.
 export function saveApp(change) {
   app.appSettings = { ...app.appSettings, ...change };
   invoke("save_app_settings", { settings: { ...app.appSettings } });
   applyZoom();
+  applyTheme();
+}
+// The app's themes (public/themes.css), each a light and a dark variant: [name, [[id, name of its dark variant]]], a
+// theme whose dark variants differ little in one card. "default" is Web Awesome's.
+export const APP_THEMES = [
+  ["Web Awesome", [["default"]]],
+  [
+    "Catppuccin",
+    [
+      ["catppuccin", "Mocha"],
+      ["catppuccin-macchiato", "Macchiato"],
+      ["catppuccin-frappe", "Frappé"],
+    ],
+  ],
+  [
+    "Rosé Pine",
+    [
+      ["rose-pine", "Main"],
+      ["rose-pine-moon", "Moon"],
+    ],
+  ],
+  ["Gruvbox", [["gruvbox"]]],
+  ["Solarized", [["solarized"]]],
+  ["Everforest", [["everforest"]]],
+  ["Nord", [["nord"]]],
+];
+// The theme and dark mode of the settings, known values only (the settings' file can hold anything)
+export const themeName = () =>
+  APP_THEMES.some(([, variants]) => variants.some(([id]) => id === app.appSettings.theme))
+    ? app.appSettings.theme
+    : "default";
+export const modeName = () => (["light", "dark"].includes(app.appSettings.mode) ? app.appSettings.mode : "system");
+// The page (dark.js) and Fava's frames take the theme and the mode; the terminals follow.
+export function applyTheme() {
+  const m = { kingsmint: true, theme: themeName(), mode: modeName() };
+  window.km_set(m);
+  retheme();
+  favas.forEach((f) => f.contentWindow?.postMessage(m, app.serverOrigin));
 }
 // The kingsmint extension in the Claude app (claude_extension in main.rs): at start, and when the window comes back,
 // after the user installed it in the Claude app.

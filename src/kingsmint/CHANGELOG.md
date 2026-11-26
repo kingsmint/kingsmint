@@ -36,6 +36,9 @@ here is the installed version.
   near their limit.
 - A rule the Kingsmint app adds to `rules.beancount` goes in a paragraph of its own above the first rule: before, it
   could come between a comment and the rule the comment explains, or join the template's last comment.
+- The Kingsmint app's settings have a theme, picked from cards that show it: Web Awesome's, Catppuccin, Rosé Pine,
+  Gruvbox, Solarized, Everforest or Nord, each light and dark; and dark mode: as the system, light or dark. The
+  theme also colors Fava and the terminals.
 
 ### Ledger
 

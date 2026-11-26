@@ -3,6 +3,7 @@
 
 import { app } from "./app.svelte.js";
 import { t } from "./i18n.js";
+import { modeName, themeName } from "./settings.js";
 import { shortcut } from "./shortcuts.js";
 import { dock, favas, lastFava } from "./state.js";
 import { invoke } from "./util.js";
@@ -85,6 +86,7 @@ function message(e) {
   if (m.type === "zoom") win.toggleMaximize();
   if (m.type === "key") shortcut({ ...m, preventDefault() {} });
   if (m.type === "url" && m.url.startsWith("/fava/")) paths.set(frame, m.url);
+  if (m.type === "url") e.source.postMessage({ kingsmint: true, theme: themeName(), mode: modeName() }, e.origin); // dark.js
   // ⌘-click opens the link beside this view: in the Fava view of another group, else in a new split on the right, so
   // this page stays in sight. A middle click opens it in a new tab behind this one, as in a browser.
   if (m.type === "open" && m.url.startsWith("/fava/")) {
