@@ -6,6 +6,7 @@ import { Terminal } from "@xterm/xterm";
 import { tick } from "svelte";
 import { app } from "./app.svelte.js";
 import { openLink } from "./fava.js";
+import { saveSoon } from "./panels.js";
 import { t } from "./i18n.js";
 import { active, assign, restoring, side, tabs } from "./state.js";
 import { dark, invoke, listen } from "./util.js";
@@ -88,7 +89,8 @@ export function freeName(base) {
 // the new tabs that install their agent first (pty_start's install); not in the panel's params, which the layout keeps
 const installing = new Set();
 
-export function makeTab(api, { agent = "", claude = null }, el) {
+// `claude`: the conversation id in the layout of an older app, which had it for Claude Code only
+export function makeTab(api, { agent = "", conversation = null, claude = null }, el) {
   // linkHandler: links the program marks (OSC 8); without it xterm.js asks with confirm() and opens a new window
   const term = new Terminal({
     fontFamily: FONT,
@@ -104,7 +106,7 @@ export function makeTab(api, { agent = "", claude = null }, el) {
   const tab = {
     api,
     agent,
-    claude,
+    conversation: conversation ?? claude,
     install: installing.delete(api.id),
     resume: restoring,
     term,
@@ -149,11 +151,12 @@ export async function run(tab) {
   tab.starting = true;
   tab.last = 0; // a task waits for the new program's output
   tab.term.reset();
+  tab.started = Date.now();
   tab.session = await invoke("pty_start", {
     agent: tab.agent,
     cols: tab.term.cols,
     rows: tab.term.rows,
-    claude: tab.claude,
+    conversation: tab.conversation,
     name: tab.api.title,
     resume: tab.resume,
     install: tab.install,
@@ -203,15 +206,15 @@ export function closeTab(tab) {
 }
 
 // A new terminal: a tab in the agent's sidebar.
-export function addTab({ agent = "", claude = null, name, install = false } = {}) {
-  if (agent === "claude" && !claude) claude = crypto.randomUUID();
+export function addTab({ agent = "", conversation = null, name, install = false } = {}) {
+  if (["claude", "pi"].includes(agent) && !conversation) conversation = crypto.randomUUID(); // Codex makes its own
   const id = `term-${crypto.randomUUID().slice(0, 8)}`;
   if (install) installing.add(id); // before addPanel, which makes the tab
   const panel = side.addPanel({
     id,
     component: "term",
     title: name || freeName(agent || "shell"),
-    params: { agent, claude },
+    params: { agent, conversation },
   });
   return tabs.find((t) => t.api.id === panel.id);
 }
@@ -243,6 +246,21 @@ export async function agentMenu() {
   assign({ installed: await invoke("agents") });
 }
 
+// Codex makes its conversation's id when the first message is sent; the tab looks for it while Codex writes (at
+// most every 2 s) and keeps it in the layout, so a restart continues the conversation.
+async function findCodex(tab) {
+  if (tab.looking || Date.now() - (tab.looked ?? 0) < 2000) return;
+  tab.looking = true;
+  tab.looked = Date.now();
+  const taken = tabs.map((t) => t.conversation).filter(Boolean);
+  const id = await invoke("codex_conversation", { since: tab.started, taken }).catch(() => null);
+  tab.looking = false;
+  if (!id || tab.conversation || taken.includes(id)) return;
+  tab.conversation = id;
+  tab.api.updateParameters({ agent: tab.agent, conversation: id });
+  saveSoon();
+}
+
 // The terminals' output from the app, the agents' questions, the busy dots, and the theme and font.
 export function initTerminal() {
   listen("pty-data", (e) => {
@@ -251,6 +269,7 @@ export function initTerminal() {
     tab.term.write(new Uint8Array(e.payload.data));
     tab.last = Date.now();
     if (!tab.api.isVisible) tab.unread = true;
+    if (tab.agent === "codex" && !tab.conversation) findCodex(tab);
   });
   listen("pty-exit", (e) => {
     const tab = tabs.find((t) => t.session === e.payload);

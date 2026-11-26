@@ -14,7 +14,7 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager, State};
 
-const AGENTS: [&str; 3] = ["claude", "codex", "cursor-agent"];
+const AGENTS: [&str; 4] = ["claude", "codex", "cursor-agent", "pi"];
 /// The official installers of the agents a subscription brings: Claude (Pro, Max) and ChatGPT. (agent, sh, PowerShell)
 const INSTALLERS: [(&str, &str, &str); 2] = [
     ("claude", "curl -fsSL https://claude.ai/install.sh | bash", "irm https://claude.ai/install.ps1 | iex"),
@@ -675,7 +675,7 @@ struct PtyData<'a> {
     data: &'a [u8],
 }
 
-/// The saved tabs of a ledger (names, agents, Claude Code session ids), or null.
+/// The saved tabs of a ledger (names, agents, conversation ids), or null.
 #[tauri::command]
 fn load_tabs(dir: String, app: State<App>) -> serde_json::Value {
     let all: serde_json::Value = std::fs::read(&app.tabs_file).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
@@ -705,15 +705,20 @@ fn quote(text: &str) -> String {
     if cfg!(windows) { format!("'{}'", text.replace('\'', "''")) } else { format!("'{}'", text.replace('\'', "'\\''")) }
 }
 
-/// The command line of an agent. Claude Code gets the tab's session id: a new tab starts that session, a restored
-/// tab continues it (and starts it when it was never used, so `--resume` finds nothing).
-fn agent_command(agent: &str, claude: Option<&str>, name: &str, resume: bool) -> Result<String, String> {
-    let Some(id) = claude.filter(|_| agent == "claude") else { return Ok(agent.to_string()) };
+/// The command line of an agent. The tab keeps its conversation's id (`conversation`), so a restart continues it:
+/// Claude Code and pi take an id the app made (a new tab starts that conversation, a restored tab continues it, and
+/// starts it when it was never used); Codex makes its own (codex_conversation), and a tab without one starts a new
+/// conversation. Cursor's agent starts a new one each time.
+fn agent_command(agent: &str, conversation: Option<&str>, name: &str, resume: bool) -> Result<String, String> {
+    let Some(id) = conversation.filter(|_| ["claude", "codex", "pi"].contains(&agent)) else { return Ok(agent.to_string()) };
     if id.len() != 36 || !id.chars().all(|c| c.is_ascii_hexdigit() || c == '-') {
-        return Err(format!("bad session id {id}"));
+        return Err(format!("bad conversation id {id}"));
     }
-    let start = format!("claude --session-id {id} -n {}", quote(name));
-    let resume_cmd = format!("claude --resume {id} -n {}", quote(name));
+    let (start, resume_cmd) = match agent {
+        "claude" => (format!("claude --session-id {id} -n {}", quote(name)), format!("claude --resume {id} -n {}", quote(name))),
+        "pi" => return Ok(format!("pi --session-id {id} -n {}", quote(name))), // it starts the conversation when missing
+        _ => ("codex".to_string(), format!("codex resume {id}")),
+    };
     // Windows PowerShell 5.1 has no `||`
     Ok(match (resume, cfg!(windows)) {
         (false, _) => start,
@@ -722,11 +727,43 @@ fn agent_command(agent: &str, claude: Option<&str>, name: &str, resume: bool) ->
     })
 }
 
+/// The id of the Codex conversation that a tab started in `dir` after `since` (ms since 1970), not one of `taken`
+/// (the other tabs'). Codex makes its id and writes it when the first message is sent, in the first line of
+/// $CODEX_HOME/sessions/<year>/<month>/<day>/rollout-<time>-<id>.jsonl, with the folder (`cwd`).
+#[tauri::command]
+fn codex_conversation(since: u64, taken: Vec<String>, app: State<App>) -> Option<String> {
+    let dir = app.ledger.lock().unwrap().as_ref()?.dir.clone();
+    let home = std::env::var_os("CODEX_HOME").map(PathBuf::from).or_else(|| {
+        std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(|h| PathBuf::from(h).join(".codex"))
+    })?;
+    codex_find(&home, &dir, std::time::UNIX_EPOCH + Duration::from_millis(since), &taken)
+}
+
+fn codex_find(home: &Path, dir: &Path, since: std::time::SystemTime, taken: &[String]) -> Option<String> {
+    let sorted = |d: &Path| -> Vec<PathBuf> {
+        let mut v: Vec<PathBuf> = std::fs::read_dir(d).into_iter().flatten().flatten().map(|e| e.path()).collect();
+        v.sort();
+        v
+    };
+    // the last two days: a conversation started before midnight is in the day before
+    let mut days: Vec<PathBuf> = sorted(&home.join("sessions")).iter().flat_map(|y| sorted(y)).flat_map(|m| sorted(&m)).collect();
+    days.drain(..days.len().saturating_sub(2));
+    days.iter().flat_map(|d| sorted(d)).find_map(|f| {
+        if f.extension()? != "jsonl" || f.metadata().ok()?.modified().ok()? < since {
+            return None;
+        }
+        let first = std::io::BufReader::new(std::fs::File::open(&f).ok()?).lines().next()?.ok()?;
+        let meta: serde_json::Value = serde_json::from_str(&first).ok()?;
+        let (id, cwd) = (meta["payload"]["id"].as_str()?, meta["payload"]["cwd"].as_str()?);
+        (Path::new(cwd) == dir && !taken.iter().any(|t| t == id)).then(|| id.to_string())
+    })
+}
+
 /// Starts `agent` (or a plain shell when empty) in the ledger folder and returns its session number. Output goes to
 /// the `pty-data` event, the end to `pty-exit`, both with the session, so a tab ignores what an older program wrote.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-fn pty_start(agent: String, cols: u16, rows: u16, claude: Option<String>, name: String, resume: bool, install: bool,
+fn pty_start(agent: String, cols: u16, rows: u16, conversation: Option<String>, name: String, resume: bool, install: bool,
              app: State<App>, handle: tauri::AppHandle) -> Result<u64, String> {
     if !agent.is_empty() && !AGENTS.contains(&agent.as_str()) {
         return Err(format!("unknown agent {agent}"));
@@ -738,7 +775,7 @@ fn pty_start(agent: String, cols: u16, rows: u16, claude: Option<String>, name: 
     let mut cmd = CommandBuilder::new(shell());
     if !agent.is_empty() {
         // when the agent exits, the tab ends too (no shell after it): the app's tasks type into agent tabs only
-        let mut line = agent_command(&agent, claude.as_deref(), &name, resume)?;
+        let mut line = agent_command(&agent, conversation.as_deref(), &name, resume)?;
         if install {
             // the agent's installer first, in the tab, so the user sees it; then the agent, which asks to sign in
             let (_, sh, ps) = INSTALLERS.iter().find(|i| i.0 == agent).ok_or(format!("no installer for {agent}"))?;
@@ -910,7 +947,7 @@ fn main() {
             })?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![log, setup_log, rpc, agents, ledger_dir, recent_ledgers, open_ledger, new_ledger, sample_ledger, server_url, app_settings, save_app_settings, inbox_add, inbox_remove, inbox_reveal, open_url, feedback, check_updates, claude_extension, claude_extension_install, load_tabs, save_tabs, pty_start, pty_write, pty_resize, pty_kill])
+        .invoke_handler(tauri::generate_handler![log, setup_log, rpc, agents, ledger_dir, recent_ledgers, open_ledger, new_ledger, sample_ledger, server_url, app_settings, save_app_settings, inbox_add, inbox_remove, inbox_reveal, open_url, feedback, check_updates, claude_extension, claude_extension_install, load_tabs, save_tabs, codex_conversation, pty_start, pty_write, pty_resize, pty_kill])
         .build(tauri::generate_context!())
         .expect("cannot build the app")
         .run(|handle, event| {
@@ -926,15 +963,39 @@ mod tests {
 
     #[test]
     #[cfg(not(windows))]
-    fn claude_command() {
+    fn agent_commands() {
         let id = "0b9c8f8e-1d2a-4c3b-9a8f-7e6d5c4b3a21";
         assert_eq!(quote("it's"), r"'it'\''s'");
-        assert_eq!(agent_command("codex", Some(id), "x", true).unwrap(), "codex");
+        assert_eq!(agent_command("codex", None, "x", true).unwrap(), "codex");
+        assert_eq!(agent_command("codex", Some(id), "x", true).unwrap(), format!("codex resume {id} || codex"));
+        assert_eq!(agent_command("pi", Some(id), "dane", true).unwrap(), format!("pi --session-id {id} -n 'dane'"));
+        assert_eq!(agent_command("cursor-agent", Some(id), "x", true).unwrap(), "cursor-agent");
         assert_eq!(agent_command("claude", None, "x", true).unwrap(), "claude");
         assert_eq!(agent_command("claude", Some(id), "dane", false).unwrap(), format!("claude --session-id {id} -n 'dane'"));
         assert_eq!(agent_command("claude", Some(id), "dane", true).unwrap(),
                    format!("claude --resume {id} -n 'dane' || claude --session-id {id} -n 'dane'"));
         assert!(agent_command("claude", Some("x; rm -rf ~"), "x", false).is_err());
+    }
+
+    #[test]
+    fn codex_conversation_file() {
+        let home = std::env::temp_dir().join(format!("kingsmint-codex-{}", std::process::id()));
+        let day = home.join("sessions/2026/11/26");
+        std::fs::create_dir_all(&day).unwrap();
+        let since = std::time::SystemTime::now() - Duration::from_secs(5);
+        let rollout = |name: &str, id: &str, cwd: &str| {
+            let meta = serde_json::json!({"type": "session_meta", "payload": {"id": id, "cwd": cwd}});
+            std::fs::write(day.join(format!("rollout-{name}-{id}.jsonl")), format!("{meta}\n{{}}\n")).unwrap();
+        };
+        let (a, b) = ("01a216ac-fc81-7723-9f86-2fb13cb9d17b", "01a216ad-0000-7000-8000-000000000001");
+        rollout("2026-11-26T08-06-05", a, "/ledger");
+        rollout("2026-11-26T08-06-07", b, "/ledger");
+        rollout("2026-11-26T08-06-06", "01a216ad-0000-7000-8000-000000000002", "/other");
+        let find = |taken: &[String]| codex_find(&home, Path::new("/ledger"), since, taken);
+        assert_eq!(find(&[]).as_deref(), Some(a));
+        assert_eq!(find(&[a.to_string()]).as_deref(), Some(b)); // another tab has the first
+        assert_eq!(codex_find(&home, Path::new("/ledger"), std::time::SystemTime::now() + Duration::from_secs(60), &[]), None);
+        std::fs::remove_dir_all(&home).ok();
     }
 
     #[test]

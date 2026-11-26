@@ -31,8 +31,8 @@ Other banks: ask Claude to add one from a sample statement (`add-bank` skill).
 
 The app for macOS and Windows: download the `.dmg` or the Windows installer (`_x64-setup.exe`, `_arm64-setup.exe`)
 from the [latest release](https://github.com/kingsmint/kingsmint/releases/latest).
-It creates a ledger, imports the statements you drop into its inbox, and runs your agent (Claude Code, Codex or
-Cursor) beside an overview of your money, your reports and Fava. Every change is a version you can undo. It
+It creates a ledger, imports the statements you drop into its inbox, and runs your agent (Claude Code, Codex,
+Cursor or pi) beside an overview of your money, your reports and Fava. Every change is a version you can undo. It
 ships with uv and installs Python and the packages itself, and Claude Code or Codex when no agent is found. The Windows installer is
 not signed yet: Windows SmartScreen asks before the first start (More info, then Run anyway). See
 [`app/README.md`](app/README.md) to build it.

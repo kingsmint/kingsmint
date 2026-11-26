@@ -1,8 +1,8 @@
 // Panels (Dockview): Fava, the inbox, the overview, the reports and the settings; and in the agent's sidebar on the
 // right (a second Dockview, one group), one tab per terminal. A terminal runs one program (an agent,
 // or "" for a shell), which keeps running while another tab shows or the sidebar hides. `session` is the program's number; events of an
-// ended program are ignored. A Claude Code terminal has its own session id (`claude`), so it continues the same
-// conversation after a restart. The layout, with each terminal's agent and session id and Fava's page, is saved per
+// ended program are ignored. An agent's terminal keeps its conversation's id (`conversation`), so it continues the
+// same conversation after a restart. The layout, with each terminal's agent and session id and Fava's page, is saved per
 // ledger, with the sidebar's.
 
 import * as DV from "dockview-core";
@@ -245,10 +245,10 @@ export async function loadLayout(dir) {
   }
   // the terminals of a layout from before the sidebar move into it, where their programs continue
   for (const tab of tabs.filter((t) => dock.getPanel(t.api.id))) {
-    const { agent, claude } = tab,
+    const { agent, conversation } = tab,
       name = tab.api.title;
     dock.getPanel(tab.api.id).api.close();
-    addTab({ agent, claude, name });
+    addTab({ agent, conversation, name });
   }
   if (!dock.panels.length) {
     dock.addPanel({ id: "dashboard", component: "dashboard", title: t("dashboard") });
