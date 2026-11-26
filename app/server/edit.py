@@ -285,6 +285,18 @@ def rule_preview(root: Path, e, entries, account: str) -> dict:
             "moves": sum(1 for r in rows if not r["edited"] and r["accounts"] != [account] and r["id"] != e.meta["id"])}
 
 
+def insert_above_rules(ls: list[str], block: list[str]) -> None:
+    """Puts `block` (lines, as a paragraph) in `ls` above the first rule: at the start of the rule's paragraph, so it
+    never comes between a comment and what it explains, whatever the comment says. Without a rule, at the end. A blank
+    line keeps it a paragraph of its own."""
+    at = next((i for i, line in enumerate(ls) if RULE.match(line)), len(ls))
+    while 0 < at < len(ls) and ls[at - 1].strip():
+        at -= 1
+    if ls and not ls[-1].endswith("\n"):
+        ls[-1] += "\n"
+    ls[at:at] = ([] if at == 0 or not ls[at - 1].strip() else ["\n"]) + block + ["\n"]
+
+
 def add_rule(root: Path, e, account: str) -> str:
     """Puts the rule for the counterparty of `e` at the top of rules.beancount, so it wins over the rules there."""
     regex, label = counterparty(root, e)
@@ -293,12 +305,9 @@ def add_rule(root: Path, e, account: str) -> str:
         raise EditError("The ledger has no rules.beancount")
     text = path.read_text(encoding="utf-8")
     ls = merge.lines(text)
-    at = next((i for i, line in enumerate(ls) if RULE.match(line)), len(ls))
-    if at == len(ls) and ls and not ls[-1].endswith("\n"):
-        ls[-1] += "\n"
     quoted = regex.replace("\\", "\\\\").replace('"', '\\"')
-    ls[at:at] = [f"; {label}: from the app, {dt.date.today()}\n",
-                 f'2000-01-01 custom "rule" "{quoted}" {account}\n', "\n"]
+    insert_above_rules(ls, [f"; {label}: from the app, {dt.date.today()}\n",
+                            f'2000-01-01 custom "rule" "{quoted}" {account}\n'])
     out = "".join(ls)
     if len(parser.parse_string(out)[1]) > len(parser.parse_string(text)[1]):
         raise EditError("The rule would break rules.beancount; nothing was written")
@@ -444,3 +453,43 @@ def at_line(text: str, e, name: str):
         if chunk[3] <= row < chunk[4] and chunk[2].startswith(e.date.isoformat()):
             return chunk
     raise EditError(f"{name}:{row + 1}: the transaction {e.date} {e.payee or e.narration} is not there; the file changed")
+
+
+def set_recurring(root: Path, changes: list) -> str:
+    """Writes what the overview's recurring payments do with payees, above the rules in rules.beancount (as add_rule
+    does: the order does not matter to these lines, but a file with the app's lines on top reads alike), each in place
+    of what a line said before. `changes`: [payee, state, period]: `include` with `period` (monthly, quarterly,
+    yearly: confirmed), `ignore` (not recurring), or None (the line goes: a suggestion again, if found)."""
+    path = root / "rules.beancount"
+    if not path.exists():
+        raise EditError("The ledger has no rules.beancount")
+    if not changes:
+        raise EditError("No payee to change")
+    text = path.read_text(encoding="utf-8")
+    ls = merge.lines(text)
+    done = []
+    for payee, state, period in changes:
+        # the payee as the ledger names it, spaces and quotes too: marks() compares it as it is
+        if not isinstance(payee, str) or not payee or "\n" in payee:
+            raise EditError(f"Not a payee: {payee!r}")
+        quoted = payee.replace("\\", "\\\\").replace('"', '\\"')
+        if not ((state in (None, "ignore") and period is None)
+                or (state == "include" and period in ("monthly", "quarterly", "yearly"))):
+            raise EditError(f"Not a recurring state: {state!r} {period!r}")
+        line = re.compile(rf'^\d{{4}}-\d{{2}}-\d{{2}} custom "recurring" "{re.escape(quoted)}" ')
+        # the payee's lines, and the blank line the app wrote after each
+        ls = [x for i, x in enumerate(ls) if not line.match(x) and not (x == "\n" and i and line.match(ls[i - 1]))]
+        while len(ls) > 1 and ls[-1] == "\n" and ls[-2].endswith("\n"):  # the blank line written before one at the end
+            ls.pop()
+        if state:
+            words = " ".join(f'"{w}"' for w in (quoted, state, period) if w)
+            insert_above_rules(ls, [f"{dt.date.today()} custom \"recurring\" {words}\n"])
+        done.append(f"{payee}: {state or 'undecided'}{f' {period}' if period else ''}")
+    out = "".join(ls)
+    what = "; ".join(done)
+    if out == text:
+        return what
+    if len(parser.parse_string(out)[1]) > len(parser.parse_string(text)[1]):
+        raise EditError("The change would break rules.beancount; nothing was written")
+    write(path, out)
+    return what

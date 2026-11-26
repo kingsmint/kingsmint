@@ -5,13 +5,15 @@ balances at the rate of the month's last day. Positive income and expenses; bala
 negative)."""
 
 import datetime as dt
+import math
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from decimal import Decimal
+from statistics import median
 
 import beanquery
 from beancount.core import account as acc
-from beancount.core.data import Open, Query, Transaction
+from beancount.core.data import Custom, Open, Query, Transaction
 from fava.beans.funcs import hash_entry
 
 CASH = "Expenses:Cash"  # cash spent when withdrawn; cash.beancount moves it to the categories
@@ -149,15 +151,15 @@ def transactions(entries, options, rate, start: str, end: str, account: str | No
     in positive: income and expenses with the sign turned, assets and liabilities as booked, with the account's
     `balance` after each. Each with its entry's `others` accounts, `hash` (Fava's, for its statement and context
     pages), and whether it names a statement (`document`); a cash payment's category `cash`: its amount, which counts 0
-    (it was spent when withdrawn). `merchants`: their payees, `recurring` when the payee was
-    paid in each of the 3 months up to `end`."""
+    (it was spent when withdrawn). `merchants`: their payees, `recurring` when the payee's payments are confirmed as
+    recurring (`marks`)."""
     led = Ledger(entries, options, rate)
     lo, hi = (key(dt.date.fromisoformat(m + "-01")) for m in (start, end))
     booked = bool(account) and account.split(":")[0] in ("Assets", "Liabilities")
-    rows, seen, balance = [], defaultdict(set), Decimal(0)
+    rows, balance = [], Decimal(0)
     for e in led.txns:
         m = key(e.date)
-        if m > hi or (m < min(lo, hi - 2) and not booked):
+        if m > hi or (m < lo and not booked):
             continue
         shown = [p for p in e.postings if (p.account == account or p.account.startswith(account + ":") if account
                                             else p.account.split(":")[0] in ("Income", "Expenses"))]
@@ -174,8 +176,6 @@ def transactions(entries, options, rate, start: str, end: str, account: str | No
                 continue
             balance += n
             payee = e.payee or e.narration
-            if m >= hi - 2:
-                seen[payee].add(m)
             if m >= lo:
                 rows.append({"date": e.date.isoformat(), "payee": payee, "narration": e.narration,
                              "account": p.account, "amount": money(0 if cash else n if booked else -n),
@@ -187,9 +187,114 @@ def transactions(entries, options, rate, start: str, end: str, account: str | No
     for r in rows:
         payees[r["payee"]][0] += Decimal(str(r["amount"]))
         payees[r["payee"]][1] += 1
-    merchants = sorted(({"payee": p, "amount": money(s), "count": c, "recurring": len(seen[p]) == 3}
+    regular = {p for p, (state, _) in marks(entries).items() if state == "include"}
+    merchants = sorted(({"payee": p, "amount": money(s), "count": c, "recurring": p in regular}
                         for p, (s, c) in payees.items()), key=lambda m: m["amount"])
     return {"rows": rows, "merchants": merchants}
+
+
+# the periods a payee's payments can repeat in: months, and the gaps (days) between payments that fit it
+PERIODS = {1: (20, 41), 3: (70, 110), 12: (330, 400)}
+
+
+def add_months(d: dt.date, n: int) -> dt.date:
+    k = key(d) + n
+    return min(dt.date(k // 12, k % 12 + 1, 1) + dt.timedelta(days=d.day - 1), month_end(k))
+
+
+# the words of a period in `custom "recurring" "<payee>" "include" "<period>"`
+PERIOD_WORDS = {"monthly": 1, "quarterly": 3, "yearly": 12}
+
+
+def marks(entries) -> dict[str, tuple[str, int | None]]:
+    """What rules.beancount says of a payee's recurring payments, the last line of a payee winning: (`ignore`, None)
+    from `custom "recurring" "<payee>" "ignore"`: not recurring; (`include`, months) from
+    `custom "recurring" "<payee>" "include" "monthly"` (or "quarterly", "yearly"): recurring, also when not found."""
+    out = {}
+    for e in entries:
+        if isinstance(e, Custom) and e.type == "recurring" and len(e.values) >= 2:
+            words = [v.value for v in e.values]
+            if words[1] == "ignore":
+                out[words[0]] = ("ignore", None)
+            elif words[1] == "include" and len(words) > 2 and words[2] in PERIOD_WORDS:
+                out[words[0]] = ("include", PERIOD_WORDS[words[2]])
+    return out
+
+
+def guess(gaps: list[int]) -> int | None:
+    """The period nearest to the median gap between payments, or None without a gap."""
+    if not gaps:
+        return None
+    g = median(gaps)
+    return min(PERIOD_WORDS.values(), key=lambda m: abs(math.log(max(g, 1) / (30.4 * m))))
+
+
+def recurring(entries, options, rate, today: dt.date | None = None) -> dict:
+    """The recurring payments of the 24 months up to the last transaction (or `today`, if earlier), from each expense
+    payment of a payee (the transaction's expenses in the operating currency). `payees` (the largest per month first),
+    each with its `state` from rules.beancount (`marks`): "confirmed" (include), "ignored" (ignore), or "suggested":
+    found, not decided yet. Found: each gap between payments fits one `period` (1, 3 or 12 months), and the amounts
+    stay near their median (`typical`); `manual`: confirmed, not found. Each has its payments (`amounts`, oldest
+    first), the `last` payment and the `next` expected, and the flags `higher` (the last above the typical), `new` (the
+    first in the last 3 months, in a ledger that starts before them), `ended` (the next did not come by the last
+    transaction of the accounts that paid it: another bank's statements may be imported later). `monthly`: what the confirmed ones not ended cost a
+    month. `others`: the payees neither found nor marked, to confirm by hand, each with the period its gaps suggest
+    (`period`, None after one payment)."""
+    led = Ledger(entries, options, rate)
+    if not led.txns:
+        return {"currency": led.currency, "monthly": 0.0, "payees": [], "others": []}
+    now = min(today or dt.date.max, max(e.date for e in led.txns))
+    since = add_months(now, -24)
+    recent = add_months(now, -3)
+    old = min(e.date for e in led.txns) <= recent  # a ledger younger than 3 months has nothing new
+    paid = defaultdict(list)  # payee -> [(date, amount)]
+    payers = defaultdict(set)  # payee -> the accounts that paid it
+    known = defaultdict(lambda: dt.date.min)  # an account -> the date of its last transaction
+    for e in led.txns:
+        if e.date > now:
+            continue
+        own = {p.account for p in e.postings if p.account.split(":")[0] in ("Assets", "Liabilities")}
+        if len(own) == 1:  # not a transfer: a card paid off from the current account says nothing of the card's statements
+            known[next(iter(own))] = max(known[next(iter(own))], e.date)
+        if e.date <= since:
+            continue
+        values = [led.value(p.units.number, p.units.currency, e.date) for p in e.postings
+                  if p.account.startswith("Expenses:")]
+        if values and None not in values and (n := sum(values)) > 0:  # money back is not a payment
+            paid[e.payee or e.narration].append((e.date, n))
+            payers[e.payee or e.narration] |= own
+    marked = marks(entries)
+    found, others = [], []
+    for payee, pays in sorted(paid.items()):
+        pays.sort()
+        gaps = [(b[0] - a[0]).days for a, b in zip(pays, pays[1:])]
+        amounts = [n for _, n in pays]
+        typical = median(amounts)
+        state, period = marked.get(payee, (None, None))
+        regular = next((m for m, (lo, hi) in PERIODS.items() if gaps and all(lo <= g <= hi for g in gaps)), None)
+        # shortcut: amounts within a third of the median; a payee with two plans of very different prices is not
+        # found: confirm it by hand
+        if (regular is None or len(pays) < (2 if regular == 12 else 3)
+                or sum(abs(n - typical) > typical / 3 for n in amounts) > len(amounts) // 4):
+            regular = None
+        if not state and not regular:
+            others.append({"payee": payee, "period": guess(gaps), "count": len(pays)})
+            continue
+        period = period or regular or guess(gaps) or 1
+        last = pays[-1][0]
+        nxt = add_months(last, period)
+        found.append({
+            "payee": payee, "period": period, "typical": money(typical), "amounts": [money(n) for n in amounts],
+            "first": pays[0][0].isoformat(), "last": last.isoformat(), "next": nxt.isoformat(),
+            "higher": len(amounts) > 1 and amounts[-1] > typical * Decimal("1.01"),
+            "new": old and pays[0][0] > recent,
+            "ended": (max((known[a] for a in payers[payee]), default=now) - nxt).days > PERIODS[period][1] - 30 * period,
+            "state": {"include": "confirmed", "ignore": "ignored"}.get(state, "suggested"),
+            "manual": state == "include" and not regular})
+    found.sort(key=lambda r: -r["typical"] / r["period"])
+    return {"currency": led.currency, "payees": found, "others": others,
+            "monthly": money(sum(Decimal(str(r["typical"])) / r["period"] for r in found
+                                 if r["state"] == "confirmed" and not r["ended"]))}
 
 
 @dataclass

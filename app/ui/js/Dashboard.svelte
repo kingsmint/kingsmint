@@ -74,6 +74,10 @@
   const wide = $derived(width >= 1100);
   const listView = $derived(wide && view.name === "txn" && view.parent?.name === "txns" ? view.parent : view);
   let payees = $state(null); // the payees of the account that shows, in the chosen period
+  let rec = $state(null); // the recurring payments: what rpc("recurring") gives
+  let adding = $state(null); // the recurring view's form that confirms a payee by hand: { payee, period }
+  let showHidden = $state(false); // the recurring view shows the payees marked as not recurring
+  let showSuggested = $state(null); // ... and the suggestions; null: only while none is confirmed
   // the transactions view: its rows from the period before the chosen one (for the comparison), and the text searched
   let rows = $state(null);
   let search = $state("");
@@ -295,6 +299,7 @@
       return [...before, { label: t("transactions") }];
     }
     if (v.name === "tags") return [{ label: t("tags") }];
+    if (v.name === "recurring") return [{ label: t("recurringPayments") }];
     if (v.name !== "account") return [{ label: tiles.find((x) => x.go?.name === v.name)?.title }];
     return path(v.account);
   };
@@ -350,6 +355,35 @@
     load();
   }
 
+  // the recurring payments: the payees the owner confirmed, the ones found that wait for a decision (suggested), and the
+  // ones marked as not recurring (ignored), as rules.beancount says (server/edit.py set_recurring); each change with
+  // Undo. A click on a payee: its payments over a year.
+  const PERIOD_NAMES = { 1: "monthly", 3: "quarterly", 12: "yearly" };
+  const perMonth = $derived(rec && `~${eur(rec.monthly)} ${t("aMonth")}`);
+  const recOf = (payee) => rec?.payees.find((p) => p.payee === payee);
+  const otherOf = (payee) => rec?.others.find((p) => p.payee === payee);
+  const recIn = (state) => rec?.payees.filter((p) => p.state === state) ?? [];
+  function openPayee(p) {
+    unit = "year";
+    pick(p.last.slice(0, 4));
+    go({ name: "txns", payee: p.payee });
+  }
+  // what rules.beancount says of a payee now, as set_recurring takes it
+  const markOf = (payee) => {
+    const p = recOf(payee);
+    if (p?.state === "confirmed") return [payee, "include", PERIOD_NAMES[p.period]];
+    return [payee, p?.state === "ignored" ? "ignore" : null, null];
+  };
+  const confirm = (p) => [p.payee, "include", PERIOD_NAMES[p.period]];
+  async function setRecurring(changes, message, undoable = true) {
+    const before = changes.map(([payee]) => markOf(payee));
+    const r = await rpc("recurring_set", { changes }).catch((e) => ({ error: String(e) }));
+    if (r.error) toast(Message, { text: r.error }, { variant: "danger", duration: 0 });
+    else if (undoable)
+      toast(Message, { text: t(message), action: t("runwayUndo"), act: () => setRecurring(before, "", false) });
+    loadRec();
+  }
+
   async function load() {
     try {
       d = await rpc("dashboard", period ? { unit, period } : { unit });
@@ -358,6 +392,13 @@
     }
     loadTags();
   }
+  // the recurring payments do not depend on the period: they load at the start and after the ledger changed
+  function loadRec() {
+    rpc("recurring")
+      .then((r) => (rec = r))
+      .catch(() => {});
+  }
+  const reload = () => (load(), loadRec());
   function loadTags() {
     rpc("tags")
       .then((r) => (tagged = r))
@@ -365,9 +406,9 @@
   }
 
   $effect(() => {
-    untrack(load); // once: a change of the period loads in pick(), not by running this again
-    const off = listen("ledger-changed", load);
-    document.addEventListener("km-ledger", load);
+    untrack(reload); // once: a change of the period loads in pick(), not by running this again
+    const off = listen("ledger-changed", reload);
+    document.addEventListener("km-ledger", reload);
     // Esc goes one level up, ← and → to the previous and the next period, when the overview has the focus (not in a
     // terminal, where the keys are the program's)
     const key = (e) => {
@@ -396,7 +437,7 @@
       unit = saved.unit ?? "month";
       period = saved.period ?? null;
       history.replaceState({ dashboard: $state.snapshot(view), panel: id }, "");
-      load();
+      reload();
     };
     document.addEventListener("km-overview", restore);
     // a view of the rail (rail.js showView), in this overview
@@ -435,7 +476,7 @@
     panel.addEventListener("mouseup", back);
     return () => {
       off.then((unlisten) => unlisten());
-      document.removeEventListener("km-ledger", load);
+      document.removeEventListener("km-ledger", reload);
       document.removeEventListener("km-account", account);
       document.removeEventListener("km-cash", cash);
       document.removeEventListener("km-overview", restore);
@@ -938,6 +979,8 @@
     new Intl.DateTimeFormat(app.lang, { day: "numeric", month: "long", year: "numeric" }).format(new Date(iso));
   // a tag's period: the dates of its first and last transaction
   const dates = (x) => (x.first === x.last ? fullDay(x.first) : `${fullDay(x.first)} – ${fullDay(x.last)}`);
+  const shortDay = (iso) =>
+    new Intl.DateTimeFormat(app.lang, { day: "numeric", month: "short", year: "numeric" }).format(new Date(iso));
   const longDay = (iso) =>
     new Intl.DateTimeFormat(app.lang, { weekday: "long", day: "numeric", month: "long" }).format(new Date(iso));
 </script>
@@ -1050,6 +1093,11 @@
               {new Intl.DateTimeFormat(app.lang, { dateStyle: "full" }).format(new Date(txn.date))}{#if txn.narration && txn.narration !== txn.payee}{` · ${txn.narration}`}{/if}
             </span>
             {#if txn.flag === "!"}<span class="tag" title={t("flaggedTitle")}>{t("flagged")}</span>{/if}
+            {#if recOf(txn.payee)?.state === "confirmed"}
+              <button type="button" class="tag link-tag" title={t("recurringTitle")} onclick={() => go({ name: "recurring" })}
+                >{t("recurring")}</button
+              >
+            {/if}
           </div>
           <strong>{txn.transfer ? cents(txn.amount) : signed(txn.amount)}</strong>
           {@render compare([
@@ -1065,6 +1113,7 @@
             <button type="button" class="action" onclick={() => statementOf(txn.hash)}>{t("openStatement")} <wa-icon name="external-link"></wa-icon></button>
           {/if}
           <button type="button" class="action" onclick={() => editInFava(txn.hash)}>{t("editInFava")} <wa-icon name="external-link"></wa-icon></button>
+          {@render markButton(txn.payee)}
           {#if listView !== view}
             <button type="button" class="action close" title={t("closeDetail")} onclick={up}
               ><wa-icon name="panel-right-close"></wa-icon> {t("close")}</button
@@ -1182,6 +1231,80 @@
     {/if}
 {/snippet}
 
+<!-- a transaction's payee confirmed as recurring: with the period its payments suggest, or the one picked when they
+     suggest none (one payment) -->
+{#snippet markButton(payee)}
+  {@const p = recOf(payee)}
+  {@const period = p?.period ?? otherOf(payee)?.period}
+  {#if rec?.editable && (otherOf(payee) || (p && p.state !== "confirmed"))}
+    {#if period}
+      <button type="button" class="action" title={t("recurringMarkTitle")}
+        onclick={() => setRecurring([[payee, "include", PERIOD_NAMES[period]]], "recurringConfirmed")}
+        ><wa-icon name="repeat"></wa-icon> {t("recurringMark")}</button
+      >
+    {:else}
+      <wa-dropdown>
+        <button slot="trigger" type="button" class="action" title={t("recurringMarkTitle")}
+          ><wa-icon name="repeat"></wa-icon> {t("recurringMark")} <wa-icon name="chevron-down"></wa-icon></button
+        >
+        {#each Object.values(PERIOD_NAMES) as w}
+          <wa-dropdown-item onclick={() => setRecurring([[payee, "include", w]], "recurringConfirmed")}>{t(w)}</wa-dropdown-item>
+        {/each}
+      </wa-dropdown>
+    {/if}
+  {/if}
+{/snippet}
+
+<!-- a row of the recurring payments, as a transaction's in the list: the payee over its period and next payment, the
+     usual amount over what it costs a month; what the owner can decide of it on the right -->
+{#snippet recRow(p)}
+  <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role: the row holds buttons, a button cannot -->
+  <li class="item" class:faded={p.ended || p.state === "ignored"} role="button" tabindex="0" onclick={() => openPayee(p)}
+    onkeydown={(e) => e.key === "Enter" && openPayee(p)}>
+    <span class="main">
+      <span class="title"><span class="name">{p.payee}</span>{@render recTags(p)}</span>
+      <span class="sub">
+        <span>{t(PERIOD_NAMES[p.period])}</span>
+        <span>{p.ended ? t("recurringLastShort", { date: shortDay(p.last) }) : t("recurringNextShort", { date: shortDay(p.next) })}</span>
+      </span>
+    </span>
+    <span class="rec-spark"><Spark values={p.amounts} span={p.typical / 5} /></span>
+    <span class="trail">
+      <span class="num amount">{eur(p.typical)}</span>
+      {#if p.period > 1}<span class="num run">~{eur(p.typical / p.period)} {t("aMonth")}</span>{/if}
+    </span>
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions: only stops the row's click -->
+    <span class="rec-actions" onclick={(e) => e.stopPropagation()}>
+      {#if rec.editable && p.state === "ignored"}
+        <button type="button" class="more" onclick={() => setRecurring([[p.payee, null, null]], "recurringRestored")}
+          >{t("recurringRestore")}</button
+        >
+      {:else if rec.editable}
+        {#if p.state === "suggested"}
+          <button type="button" class="more" onclick={() => setRecurring([confirm(p)], "recurringConfirmed")}
+            >{t("recurringConfirm")}</button
+          >
+        {/if}
+        <wa-dropdown placement="bottom-end">
+          <button slot="trigger" type="button" class="menu" title={t("recurringMenu")}
+            ><wa-icon name="ellipsis" label={t("recurringMenu")}></wa-icon></button
+          >
+          <wa-dropdown-item onclick={() => setRecurring([[p.payee, "ignore", null]], "recurringHidden")}
+            ><wa-icon slot="icon" name="eye-off"></wa-icon>{t("recurringHide")}</wa-dropdown-item
+          >
+        </wa-dropdown>
+      {/if}
+    </span>
+  </li>
+{/snippet}
+
+{#snippet recTags(p)}
+  {#if p.new}<span class="tag" title={t("recurringNewTitle")}>{t("recurringNew")}</span>{/if}
+  {#if p.higher}<span class="tag" data-state="warn" title={t("recurringHigherTitle")}>{t("recurringHigher")}</span>{/if}
+  {#if p.ended}<span class="tag" title={t("recurringEndedTitle")}>{t("recurringEnded")}</span>{/if}
+  {#if p.manual}<span class="tag" title={t("recurringManualTitle")}>{t("recurringManual")}</span>{/if}
+{/snippet}
+
 {#snippet compare(list)}
   {#if list.some(Boolean)}
     <dl>
@@ -1219,7 +1342,7 @@
         {/if}
       </nav>
     {/if}
-    {#if d?.periods?.length && view.name !== "tags"}<!-- the tags' list: each tag over all its dates -->
+    {#if d?.periods?.length && view.name !== "tags" && view.name !== "recurring"}<!-- the tags' list: each tag over all its dates -->
       <div class="period">
         {#if !listView.all && unit === "year" && d.months < 12}
           <span class="muted">{t("ytd", { months: date(d.ends.at(-1), { month: "long" }) })}</span>
@@ -1317,6 +1440,32 @@
           </p>
         {/if}
       </section>
+      {#if rec?.payees.length}
+        {@const confirmed = recIn("confirmed").filter((p) => !p.ended)}
+        {@const waiting = recIn("suggested").length}
+        <section class="card">
+          <h2>
+            <button type="button" class="more" onclick={() => go({ name: "recurring" })}>{t("recurringPayments")} <wa-icon name="chevron-right"></wa-icon></button>
+            {#if confirmed.length}<span class="muted">{perMonth}</span>{/if}
+          </h2>
+          <ul class="bars rec">
+            {#each confirmed.slice(0, 8) as p (p.payee)}
+              <li>
+                <button type="button" onclick={() => openPayee(p)}>
+                  <span class="name">{p.payee}{@render recTags(p)}</span>
+                  <span class="muted">{t(PERIOD_NAMES[p.period])}</span>
+                  <span class="num">{eur(p.typical)}</span>
+                </button>
+              </li>
+            {/each}
+          </ul>
+          {#if waiting}
+            <button type="button" class="more" onclick={() => ((showSuggested = true), go({ name: "recurring" }))}
+              >{t("recurringWaiting", { n: waiting })} <wa-icon name="chevron-right"></wa-icon></button
+            >
+          {/if}
+        </section>
+      {/if}
     </div>
     {#if tagged?.tags?.length}
       <div class="panels">
@@ -1413,6 +1562,72 @@
         </tbody>
       </table>
     {/if}
+  {:else if view.name === "recurring" && rec}
+    {@const suggested = recIn("suggested")}
+    {@const hidden = recIn("ignored")}
+    <div class="headline">
+      <strong>{perMonth}</strong>
+      <span class="muted">{t("recurringNote")}</span>
+      {#if rec.editable && !adding}
+        <wa-button class="more" size="small" appearance="filled" onclick={() => (adding = { payee: "", period: "monthly" })}
+          ><wa-icon slot="start" name="plus"></wa-icon>{t("recurringAdd")}</wa-button
+        >
+      {/if}
+    </div>
+    {#if adding}
+      {@const other = otherOf(adding.payee)}
+      <form
+        class="edit-bar rec-add"
+        onsubmit={(e) => {
+          e.preventDefault();
+          setRecurring([[adding.payee, "include", adding.period]], "recurringAdded");
+          adding = null;
+        }}
+      >
+        <input type="text" list="rec-others" placeholder={t("payee")} aria-label={t("payee")} bind:value={adding.payee} use:focus
+          oninput={() => otherOf(adding.payee)?.period && (adding.period = PERIOD_NAMES[otherOf(adding.payee).period])}
+          onkeydown={(e) => e.key === "Escape" && (adding = null)} />
+        <datalist id="rec-others">
+          {#each rec.others as o (o.payee)}<option value={o.payee}></option>{/each}
+        </datalist>
+        <select bind:value={adding.period} aria-label={t("recurringPeriod")}>
+          {#each Object.values(PERIOD_NAMES) as w}<option value={w}>{t(w)}</option>{/each}
+        </select>
+        <span class="muted">{other ? t("recurringCount", { n: other.count }) : ""}</span>
+        <wa-button size="small" appearance="filled" onclick={() => (adding = null)}>{t("cancel")}</wa-button>
+        <wa-button size="small" variant="brand" type="submit" disabled={!other}>{t("recurringAdd")}</wa-button>
+      </form>
+    {/if}
+    {@const open = showSuggested ?? !recIn("confirmed").length}
+    <ul class="txlist rec-list">
+      {#each recIn("confirmed") as p (p.payee)}{@render recRow(p)}{:else}
+        <li class="empty muted">{t("recurringNoneConfirmed")}</li>
+      {/each}
+      {#if suggested.length}
+        <li class="month">
+          <button type="button" class="pick" onclick={() => (showSuggested = !open)}
+            ><wa-icon name={open ? "chevron-down" : "chevron-right"}></wa-icon> {t("recurringSuggested")} ({suggested.length})</button
+          >
+          {#if rec.editable && open}
+            <button type="button" class="more" onclick={() => setRecurring(suggested.map(confirm), "recurringConfirmed")}
+              >{t("recurringConfirmAll")}</button
+            >
+          {/if}
+        </li>
+        {#if open}
+          <li class="empty muted">{t("recurringSuggestedNote")}</li>
+          {#each suggested as p (p.payee)}{@render recRow(p)}{/each}
+        {/if}
+      {/if}
+      {#if hidden.length}
+        <li class="month">
+          <button type="button" class="pick" onclick={() => (showHidden = !showHidden)}
+            ><wa-icon name={showHidden ? "chevron-down" : "chevron-right"}></wa-icon> {t("recurringHiddenList")} ({hidden.length})</button
+          >
+        </li>
+        {#if showHidden}{#each hidden as p (p.payee)}{@render recRow(p)}{/each}{/if}
+      {/if}
+    </ul>
   {:else if view.name === "cashflow"}
     <Chart
       type="bar"

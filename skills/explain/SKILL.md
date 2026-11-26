@@ -43,6 +43,10 @@ The month is the last full calendar month. Done when the user has the summary be
    - income, expenses, and the difference (what was saved);
    - per `root(account, 2)` expense account, the month and the average; name the 3 largest changes, up and down;
    - one-off transactions above 10% of the month's expenses, and payees that appear for the first time;
+   - subscriptions: payees paid every month (or quarter, or year) whose payment is new or above its usual
+     amount (the median of earlier ones). `rules.beancount` lists the ones the owner confirmed
+     (`custom "recurring" "<payee>" "include" "<period>"`) and rejected (`"ignore"`); name a new regular payee that
+     is in neither, and tell the owner to confirm it in the app's **Recurring payments**;
    - runway: `uv run kingsmint runway` (months of the baseline that the liquid money covers).
    Give the causes in plain words, as in "A change between periods". End with what to watch next month.
 4. Commit: `Close <month>`, with the three main numbers of the summary in the body.

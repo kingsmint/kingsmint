@@ -119,7 +119,7 @@ def test_payee_rules_in_preview(tmp_path, monkeypatch, capsys):
     assert [name for _, _, name, _ in importer.NAMES] == ["Lidl", "Other", "Shop"]  # file order, not date order
     importer.preview()
     out = capsys.readouterr().out
-    assert "rules.beancount:25  Expenses:Uncategorized -> Expenses:Food  1" in out
-    assert "rules.beancount:22  payee 'LIDL 232 CITY' -> 'Lidl'  1" in out
+    assert "rules.beancount:28  Expenses:Uncategorized -> Expenses:Food  1" in out
+    assert "rules.beancount:25  payee 'LIDL 232 CITY' -> 'Lidl'  1" in out
     assert "no rule" not in out and "My shop" not in out  # km-1 and km-3 match the bank's text; km-3's name stays
     assert "1 transactions would change" in out

@@ -1253,6 +1253,69 @@ select.lang {
 .dashboard .bars button:hover {
   background: var(--wa-color-surface-lowered);
 }
+.dashboard .bars.rec button {
+  grid-template-columns: 1fr auto 6em;
+}
+.dashboard tr.muted td {
+  color: var(--wa-color-text-quiet);
+}
+/* the recurring payments: the form that adds a payee, a row's menu, the hidden payees under the list */
+.dashboard .rec-add input[type="text"] {
+  flex: 1;
+  max-width: 24em;
+}
+.dashboard .rec-list .title .name {
+  font-weight: 500;
+}
+.dashboard .rec-list .rec-spark {
+  width: 6em;
+  opacity: 0.7;
+}
+.dashboard .rec-list .rec-spark .spark {
+  height: 16px;
+}
+.dashboard .rec-list .trail {
+  min-width: 8em;
+}
+.dashboard .rec-list .item.faded {
+  color: var(--wa-color-text-quiet);
+}
+.dashboard .rec-list .rec-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  min-width: 7em;
+  justify-content: flex-end;
+}
+/* the row's menu shows on the row's hover, as the list stays quiet */
+.dashboard .rec-list .menu {
+  padding: 0.2em;
+  border: 0;
+  background: none;
+  color: var(--wa-color-text-quiet);
+  cursor: pointer;
+  opacity: 0;
+}
+.dashboard .rec-list .item:is(:hover, :focus-within) .menu {
+  opacity: 1;
+}
+.dashboard .rec-list .empty {
+  padding: 0.6em 12px;
+  font-size: var(--wa-font-size-s);
+}
+.dashboard .rec-list .month .pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  font-weight: 500;
+}
+.dashboard .rec-list .month .more {
+  font-weight: 400;
+}
+.dashboard button.link-tag {
+  border: 0;
+  cursor: pointer;
+}
 .dashboard .bars .name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1835,6 +1898,10 @@ wa-button:not([variant="brand"]) .agent-icon {
 .dashboard .txn section > .more {
   display: block;
   margin: -1em 0 1.5em;
+}
+/* after a list, which ends with a smaller margin than a table */
+.dashboard .txn section > .txlist + .more {
+  margin-top: 0;
 }
 .dashboard .txn .postings-head {
   display: flex;
