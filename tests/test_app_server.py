@@ -167,7 +167,9 @@ def test_dashboard(ledger, tmp_path):
     assert abs(sum(r["amount"] for r in t["rows"]) - (income - expenses)) < 0.05
     top = methods["transactions"](**month, account="Expenses:Food")
     assert abs(sum(r["amount"] for r in top["rows"]) + flows["Expenses:Food"][-1]) < 0.05
-    assert any(m["recurring"] for m in methods["transactions"](**month, account="Expenses")["merchants"])
+    rec = methods["recurring"]()  # suggestions only: the owner confirms them
+    assert rec["monthly"] == 0 and any(p["state"] == "suggested" and p["period"] == 1 for p in rec["payees"])
+    assert not any(m["recurring"] for m in methods["transactions"](**month, account="Expenses")["merchants"])
     assert all(len(r["hash"]) == 32 and r["document"] for r in top["rows"])  # Fava's hash; the sample names statements
     row = top["rows"][-1]
     e = methods["entry"](hash=row["hash"])

@@ -19,3 +19,6 @@
 ; merchant; a category rule may still group several.
 
 ; 2000-01-01 custom "payee" "^LIDL\\b" "Lidl"
+
+; DATE custom "recurring" "Payee" "include" "monthly" (or "quarterly", "yearly"; or "ignore"): the owner confirmed
+; the payee's payments as recurring in the app (or not).

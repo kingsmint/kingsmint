@@ -3,8 +3,8 @@
 origin: a script in Fava's frame cannot call the app's commands.
 
 The app asks it for the ledger's data on stdin (rpc.py), with the methods in `app.state.methods`: `query` (BQL on
-Fava's loaded ledger), `dashboard`, `transactions` and `entry` (the overview), the changes of transactions (`entry_save`, `rule_preview`,
-`rule_save`, `entry_reset`, `cash_save`), the tags (`tags`, `tags_save`), `reports` (reports/*.toml), `state` (statements
+Fava's loaded ledger), `dashboard`, `transactions`, `entry` and `recurring` (the overview), the changes of transactions (`entry_save`, `rule_preview`,
+`rule_save`, `entry_reset`, `cash_save`, `recurring_set`), the tags (`tags`, `tags_save`), `reports` (reports/*.toml), `state` (statements
 waiting, the check, a first import), `inbox`, `settings` and `save_settings`, and the versions (`history`, `versions_init`, `versions_restore`, `versions_save`).
 
 The app runs it in the ledger, with the ledger's Python, so Fava and its kingsmint extensions are the ledger's version:
@@ -196,6 +196,21 @@ def make_app(ledger: Path, ui: Path):
             e = txns[0]
             return result | changed(edit.hash_at(l.all_entries, e.meta["filename"], e.meta["lineno"]))
         return result | {"hash": None}  # no transaction to show; the page loads the rows again
+
+    def recurring() -> dict:
+        l, rate = loaded()
+        return dashboard.recurring(l.all_entries, l.options, rate) | {"editable": edit is not None}
+
+    def recurring_set(changes: list) -> dict:
+        """What the recurring payments do with payees ([[payee, state, period]], edit.set_recurring); one version."""
+        try:
+            can_edit()
+            what = edit.set_recurring(root, changes)
+        except ValueError as err:  # edit.EditError too
+            return {"error": str(err)}
+        error = save_version("Recurring: " + what)
+        loaded()[0].load_file()
+        return {"error": error}
 
     def can_edit(reimport=False):
         if edit is None:
@@ -412,6 +427,7 @@ def make_app(ledger: Path, ui: Path):
     app.state.methods = {"query": query, "dashboard": overview, "transactions": transactions, "entry": entry,
                          "entry_save": exclusive(entry_save), "rule_preview": rule_preview,
                          "rule_save": exclusive(rule_save), "entry_reset": exclusive(entry_reset), "cash_save": exclusive(cash_save),
+                         "recurring": recurring, "recurring_set": exclusive(recurring_set),
                          "reports": reports, "tags": tags, "tags_save": exclusive(tags_save),
                          "inbox": inbox_data, "settings": settings_data,
                          "save_settings": exclusive(save_settings), "runway_edit": runway_edit,

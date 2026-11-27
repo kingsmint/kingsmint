@@ -20,6 +20,21 @@ here is the installed version.
   characters in a tag. Tags in `ledger/` stay after `kingsmint reimport`; tags also work on `cash.beancount`.
 - The agent tags the transactions you name ("tag the holiday from 1 to 14 July as #croatia-2026") after you
   confirm the list (the categorize skill).
+- **Recurring payments** in the Kingsmint app's overview: what you pay every month, quarter or year. The app finds
+  the payees paid regularly in the last 2 years and offers them as **Suggestions**; **Confirm** (or **Confirm all**)
+  puts them among the confirmed ones, whose monthly total the overview shows, each with its next payment expected,
+  and whether it is new, more expensive than usual, or ended. **Not recurring** (in a row's menu) moves a payee to
+  **Hidden**, where **Bring back** returns it. **Add**, or **Recurring payment** in a transaction's detail, confirms
+  a payee that was not found. The decisions are lines in `rules.beancount`. The month close of the explain skill
+  names new and more expensive subscriptions.
+- A rule the Kingsmint app adds to `rules.beancount` goes in a paragraph of its own above the first rule: before, it
+  could come between a comment and the rule the comment explains, or join the template's last comment.
+
+### Ledger
+
+- Optional: in `rules.beancount`, under the payee rules, add the comment
+  `; DATE custom "recurring" "Payee" "include" "monthly" (or "quarterly", "yearly"; or "ignore"): the owner confirmed`
+  `; the payee's payments as recurring in the app (or not).`, so the agent knows what the lines the app writes mean.
 
 ## 0.2.5
 
