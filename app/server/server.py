@@ -4,7 +4,7 @@ origin: a script in Fava's frame cannot call the app's commands.
 
 The app asks it for the ledger's data on stdin (rpc.py), with the methods in `app.state.methods`: `query` (BQL on
 Fava's loaded ledger), `dashboard`, `transactions` and `entry` (the overview), the changes of transactions (`entry_save`, `rule_preview`,
-`rule_save`, `entry_reset`, `cash_save`), `reports` (reports/*.toml), `state` (statements
+`rule_save`, `entry_reset`, `cash_save`), the tags (`tags`, `tags_save`), `reports` (reports/*.toml), `state` (statements
 waiting, the check, a first import), `inbox`, `settings` and `save_settings`, and the versions (`history`, `versions_init`, `versions_restore`, `versions_save`).
 
 The app runs it in the ledger, with the ledger's Python, so Fava and its kingsmint extensions are the ledger's version:
@@ -161,7 +161,41 @@ def make_app(ledger: Path, ui: Path):
             "edited": edit is not None and edit.hand_edited(root, e),
             "fee": edit is not None and edit.imported_fee(root, e),  # the import's bank fee: part of the statement row
             "suggested": [a for a, _ in used.most_common(5)],  # the payee's categories, the most used first
+            "taggable": edit is not None and edit.in_ledger(root, e),  # tags also on transactions written by hand
             "accounts": open_accounts(l.all_entries)}
+
+    def tags() -> dict:
+        """Each tag with what its transactions spent (dashboard.tags)."""
+        l, rate = loaded()
+        return dashboard.tags(l.all_entries, l.options, rate)
+
+    def tags_save(hash: str | None = None, id: str | None = None, items: list[dict] | None = None,
+                  add: str | None = None, remove: str | None = None) -> dict:
+        """Adds the tag `add` (turned into a tag Beancount takes: edit.tag_slug) to the transactions `items` ([{id} or
+        {hash}]), or to the one `id` or `hash`, or removes `remove`, as written (#Croatia). `tag`: the tag as written; for one transaction,
+        `hash` and `entry`: the transaction now."""
+        try:
+            can_edit()
+            add = None if add is None else edit.tag_slug(add)
+            remove = None if remove is None else remove.strip().lstrip("#")
+            txns = [changed_entry(r.get("hash"), r.get("id"))[1] for r in items or [{"hash": hash, "id": id}]]
+            l, _ = loaded()
+            paths = edit.save_tags(root, txns, add, remove)
+        except ValueError as err:  # edit.EditError too
+            return {"error": str(err)}
+        error = ""
+        try:
+            if paths and versions.enabled(root):
+                what = f"+#{add}" if add else f"-#{remove}"
+                versions.save(root, f"Tags: {what} on {len(txns)} transaction{'s' if len(txns) > 1 else ''}")
+        except versions.VersionError as err:
+            error = str(err)
+        l.load_file()
+        result = {"error": error, "tag": add or remove, "count": len(txns)}
+        if items is None:
+            e = txns[0]
+            return result | changed(edit.hash_at(l.all_entries, e.meta["filename"], e.meta["lineno"]))
+        return result | {"hash": None}  # no transaction to show; the page loads the rows again
 
     def can_edit(reimport=False):
         if edit is None:
@@ -378,7 +412,7 @@ def make_app(ledger: Path, ui: Path):
     app.state.methods = {"query": query, "dashboard": overview, "transactions": transactions, "entry": entry,
                          "entry_save": exclusive(entry_save), "rule_preview": rule_preview,
                          "rule_save": exclusive(rule_save), "entry_reset": exclusive(entry_reset), "cash_save": exclusive(cash_save),
-                         "reports": reports,
+                         "reports": reports, "tags": tags, "tags_save": exclusive(tags_save),
                          "inbox": inbox_data, "settings": settings_data,
                          "save_settings": exclusive(save_settings), "runway_edit": runway_edit,
                          "runway_save": exclusive(runway_save), "history": history, "versions_init": versions_init,

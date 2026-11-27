@@ -371,3 +371,76 @@ def add_cash(root: Path, entries, currency: str, date: str, amount, account: str
         target.write_bytes(data)
     write(path, out)
     return f"Cash: {day} {payee} {number} {currency}"
+
+
+def tag_slug(tag: str) -> str:
+    """A tag as Beancount takes it (A-Z a-z 0-9 - _ / .): "Záloha plot" -> "zaloha-plot". Another character makes the
+    whole transaction drop out of the ledger. A tag Beancount takes stays as written (#Croatia)."""
+    if re.fullmatch(r"[A-Za-z0-9_/.-]+", tag := tag.strip().lstrip("#")):
+        return tag
+    text = unicodedata.normalize("NFKD", tag)
+    text = "".join(c for c in text if not unicodedata.combining(c)).lower()
+    text = re.sub(r"[^a-z0-9_/.-]+", "-", text).strip("-")
+    if not text:
+        raise EditError(f"Not a tag: {tag!r}")
+    return text
+
+
+def retag(head: dict, add: str | None, remove: str | None) -> dict:
+    """The header with `add` among its tags and `remove` not; links and the other tags stay in their order."""
+    words = (head.get("tags_links") or "").split()
+    words = [w for w in words if w != f"#{remove}"]
+    if add and f"#{add}" not in words:
+        words.insert(sum(w.startswith("#") for w in words), f"#{add}")  # after the tags, before the links
+    return {k: v for k, v in head.items() if k != "tags_links"} | ({"tags_links": " ".join(words)} if words else {})
+
+
+def in_ledger(root: Path, e) -> bool:
+    """Whether the entry is in a file of the ledger, not in kingsmint's own (.kingsmint/)."""
+    path = Path(e.meta.get("filename", "")).resolve()
+    return path.is_relative_to(root.resolve()) and not path.is_relative_to((root / ".kingsmint").resolve())
+
+
+def save_tags(root: Path, txns: list, add: str | None = None, remove: str | None = None) -> list[str]:
+    """Adds the tag `add` to the transactions `txns`, or removes `remove`, in their files: in ledger/ (the reimport's
+    merge keeps tags per `id`) and in files written by hand (cash.beancount), found there by their line. Writes all or
+    nothing per file; returns the files changed, relative to the ledger."""
+    if not add and not remove:
+        raise EditError("A tag to add or to remove")
+    files: dict[Path, list] = {}
+    for e in txns:
+        if not in_ledger(root, e):
+            raise EditError(f"{e.meta.get('filename')} is not a file of the ledger")
+        files.setdefault(Path(e.meta["filename"]).resolve(), []).append(e)
+    texts = {}
+    for path, es in files.items():
+        text = path.read_text(encoding="utf-8")
+        name = path.relative_to(root.resolve()).as_posix()
+        try:
+            found = [find(text, e, name) if "id" in e.meta else at_line(text, e, name) for e in es]
+        except ValueError as err:
+            raise EditError(str(err)) from None
+        ls = merge.lines(text)
+        for _, lead, body, start, end in sorted(set(found), key=lambda c: -c[3]):  # from the end: rows stay right
+            head, meta, postings, _ = merge.parts(body)
+            new = merge.assemble(body, head["date"], retag(head, add, remove), list(meta.items()), postings)
+            ls[start:end] = [lead + new]
+        out = "".join(ls)
+        if len(parser.parse_string(out)[1]) > len(parser.parse_string(text)[1]):
+            raise EditError(f"The change would break {name}; nothing was written")
+        texts[path] = (name, text, out)
+    if remove and all(out == text for _, text, out in texts.values()):
+        raise EditError(f"#{remove} is not in the transactions' first line (set by a pushtag block?); nothing was written")
+    for path, (_, text, out) in texts.items():
+        if out != text:
+            write(path, out)
+    return [name for name, text, out in texts.values() if out != text]
+
+
+def at_line(text: str, e, name: str):
+    """The chunk (merge.chunks) of a transaction without an `id` (written by hand): the one on its line, with its date."""
+    row = e.meta["lineno"] - 1
+    for chunk in merge.chunks(text, name):
+        if chunk[3] <= row < chunk[4] and chunk[2].startswith(e.date.isoformat()):
+            return chunk
+    raise EditError(f"{name}:{row + 1}: the transaction {e.date} {e.payee or e.narration} is not there; the file changed")

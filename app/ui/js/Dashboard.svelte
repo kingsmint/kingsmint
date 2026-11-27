@@ -24,6 +24,7 @@
   import Message from "./Message.svelte";
   import { toast } from "./toast.js";
   import TxnEdit from "./TxnEdit.svelte";
+  import TagField from "./TagField.svelte";
   import { assign, dock, favas, overviews } from "./state.js";
   import { tell } from "./tasks.js";
   import { invoke, listen, rpc } from "./util.js";
@@ -106,6 +107,12 @@
     unit = "month";
     pick(m);
   }
+  // the tags (rpc("tags")): each with what it spent, first and last date; a tag's transactions are the transactions
+  // view with its tag filter (view.tag), over all the ledger's months (view.all)
+  let tagged = $state(null);
+  // the transactions view's rows chosen with ⌘ or Shift click (their id, else hash), to add or remove a tag on all
+  let chosen = $state([]);
+  let anchor = null; // the transaction (keyOf) a Shift click chooses from: the last clicked, by key, as rows come and go
 
   // numbers in the app's language: money without cents, percentages with one decimal
   const fmt = (o) => new Intl.NumberFormat(app.lang, o);
@@ -287,13 +294,14 @@
           : path(v.account);
       return [...before, { label: t("transactions") }];
     }
+    if (v.name === "tags") return [{ label: t("tags") }];
     if (v.name !== "account") return [{ label: tiles.find((x) => x.go?.name === v.name)?.title }];
     return path(v.account);
   };
   const crumbs = $derived(crumbsOf(view));
   // a pin's name on the rail: transactions by their filter (the rail's icon says they are transactions), else the title
   const pinLabel = (v) =>
-    (v.name === "txns" && (v.payee ?? (v.account && name(v.account)))) || crumbs.at(-1)?.label || t("overview");
+    (v.name === "txns" && (v.payee ?? (v.account && name(v.account)) ?? (v.tag && `#${v.tag}`))) || crumbs.at(-1)?.label || t("overview");
   // an account and its parents, each to its detail
   const path = (account) =>
     account.split(":").map((_, i, p) => {
@@ -313,12 +321,13 @@
   // Fava's journal of the transactions view's filter in the chosen period: Fava's filter takes a quoted string as a
   // case-insensitive regular expression on the payee and the narration
   function favaJournal() {
-    let url = `/ledger/${listView.account ? `account/${listView.account}` : "journal"}/?time=${encodeURIComponent(favaTime)}`;
+    let url = `/ledger/${listView.account ? `account/${listView.account}` : "journal"}/?time=${encodeURIComponent(listView.all ? "" : favaTime)}`;
+    const filter = [listView.tag && `#${listView.tag}`];
     if (listView.payee) {
       const quote = listView.payee.includes('"') ? "'" : '"';
-      const filter = `${quote}^${listView.payee.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$${quote}`;
-      url += `&filter=${encodeURIComponent(filter)}`;
+      filter.push(`${quote}^${listView.payee.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$${quote}`);
     }
+    if (filter.some(Boolean)) url += `&filter=${encodeURIComponent(filter.filter(Boolean).join(" "))}`;
     fava(url);
   }
   // an account: its detail, or its transactions when it has no subaccounts
@@ -326,14 +335,15 @@
     go(leaf ? { name: "txns", account } : { name: "account", account });
   }
   function pick(p) {
-    // days of another period
-    if (view.days) view = { ...view, days: undefined };
-    if (view.parent?.days) view = { ...view, parent: { ...view.parent, days: undefined } };
+    // days of another period; a period chosen ends "all"
+    if (view.days || view.all) view = { ...view, days: undefined, all: undefined };
+    if (view.parent?.days || view.parent?.all) view = { ...view, parent: { ...view.parent, days: undefined, all: undefined } };
     period = p;
     load();
   }
   // from a month to its year, from a year to its December, or to the last full month in the year that is not over
   function setUnit(u) {
+    if (listView.all) go({ ...listView, all: undefined, days: undefined });
     if (u === unit || !d?.period) return;
     period = u === "year" ? d.period.slice(0, 4) : d.months < 12 ? null : `${d.period}-12`;
     unit = u;
@@ -346,6 +356,12 @@
     } catch {
       return; // no ledger's server yet: the start screen
     }
+    loadTags();
+  }
+  function loadTags() {
+    rpc("tags")
+      .then((r) => (tagged = r))
+      .catch(() => {});
   }
 
   $effect(() => {
@@ -446,7 +462,14 @@
 
   // the transactions view: the chosen period, and the one before it (in a year that is not over, its same months)
   const range = $derived(
-    d?.period && {
+    d?.period && listView.all
+      ? (({ first, last } = tagged?.tags.find((x) => x.tag === listView.tag) ?? {}) => ({
+          start: first?.slice(0, 7) ?? firstMonth(), // a tag's months; else all the ledger's
+          end: last?.slice(0, 7) ?? new Date().toISOString().slice(0, 7),
+          prevStart: null,
+          prevEnd: null,
+        }))()
+      : d?.period && {
       start: unit === "year" ? `${d.period}-01` : d.period,
       end: d.ends.at(-1),
       prevStart: d.window.length < 2 ? null : unit === "year" ? `${d.window.at(-2)}-01` : d.ends.at(-2),
@@ -461,7 +484,7 @@
     const { prevStart, start, end } = range;
     const args = { start: prevStart ?? start, end, ...(listView.account && { account: listView.account }) };
     // other rows: none until they come; the same rows again (after a change): the old ones until then, no flash
-    if (JSON.stringify(args) !== rowsOf) rows = null;
+    if (JSON.stringify(args) !== rowsOf) (rows = null), (chosen = []);
     rowsOf = JSON.stringify(args);
     rpc("transactions", args)
       .then((r) => n === asked && ((rows = r.rows), (listInfo = { editable: !!r.editable, accounts: r.accounts ?? [] })))
@@ -469,7 +492,11 @@
   });
   // spending as a positive number when the filter is an Expenses account, as the overview shows it
   const sign = $derived(listView.account?.startsWith("Expenses") ? -1 : 1);
+  // a row's amount as it counts: a cash payment counts 0 (spent when withdrawn), but in a tag its amount, as the
+  // tag's total (dashboard.spent): what the tag cost
+  const amt = (r) => (listView.tag && r.cash != null ? r.cash : r.amount);
   const matches = (r) =>
+    (!listView.tag || r.tags?.includes(listView.tag)) &&
     (!listView.payee || r.payee === listView.payee) &&
     (!search ||
       `${r.payee} ${r.narration} ${r.account} ${r.others.join(" ")}`.toLowerCase().includes(search.toLowerCase()));
@@ -481,7 +508,10 @@
     let run = 0;
     return rows
       .filter((r) => r.date >= range.start && matches(r) && inDays(r))
-      .map((r) => ({ ...r, amount: r.amount * sign, cash: r.cash && r.cash * sign, run: (run += r.amount * sign) }))
+      .map((r) => {
+        const a = amt(r) * sign;
+        return { ...r, amount: a, cash: listView.tag ? undefined : r.cash && r.cash * sign, run: (run += a) };
+      })
       .reverse();
   });
   // the same filter in the period before
@@ -490,7 +520,7 @@
       ? sum(
           rows
             .filter((r) => r.date < range.start && r.date.slice(0, 7) <= range.prevEnd && matches(r))
-            .map((r) => r.amount * sign),
+            .map((r) => amt(r) * sign),
         )
       : null,
   );
@@ -500,8 +530,11 @@
   const tchart = $derived.by(() => {
     if (!rows || !range) return null;
     const year = unit === "year";
-    const n = year ? d.months : new Date(+range.end.slice(0, 4), +range.end.slice(5, 7), 0).getDate();
-    const at = (date) => (year ? +date.slice(5, 7) : +date.slice(8, 10)) - 1;
+    // "all": a bar for each month, for each year over 3 years (160 months of bars read as noise)
+    const all = listView.all && monthsOf(range.start, range.end);
+    const months = all && (all.length > 36 ? [...new Set(all.map((m) => m.slice(0, 4)))] : all); // YYYY-MM or YYYY
+    const n = months ? months.length : year ? d.months : new Date(+range.end.slice(0, 4), +range.end.slice(5, 7), 0).getDate();
+    const at = (date) => (months ? months.indexOf(date.slice(0, months[0].length)) + 1 : year ? +date.slice(5, 7) : +date.slice(8, 10)) - 1;
     const cur = Array(n).fill(0);
     const prev = Array(n).fill(0);
     const balance = listView.account && booked(listView.account);
@@ -509,8 +542,8 @@
     for (const r of rows) {
       if (r.date < range.start) start = r.balance ?? start;
       if (!matches(r) || at(r.date) >= n) continue;
-      if (r.date >= range.start) cur[at(r.date)] += r.amount * sign;
-      else if (range.prevStart && r.date.slice(0, 7) <= range.prevEnd) prev[at(r.date)] += r.amount * sign;
+      if (r.date >= range.start) cur[at(r.date)] += amt(r) * sign;
+      else if (range.prevStart && r.date.slice(0, 7) <= range.prevEnd) prev[at(r.date)] += amt(r) * sign;
     }
     const first = rows.find((r) => r.date >= range.start);
     if (balance && start == null && first) start = first.balance - first.amount;
@@ -521,12 +554,15 @@
     const p = range.start.slice(0, 7);
     const pad = (i) => String(i + 1).padStart(2, "0");
     const keys = cur.map((_, i) =>
-      year
+      months
+        ? months[i].length === 4 ? [`${months[i]}-01-01`, `${months[i]}-12-31`] : [`${months[i]}-01`, `${months[i]}-31`]
+        : year
         ? [`${d.period}-${pad(i)}-01`, `${d.period}-${pad(i)}-31`]
         : [`${p}-${pad(i)}`, `${p}-${pad(i)}`],
     );
-    const label = (i) => (year ? date(`${d.period}-${pad(i)}`, { month: "short" }) : String(i + 1));
-    const columns = [t(unit), t("amount"), balance ? t("balance") : t("running")];
+    const label = (i) =>
+      months ? periodShort(months[i]) : year ? date(`${d.period}-${pad(i)}`, { month: "short" }) : String(i + 1);
+    const columns = [t(months ? (months[0].length === 4 ? "year" : "month") : unit), t("amount"), balance ? t("balance") : t("running")];
     if (!balance && range.prevStart) columns.push(t(L.last));
     const lastPrev = running(prev);
     return {
@@ -535,6 +571,44 @@
       rows: cur.map((v, i) => [label(i), v, line[i], ...(columns.length > 3 ? [lastPrev[i]] : [])]),
     };
   });
+  // the ledger's first month, and the months from one to another (YYYY-MM)
+  const firstMonth = () => (p => (p.length === 4 ? `${p}-01` : p))(d.periods.at(-1));
+  function monthsOf(from, to) {
+    const out = [];
+    for (let y = +from.slice(0, 4), m = +from.slice(5, 7); `${y}-${String(m).padStart(2, "0")}` <= to; m === 12 ? (y++, (m = 1)) : m++)
+      out.push(`${y}-${String(m).padStart(2, "0")}`);
+    return out;
+  }
+  // what the rows that show moved by category (their account; the subaccounts of an account filter), the largest
+  // first, with the share of the ones of the same sign: of the spending, or of the income. Not for an asset or a
+  // liability: its rows are its own account.
+  const categories = $derived.by(() => {
+    if (!shown || (listView.account && booked(listView.account))) return [];
+    const by = {};
+    for (const r of shown) by[r.account] = (by[r.account] ?? 0) + r.amount;
+    const list = Object.entries(by).map(([account, amount]) => ({ account, amount }));
+    // Expenses, then Income, each with the share of its own total
+    return ["Expenses", "Income"]
+      .map((root) => {
+        const items = list.filter((c) => c.account.split(":")[0] === root).sort((x, y) => Math.abs(y.amount) - Math.abs(x.amount));
+        const all = sum(items.map((c) => c.amount));
+        return { root, items: items.map((c) => ({ ...c, share: all && c.amount / all > 0 ? c.amount / all : null })) };
+      })
+      .filter((g) => g.items.length);
+  });
+  // a category's name under the account filter (or its root): Food:Groceries, not Groceries, which two may share
+  const catName = (a) => a.slice((listView.account ?? a.split(":")[0]).length + 1) || name(a);
+  const categoryCount = $derived(sum(categories.map((g) => g.items.length)));
+  let allCategories = $state(false); // more than the first 8 of each group
+  // a row's tooltip: what a click does, and how to choose rows for tags
+  const rowTitle = $derived(listInfo.editable ? `${t("openTransaction")}. ${t("chooseRowsNote")}` : t("openTransaction"));
+  // the categories and the chart, each folded or open; the app's setting
+  const fold = $derived(app.appSettings.transactionsFold ?? {});
+  function setFold(part, open) {
+    if (!open === !!fold[part]) return;
+    assign({ appSettings: { ...app.appSettings, transactionsFold: { ...fold, [part]: !open } } });
+    invoke("save_app_settings", { settings: app.appSettings });
+  }
   const dayName = (iso) => new Intl.DateTimeFormat(app.lang, { day: "numeric", month: "numeric" }).format(new Date(iso));
   // the sum of each day (YYYY-MM-DD) and month (YYYY-MM) that shows
   const sums = $derived.by(() => {
@@ -801,6 +875,41 @@
     save("entry_save", ref, { postings: [{ account }] }); // an error's toast replaces the message
     offerRule(ref, account, [{ account: before }], true, () => put(before));
   }
+  // A tag on the transaction that shows: its chips show the transaction the server gives back, which has the tag as
+  // the server wrote it (edit.tag_slug)
+  const tagTxn = (args) => save("tags_save", refOf(txn), args);
+  const keyOf = (r) => r.id ?? r.hash;
+  const tagView = (tag) => ({ name: "txns", tag, all: true }); // a tag's transactions, over all its dates
+  // ⌘ (Ctrl) click adds a row to the chosen ones or takes it away, Shift click chooses the rows from the last clicked
+  // (with or without ⌘); true when the click chose, so the row does not open
+  function choose(e, i) {
+    const key = keyOf(shown[i]);
+    const from = anchor;
+    anchor = key;
+    if (!(e.metaKey || e.ctrlKey || e.shiftKey) || !listInfo.editable) return false;
+    e.preventDefault();
+    const j = e.shiftKey ? shown.findIndex((r) => keyOf(r) === from) : -1;
+    const keys = (j >= 0 ? shown.slice(Math.min(i, j), Math.max(i, j) + 1) : [shown[i]]).map(keyOf);
+    const on = e.shiftKey || !chosen.includes(key);
+    chosen = on ? [...new Set([...chosen, ...keys])] : chosen.filter((k) => !keys.includes(k));
+    return true;
+  }
+  // all the rows that show, or those of them not chosen
+  function chooseRows(how) {
+    const keys = [...new Set(shown.map(keyOf))];
+    chosen = how === "all" ? keys : keys.filter((k) => !chosen.includes(k));
+  }
+  // the tags of the chosen rows, each once, and the ledger's tags to suggest
+  const chosenTags = $derived([...new Set((rows ?? []).filter((r) => chosen.includes(keyOf(r))).flatMap((r) => r.tags ?? []))].sort());
+  const knownTags = $derived((tagged?.tags ?? []).map((x) => x.tag));
+  async function tagChosen(args) {
+    const items = chosen.map((k) => (rows.find((r) => keyOf(r) === k)?.id ? { id: k } : { hash: k }));
+    const r = await save("tags_save", {}, { items, ...args });
+    if (!r) return;
+    // a row without an id (cash.beancount) is chosen by its hash, which the tag changed: it drops out of the choice
+    chosen = chosen.filter((k) => rows.some((r) => r.id === k));
+    toast(Message, { text: t(args.add ? "tagAdded" : "tagRemoved", { n: items.length }) });
+  }
   // an amount in its own currency; a commodity that is not a currency (a fund) by its name
   function units(n, currency) {
     try {
@@ -827,6 +936,8 @@
   const day = (iso) => new Intl.DateTimeFormat(app.lang, { day: "numeric", month: "short" }).format(new Date(iso));
   const fullDay = (iso) =>
     new Intl.DateTimeFormat(app.lang, { day: "numeric", month: "long", year: "numeric" }).format(new Date(iso));
+  // a tag's period: the dates of its first and last transaction
+  const dates = (x) => (x.first === x.last ? fullDay(x.first) : `${fullDay(x.first)} – ${fullDay(x.last)}`);
   const longDay = (iso) =>
     new Intl.DateTimeFormat(app.lang, { weekday: "long", day: "numeric", month: "long" }).format(new Date(iso));
 </script>
@@ -873,6 +984,28 @@
   {:else}
     {sign === 1 && r.amount > 0 && layout === "list" ? "+" : ""}{cents(r.amount)}
   {/if}
+{/snippet}
+
+{#snippet tagButtons(r)}
+  {#each r.tags ?? [] as tag}
+    <button type="button" class="pick hashtag" title={t("openTag")}
+      onclick={(e) => (e.stopPropagation(), go(tagView(tag)))}>#{tag}</button>
+  {/each}
+{/snippet}
+
+{#snippet tagBars(list)}
+  <ul class="bars tags">
+    {#each list as x (x.tag)}
+      <li>
+        <button type="button" onclick={() => go(tagView(x.tag))}>
+          <span class="name">#{x.tag}</span>
+          <span class="bar"><span style:width="{Math.max(x.total / Math.max(...list.map((y) => y.total)), 0) * 100}%"></span></span>
+          <span class="num">{cents(x.total)}</span>
+          <span class="num muted">{dates(x)}</span>
+        </button>
+      </li>
+    {/each}
+  </ul>
 {/snippet}
 
 {#snippet statementButton(r)}
@@ -996,6 +1129,12 @@
                 >
               {/if}
             {/if}
+            {#if txn.taggable || txn.tags?.length}
+              <h2>{t("tags")}</h2>
+              <TagField tags={txn.tags} known={knownTags} open={(tag) => go(tagView(tag))}
+                add={txn.taggable ? (tag) => tagTxn({ add: tag }) : null}
+                remove={txn.taggable ? (tag) => tagTxn({ remove: tag }) : null} />
+            {/if}
             {#if Object.keys(txn.meta).some((k) => k !== "note" || !txn.editable)}
               <h2>{t("details")}</h2>
               <table>
@@ -1032,11 +1171,9 @@
               type="button"
               class="more"
               onclick={() => {
-                // the payee's transactions in the year of this one, not in the period chosen before
+                // all the payee's transactions, not the period chosen before
                 const account = view.parent?.name === "txns" ? view.parent.account : undefined;
-                unit = "year";
-                pick(txn.date.slice(0, 4));
-                go({ name: "txns", account, payee: txn.payee });
+                go({ name: "txns", account, payee: txn.payee, all: true });
               }}>{t("allOfPayee")} <wa-icon name="chevron-right"></wa-icon></button
             >
           </section>
@@ -1082,20 +1219,25 @@
         {/if}
       </nav>
     {/if}
-    {#if d?.periods?.length}
+    {#if d?.periods?.length && view.name !== "tags"}<!-- the tags' list: each tag over all its dates -->
       <div class="period">
-        {#if unit === "year" && d.months < 12}
+        {#if !listView.all && unit === "year" && d.months < 12}
           <span class="muted">{t("ytd", { months: date(d.ends.at(-1), { month: "long" }) })}</span>
         {/if}
-        <div class="units" role="group">
-          <button type="button" class:on={unit === "month"} onclick={() => setUnit("month")}>{t("month")}</button>
-          <button type="button" class:on={unit === "year"} onclick={() => setUnit("year")}>{t("year")}</button>
-        </div>
-        <button type="button" class="arrow" disabled={!older} title={t("previous")} onclick={() => pick(older)}><wa-icon name="chevron-left"></wa-icon></button>
-        <select value={d.period} onchange={(e) => pick(e.target.value)}>
-          {#each d.periods as p}<option value={p}>{periodName(p)}</option>{/each}
-        </select>
-        <button type="button" class="arrow" disabled={!newer} title={t("next")} onclick={() => pick(newer)}><wa-icon name="chevron-right"></wa-icon></button>
+        <!-- All: the transactions of all the ledger's months (a tag's: its months); the transactions view only -->
+        <wa-radio-group orientation="horizontal" size="small" value={listView.all ? "all" : unit}
+          onchange={(e) => (e.currentTarget.value === "all" ? go({ ...listView, all: true, days: undefined }) : setUnit(e.currentTarget.value))}>
+          {#if listView.name === "txns"}<wa-radio appearance="button" value="all">{t("allTime")}</wa-radio>{/if}
+          <wa-radio appearance="button" value="month">{t("month")}</wa-radio>
+          <wa-radio appearance="button" value="year">{t("year")}</wa-radio>
+        </wa-radio-group>
+        {#if !listView.all}
+          <button type="button" class="arrow" disabled={!older} title={t("previous")} onclick={() => pick(older)}><wa-icon name="chevron-left"></wa-icon></button>
+          <select value={d.period} onchange={(e) => pick(e.target.value)}>
+            {#each d.periods as p}<option value={p}>{periodName(p)}</option>{/each}
+          </select>
+          <button type="button" class="arrow" disabled={!newer} title={t("next")} onclick={() => pick(newer)}><wa-icon name="chevron-right"></wa-icon></button>
+        {/if}
       </div>
     {/if}
   </header>
@@ -1176,6 +1318,38 @@
         {/if}
       </section>
     </div>
+    {#if tagged?.tags?.length}
+      <div class="panels">
+        <section class="card">
+          <h2>
+            <button type="button" class="more" onclick={() => go({ name: "tags" })}>{t("tags")} <wa-icon name="chevron-right"></wa-icon></button>
+            <span class="muted">{t("tagsAllTime")}</span>
+          </h2>
+          {@render tagBars(tagged.tags.slice(0, 5))}
+        </section>
+      </div>
+    {/if}
+  {:else if view.name === "tags"}
+    {#if !tagged}
+      <p class="muted">{t("loading")}</p>
+    {:else if !tagged.tags.length}
+      <p class="muted">{t("noTags")}</p>
+    {:else}
+      <table class="tag-list">
+        <thead>
+          <tr><th>{t("tag")}</th><th class="num">{t("spent")}</th><th class="num">{t("transactions")}</th><th>{t("tagDates")}</th></tr>
+        </thead>
+        <tbody>
+          {#each tagged.tags as x (x.tag)}
+            <tr class="link" onclick={() => go(tagView(x.tag))}>
+              <td>#{x.tag}</td><td class="num">{cents(x.total)}</td><td class="num">{x.count}</td>
+              <td class="muted">{dates(x)}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    {/if}
+    <p class="muted note">{t("tagsNote")}</p>
   {:else if view.name === "account"}
     {@const s = flow(view.account)}
     {@const list = parts(view.account)}
@@ -1359,7 +1533,7 @@
         <span>{t("account")}</span>
         <select
           value={listView.account ?? ""}
-          onchange={(e) => go({ name: "txns", account: e.target.value || undefined, payee: listView.payee })}
+          onchange={(e) => go({ ...listView, account: e.target.value || undefined, days: undefined })}
         >
           <option value="">{t("allIncomeExpenses")}</option>
           {#each filterAccounts as a}<option value={a}>{a}</option>{/each}
@@ -1372,6 +1546,23 @@
           <button type="button" title={t("removeFilter")} onclick={() => go({ ...listView, payee: undefined })}><wa-icon name="x"></wa-icon></button>
         </span>
       {/if}
+      <!-- a tag: its transactions over all its months; chosen, a chip as the payee's; else a menu of the tags -->
+      {#if listView.tag}
+        <span class="chip">
+          <span>{t("tag")}</span>
+          <b>#{listView.tag}</b>
+          <button type="button" title={t("removeFilter")} onclick={() => go({ ...listView, tag: undefined })}><wa-icon name="x"></wa-icon></button>
+        </span>
+      {:else if tagged?.tags?.length}
+        <wa-dropdown distance="6" onwa-select={(e) => go({ ...listView, tag: e.detail.item.value, all: true, days: undefined })}>
+          <button slot="trigger" type="button" class="chip pick-tag"
+            ><span>{t("tag")}</span><wa-icon name="chevron-down"></wa-icon></button
+          >
+          {#each tagged.tags as x (x.tag)}
+            <wa-dropdown-item value={x.tag}>#{x.tag}<span slot="details" class="muted">{cents(x.total)}</span></wa-dropdown-item>
+          {/each}
+        </wa-dropdown>
+      {/if}
       {#if listView.days}
         <span class="chip">
           <span>{t("days")}</span>
@@ -1380,10 +1571,6 @@
         </span>
       {/if}
       <input type="search" placeholder={t("searchTransactions")} bind:value={search} />
-      <div class="units" role="group">
-        <button type="button" class:on={layout === "list"} onclick={() => setLayout("list")}>{t("asList")}</button>
-        <button type="button" class:on={layout === "table"} onclick={() => setLayout("table")}>{t("asTable")}</button>
-      </div>
       <button type="button" class="more" onclick={favaJournal}>Fava <wa-icon name="external-link"></wa-icon></button>
     </div>
     {#if shown}
@@ -1395,7 +1582,7 @@
           <strong>{listView.account ? eur(total) : delta(total)}</strong>
         {/if}
         {@render compare([
-          listView.account && booked(listView.account) && [t(L.during), delta(total)],
+          listView.account && booked(listView.account) && [t(listView.all ? "allTime" : L.during), delta(total)],
           [t("transactions"), shown.length],
           before != null && [t(L.last), listView.account && !booked(listView.account) ? eur(before) : delta(before)],
         ])}
@@ -1407,35 +1594,93 @@
           >
         {/if}
       </div>
-      {#if tchart}
-        <div class="txchart">
-          <Chart
-            type="bar"
-            columns={tchart.columns}
-            rows={tchart.rows}
-            colors={[FAVA[0], FAVA[3]]}
-            bySign={sign === 1}
-            lines={tchart.columns.slice(2)}
-            dashed={tchart.columns.slice(3)}
-            lineScale={!!listView.account && booked(listView.account)}
-            unit={money}
-            range={listView.days &&
-              [tchart.keys.findIndex((k) => k[1] >= listView.days[0]), tchart.keys.findLastIndex((k) => k[0] <= listView.days[1])]}
-            onrange={(i, j) =>
-              go({ ...listView, days: i == null ? undefined : [tchart.keys[i][0], tchart.keys[j][1]] })}
-          />
-          <p class="muted note">{t("dragDays")}</p>
+      <!-- the chart, then the categories (expenses beside income); each can be folded -->
+      <div class="tx-parts">
+        {#if tchart}
+          <details class="fold txchart" open={!fold.chart} ontoggle={(e) => setFold("chart", e.currentTarget.open)}>
+            <summary>{t("chart")}</summary>
+            <Chart
+              type="bar"
+              columns={tchart.columns}
+              rows={tchart.rows}
+              colors={[FAVA[0], FAVA[3]]}
+              bySign={sign === 1}
+              lines={tchart.columns.slice(2)}
+              dashed={tchart.columns.slice(3)}
+              lineScale={!!listView.account && booked(listView.account)}
+              unit={money}
+              range={listView.days &&
+                [tchart.keys.findIndex((k) => k[1] >= listView.days[0]), tchart.keys.findLastIndex((k) => k[0] <= listView.days[1])]}
+              onrange={(i, j) =>
+                go({ ...listView, days: i == null ? undefined : [tchart.keys[i][0], tchart.keys[j][1]] })}
+            />
+            <p class="muted note">{t("dragDays")}</p>
+          </details>
+        {/if}
+        {#if categoryCount > 1}
+          <details class="fold cats" open={!fold.categories} ontoggle={(e) => setFold("categories", e.currentTarget.open)}>
+            <summary>{t("byCategory")}</summary>
+            <div class="cat-groups wa-grid wa-gap-xl"><!-- side by side, one under the other when narrow -->
+              {#each categories as g (g.root)}
+                <table>
+                  {#if categories.length > 1}
+                    <thead><tr class="group"><td colspan="3">{t(g.root.toLowerCase())}</td></tr></thead>
+                  {/if}
+                  <tbody>
+                    {#each allCategories ? g.items : g.items.slice(0, 8) as c (c.account)}
+                      <tr class="link" title={`${c.account}: ${t("filterAccount")}`}
+                        onclick={() => go({ ...listView, account: c.account, days: undefined })}>
+                        <td>{catName(c.account)}</td><td class="num">{cents(c.amount)}</td>
+                        <td class="num muted">{c.share == null ? "–" : pct(c.share)}</td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              {/each}
+            </div>
+            {#if categories.some((g) => g.items.length > 8)}
+              <button type="button" class="more" onclick={() => (allCategories = !allCategories)}
+                >{allCategories
+                  ? t("fewerCategories")
+                  : t("moreCategories", { n: sum(categories.map((g) => Math.max(g.items.length - 8, 0))) })}</button>
+            {/if}
+          </details>
+        {/if}
+      </div>
+      {#if shown.length || listInfo.editable}
+        <!-- the list's own header: a cash payment and its layout beside it, not among the filters -->
+        <div class="list-head wa-split">
+          <span>
+            {t("transactions")}
+            {#if listInfo.editable && shown.length}<button type="button" class="more" onclick={() => chooseRows("all")}>{t("chooseAll")}</button>{/if}
+          </span>
+          <div class="wa-cluster wa-gap-s">
+            {#if listInfo.editable && !cashing}
+              <wa-button size="small" variant="brand" appearance="outlined" title={t("cashTitle")} onclick={() => (cashing = true)}
+                ><wa-icon slot="start" name="plus"></wa-icon>{t("cashAdd")}</wa-button
+              >
+            {/if}
+            {#if shown.length}
+              <wa-radio-group orientation="horizontal" size="small" value={layout} onchange={(e) => setLayout(e.currentTarget.value)}>
+                <wa-radio appearance="button" value="list">{t("asList")}</wa-radio>
+                <wa-radio appearance="button" value="table">{t("asTable")}</wa-radio>
+              </wa-radio-group>
+            {/if}
+          </div>
         </div>
       {/if}
-      <!-- a cash payment: its form where the button was, the payment then in the rows below -->
+      {#if chosen.length}
+        <div class="edit-bar sticky tag-bar">
+          <span>{t("chosenRows", { n: chosen.length })}</span>
+          <TagField tags={chosenTags} known={knownTags} add={(tag) => tagChosen({ add: tag })}
+            remove={(tag) => tagChosen({ remove: tag })} />
+          <wa-button size="small" appearance="plain" onclick={() => chooseRows("invert")}>{t("invertChoice")}</wa-button>
+          <wa-button size="small" appearance="filled" onclick={() => (chosen = [])}>{t("cancel")}</wa-button>
+        </div>
+      {/if}
+      <!-- a cash payment: its form above the rows, the payment then in the rows below -->
       {#if cashing && listInfo.editable}
         <CashEntry accounts={listInfo.accounts} done={cashDone} />
-      {:else if listInfo.editable}
-        <div class="cash-add">
-          <wa-button size="small" variant="brand" appearance="outlined" title={t("cashTitle")} onclick={() => (cashing = true)}
-            ><wa-icon slot="start" name="plus"></wa-icon>{t("cashAdd")}</wa-button
-          >
-        </div>
       {/if}
       {#if shown.length && layout === "list"}
         <!-- the days, the newest first, each with its sum; a row: the payee over what it is, the amount over the
@@ -1443,7 +1688,7 @@
         <ul class="txlist">
           {#each shown as r, i (i)}
             {@const m = r.date.slice(0, 7)}
-            {#if unit === "year" && (i === 0 || shown[i - 1].date.slice(0, 7) !== m)}
+            {#if (listView.all || unit === "year") && (i === 0 || shown[i - 1].date.slice(0, 7) !== m)}
               <li class="month"><span>{periodName(m)}</span><span class="num">{cents(sums[m])}</span></li>
             {/if}
             {#if i === 0 || shown[i - 1].date !== r.date}
@@ -1459,8 +1704,10 @@
               class:on={isOpen(r)}
               role="button"
               tabindex="0"
-              title={t("openTransaction")}
-              onclick={() => openTxn(r)}
+              class:chosen={chosen.includes(keyOf(r))}
+              title={rowTitle}
+              onclick={(e) => choose(e, i) || openTxn(r)}
+              onmousedown={(e) => e.shiftKey && e.preventDefault()}
               onkeydown={(e) => e.key === "Enter" && openTxn(r)}
             >
               <span class="main">
@@ -1468,6 +1715,7 @@
                 <span class="sub">
                   {@render accountButton(r)}
                   {#if r.narration && r.narration !== r.payee}<span class="text">{r.narration}</span>{/if}
+                  {@render tagButtons(r)}
                   {@render statementButton(r)}
                 </span>
               </span>
@@ -1495,17 +1743,18 @@
           <tbody>
             {#each shown as r, i (i)}
               {@const m = r.date.slice(0, 7)}
-              {#if unit === "year" && (i === 0 || shown[i - 1].date.slice(0, 7) !== m)}
+              {#if (listView.all || unit === "year") && (i === 0 || shown[i - 1].date.slice(0, 7) !== m)}
                 <tr class="group">
                   <td colspan="3">{periodName(m)}</td><td class="num">{cents(sums[m])}</td><td></td><td></td>
                 </tr>
               {/if}
-              <tr class="link" class:on={isOpen(r)} title={t("openTransaction")} onclick={() => openTxn(r)}>
+              <tr class="link" class:on={isOpen(r)} class:chosen={chosen.includes(keyOf(r))} title={rowTitle}
+                onclick={(e) => choose(e, i) || openTxn(r)} onmousedown={(e) => e.shiftKey && e.preventDefault()}>
                 <td class="date">{i && shown[i - 1].date === r.date ? "" : day(r.date)}</td>
                 <td class="what" title={r.narration}>
                   {@render payeeButton(r)}{#if r.narration && r.narration !== r.payee}<span class="muted"
                       >{r.narration}</span
-                    >{/if}
+                    >{/if}{@render tagButtons(r)}
                 </td>
                 <td class="cat-cell">
                   {#if listPick === r.hash}
@@ -1530,7 +1779,7 @@
       {:else}
         <p class="muted">
           {t("noTransactions")}
-          {#if listView.payee || search}
+          {#if listView.payee || listView.tag || search}
             <button type="button" class="more" onclick={() => ((search = ""), go({ name: "txns", account: listView.account }))}
               >{t("removeFilter")}</button
             >

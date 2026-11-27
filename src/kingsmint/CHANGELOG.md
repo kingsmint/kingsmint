@@ -13,6 +13,13 @@ here is the installed version.
   **Import from iPhone**: take a photo or scan the receipt with the phone. A photo is made smaller (about 2000 px), so
   the ledger's versions do not grow by megabytes. The overview shows the cash withdrawn in the month, the cash
   entered, and the rest that no one categorized.
+- Tags in the Kingsmint app: add or remove a tag in a transaction's detail, or choose rows in the transactions with
+  ⌘ or Shift click and tag them together. **Tags** in the overview shows each tag's total, count and dates; a tag
+  opens the transactions filtered by it, over all its months. The transactions have a tag filter, a new period
+  **All** (every month of the ledger), and what they moved by category under the chart; both fold away. A name such as "Záloha plot" becomes `#zaloha-plot`: Beancount takes no other
+  characters in a tag. Tags in `ledger/` stay after `kingsmint reimport`; tags also work on `cash.beancount`.
+- The agent tags the transactions you name ("tag the holiday from 1 to 14 July as #croatia-2026") after you
+  confirm the list (the categorize skill).
 
 ## 0.2.5
 

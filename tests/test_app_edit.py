@@ -198,3 +198,65 @@ def test_a_closed_account_or_a_price_is_refused(root):
     e = next(x for x in entries if x.meta.get("id") == e.meta["id"])
     with pytest.raises(edit.EditError, match="price"):
         edit.save_entry(root, e, entries, [{"account": "Expenses:Gifts"}])
+
+
+def test_slug():
+    assert edit.tag_slug("Záloha plot") == "zaloha-plot"
+    assert edit.tag_slug("#croatia-2026") == "croatia-2026"
+    assert edit.tag_slug("a/b.c_d") == "a/b.c_d"
+    assert edit.tag_slug("Croatia") == "Croatia"  # Beancount takes it: kept, so the app finds and removes it
+    assert edit.retag({"tags_links": "#Croatia ^x"}, None, "Croatia") == {"tags_links": "^x"}
+    with pytest.raises(edit.EditError):
+        edit.tag_slug(" ?! ")
+
+
+def test_tags_stay_after_reimport(root):
+    """Tags on several transactions in ledger/ and one in cash.beancount; reimport keeps the ones in ledger/, links and
+    other tags stay, and a removed tag goes."""
+    (root / "cash.beancount").write_text((root / "cash.beancount").read_text() + """
+2025-03-01 * "Trh" "zelenina" #market ^receipt-1
+  Expenses:Food:Groceries  5.00 EUR
+  Expenses:Cash
+""")
+    entries = load(root)
+    bistro = by_payee(entries, "Bistro Centrum")
+    spotify = by_payee(entries, "Spotify")[0]
+    cash = next(x for x in entries if getattr(x, "payee", None) == "Trh")
+    picked = [*bistro[:2], spotify, cash]
+    changed = edit.save_tags(root, picked, add=edit.tag_slug("Záloha plot"))
+    assert "cash.beancount" in changed
+    assert '"Trh" "zelenina" #market #zaloha-plot ^receipt-1\n' in (root / "cash.beancount").read_text()
+    edit.save_tags(root, [spotify], remove="zaloha-plot")
+    with pytest.raises(edit.EditError, match="not in the transactions"):  # gone: a remove that writes nothing says so
+        edit.save_tags(root, [spotify], remove="zaloha-plot")
+    ids = {e.meta["id"] for e in bistro[:2]}
+    cli.reimport()
+    entries = load(root)
+    tagged = [e for e in entries if "zaloha-plot" in (getattr(e, "tags", None) or ())]
+    assert {e.meta.get("id") for e in tagged} == ids | {None}  # the cash one has no id
+    assert next(e for e in tagged if e.payee == "Trh").links == {"receipt-1"}
+    assert not next(e for e in entries if e.meta.get("id") == spotify.meta["id"]).tags
+    assert not any(edit.hand_edited(root, e) for e in tagged if "id" in e.meta)  # a tag is not a change of categories
+
+
+def test_tags_server(root, tmp_path):
+    from test_app_server import server
+
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    shutil.copy(Path(server.__file__).parent.parent / "ui" / "i18n.json", ui)
+    (root / "cash.beancount").write_text((root / "cash.beancount").read_text() + """
+2025-06-10 * "Stavebniny" "pletivo" #plot
+  Expenses:Housing:Rent   300.00 EUR
+  Expenses:Cash
+""")
+    methods = server.make_app(root / "main.beancount", ui).state.methods
+    bistro = by_payee(load(root), "Bistro Centrum")
+    r = methods["tags_save"](items=[{"id": e.meta["id"]} for e in bistro], add="Výlet")
+    assert (r["error"], r["tag"], r["count"]) == ("", "vylet", len(bistro))
+    one = methods["tags_save"](id=bistro[0].meta["id"], remove="vylet")
+    assert one["entry"]["tags"] == [] and one["entry"]["taggable"]
+    t = {x["tag"]: x for x in methods["tags"]()["tags"]}
+    assert t["vylet"]["count"] == len(bistro) - 1 and t["vylet"]["total"] > 0
+    assert t["plot"]["total"] == 300  # a cash payment counts its category, not the cash it came from
+    assert methods["tags_save"](id=bistro[0].meta["id"], add="")["error"].startswith("Not a tag")
