@@ -3,6 +3,7 @@
      server what the rule would move first; when it moves nothing, it is a short message that goes by itself. Yes adds
      the rule and runs `kingsmint reimport`; a transaction changed by hand keeps its category. -->
 <script>
+  import { accountLabel } from "./accounts.js";
   import { app } from "./app.svelte.js";
   import { t } from "./i18n.js";
   import { rpc } from "./util.js";
@@ -24,7 +25,6 @@
   });
   const others = $derived(offer?.rows.filter((x) => !ref.id || x.id !== ref.id) ?? []);
   const fmt = (v, c) => new Intl.NumberFormat(app.lang, { style: "currency", currency: c, minimumFractionDigits: 2 }).format(v);
-  const name = (a) => a.split(":").at(-1);
 
   async function yes() {
     busy = true;
@@ -36,9 +36,9 @@
 
 <div class="toast-message rule-offer">
   <span>
-    {t("savedAs", { account: name(account) })}
+    {t("savedAs", { account: accountLabel(account) })}
     {#if offer?.moves > 0}
-      {t("ruleAsk", { n: offer.moves, who: offer.counterparty, account: name(account) })}
+      {t("ruleAsk", { n: offer.moves, who: offer.counterparty, account: accountLabel(account) })}
       <button type="button" class="more" onclick={() => (open = !open)}>{open ? t("hideList") : t("showList")}</button>
     {/if}
   </span>

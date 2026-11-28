@@ -3,6 +3,7 @@
      quarter, a year); a tag's budget has its dates and its payments. Forms for an account's budget (BudgetForm) and
      a tag's. Color only for the state. -->
 <script>
+  import { accountLabel } from "./accounts.js";
   import { app } from "./app.svelte.js";
   import BudgetForm from "./BudgetForm.svelte";
   import { t } from "./i18n.js";
@@ -33,7 +34,6 @@
   const day = (iso, o = { day: "numeric", month: "numeric", year: "numeric" }) =>
     new Intl.DateTimeFormat(app.lang, o).format(new Date(iso));
   const range = (x) => `${day(x.start)} – ${x.end ? day(x.end) : t("budgetOpenEnd")}`;
-  const name = (a) => a.split(":").slice(1).join(" › ");
 
   // a tag's form: a new budget, or the one of `editing` (its tag)
   let tagForm = $state(null);
@@ -98,7 +98,7 @@
     {#each b?.accounts ?? [] as x (x.account)}
       <section class="card" data-state={x.state}>
         <h3>
-          <button type="button" class="more" onclick={() => openAccount(x.account)}>{name(x.account)}</button>
+          <button type="button" class="more" onclick={() => openAccount(x.account)}>{accountLabel(x.account)}</button>
           <span class="muted">{t(`budget_${x.period}`)} · {range(x)}</span>
         </h3>
         {@render numbers(x)}

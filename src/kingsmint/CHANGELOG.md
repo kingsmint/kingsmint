@@ -7,6 +7,9 @@ here is the installed version.
 
 ## Unreleased
 
+- The Kingsmint app writes account and category names the same way everywhere: `Food › Groceries`, not
+  `Expenses:Food:Groceries`. The transactions' account filter groups its accounts under Expenses, Income, Accounts and Debts.
+  The colon name, as the ledger writes it, shows when the mouse rests on a name.
 - The Kingsmint app enters a cash payment without the agent: **+ Cash payment** above the list of transactions, or ⌘N. Date,
   amount, category, payee and a receipt go to `cash.beancount`, where the payment moves from `Expenses:Cash` to its
   category; the receipt goes to `documents/Expenses/Cash/`. On a Mac, a right click in the receipt's field offers

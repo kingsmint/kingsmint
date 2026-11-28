@@ -11,6 +11,7 @@
      Color only for a state: green good, yellow or red a warning. -->
 <script>
   import { untrack } from "svelte";
+  import { accountLabel, accountName as name, fullLabel, rootLabel } from "./accounts.js";
   import { app } from "./app.svelte.js";
   import Chart, { FAVA } from "./Chart.svelte";
   import { stepToFava } from "./fava.js";
@@ -160,7 +161,6 @@
   const sum = (s) => s.reduce((x, y) => x + y, 0);
   const children = (a) =>
     Object.keys(d?.flows ?? {}).filter((c) => c.startsWith(`${a}:`) && !c.slice(a.length + 1).includes(":"));
-  const name = (a) => (a.includes(":") ? a.split(":").at(-1) : t(a.toLowerCase()));
   // the account's subaccounts in the chosen period, the largest first
   const parts = (a) =>
     children(a)
@@ -298,7 +298,7 @@
         // the periods differ, the shares compare
         value: worst && t("budgetsOk", { ok: count("good"), n: ranked.length }),
         sub: worst && (["bad", "warn"].filter(count).map((s) => t(`budgets_${s}`, { n: count(s) })).join(" · ") || t("budgets_good")),
-        compare: ranked.slice(0, 3).map((x) => [x.name ?? name(x.account), fmt({ style: "percent" }).format(x.share)]),
+        compare: ranked.slice(0, 3).map((x) => [x.name ?? accountLabel(x.account), fmt({ style: "percent" }).format(x.share)]),
         state: worst?.state,
         go: { name: "budgets" },
       },
@@ -662,7 +662,7 @@
       .filter((g) => g.items.length);
   });
   // a category's name under the account filter (or its root): Food:Groceries, not Groceries, which two may share
-  const catName = (a) => a.slice((listView.account ?? a.split(":")[0]).length + 1) || name(a);
+  const catName = (a) => accountLabel(a, listView.account);
   const categoryCount = $derived(sum(categories.map((g) => g.items.length)));
   let allCategories = $state(false); // more than the first 8 of each group
   // a row's tooltip: what a click does, and how to choose rows for tags
@@ -988,7 +988,6 @@
   // the account a row shows: the category of a bank account's transaction, else its account under the filter's
   const accountOf = (r) =>
     booked(listView.account ?? "") ? (r.others.find((o) => !booked(o)) ?? r.others[0] ?? "") : r.account;
-  const short = (a) => (listView.account && a.startsWith(`${listView.account}:`) ? a.slice(listView.account.length + 1) : a);
   const filterAccounts = $derived(
     [
       ...new Set(
@@ -996,6 +995,18 @@
       ),
     ].sort(),
   );
+  // the filter's accounts under their roots: expenses, income, then the accounts
+  const ROOTS = ["Expenses", "Income", "Assets", "Liabilities"];
+  const rank = (root) => (ROOTS.indexOf(root) + ROOTS.length + 1) % (ROOTS.length + 1); // unknown roots last
+  const filterGroups = $derived(
+    Object.entries(
+      filterAccounts.reduce((g, a) => ((g[a.split(":")[0]] ??= []).push(a), g), {}),
+    ).sort(([x], [y]) => rank(x) - rank(y)),
+  );
+  // a row's account: under the filter's account without it, else with its root, as Income:Gifts and Expenses:Gifts
+  // may share the rest
+  const rowLabel = (a) =>
+    listView.account && a.startsWith(`${listView.account}:`) ? accountLabel(a, listView.account) : fullLabel(a);
   const cents = (v) =>
     fmt({ style: "currency", currency: d.currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
   const day = (iso) => new Intl.DateTimeFormat(app.lang, { day: "numeric", month: "short" }).format(new Date(iso));
@@ -1039,7 +1050,7 @@
       onclick={(e) => {
         e.stopPropagation();
         go({ name: "txns", account: accountOf(r) });
-      }}>{short(accountOf(r))}</button
+      }}>{rowLabel(accountOf(r))}</button
     >
   {/if}
 {/snippet}
@@ -1444,7 +1455,7 @@
             {@const avg = avgOf(c.series)}
             <li>
               <button type="button" onclick={() => open(c.account, c.leaf)}>
-                <span class="name">{name(c.account)}</span>
+                <span class="name" title={c.account}>{name(c.account)}</span>
                 <span class="bar"><span style:width="{(c.series.at(-1) / areas[0].series.at(-1)) * 100}%"></span></span>
                 <span class="num">{eur(c.series.at(-1))}</span>
                 <span class="num" title={avg == null ? "" : `${t(L.avg)}: ${eur(avg)}`}
@@ -1572,7 +1583,7 @@
           {#each list as c (c.account)}
             {@const v = c.series.at(-1)}
             <tr class="link" onclick={() => open(c.account, c.leaf)}>
-              <td>{name(c.account)}</td>
+              <td title={c.account}>{name(c.account)}</td>
               <td class="num">{eur(v)}</td>
               <td class="num">{s.at(-1) > 0 ? pct(v / s.at(-1)) : "–"}</td>
               <td class="num">{prevOf(c.series) == null ? "–" : delta(v - prevOf(c.series))}</td>
@@ -1736,7 +1747,7 @@
             </tr>
             {#each group as a}
               <tr class="link" onclick={() => go({ name: "txns", account: a.account })}>
-                <td class="indent">{a.account.split(":").slice(1).join(":")}</td>
+                <td class="indent">{accountLabel(a.account)}</td>
                 <td class="num">{eur(a.history.at(-1))}</td>
                 <td class="num">{prevOf(a.history) == null ? "–" : delta(a.history.at(-1) - prevOf(a.history))}</td>
                 <td class="pct">{@render chg(a.history.at(-1), prevOf(a.history), "good", worth.at(-1))}</td>
@@ -1769,7 +1780,7 @@
             .sort((x, y) => Math.abs(y.series.at(-1) - prevOf(y.series)) - Math.abs(x.series.at(-1) - prevOf(x.series)))
             .slice(0, 5) as c}
             <tr class="link" onclick={() => open(c.account, false)}>
-              <td>{name(c.account)}</td>
+              <td title={c.account}>{name(c.account)}</td>
               <td class="num">{delta(-(c.series.at(-1) - prevOf(c.series)))}</td>
             </tr>
           {/each}
@@ -1789,7 +1800,11 @@
           onchange={(e) => go({ ...listView, account: e.target.value || undefined, days: undefined })}
         >
           <option value="">{t("allIncomeExpenses")}</option>
-          {#each filterAccounts as a}<option value={a}>{a}</option>{/each}
+          {#each filterGroups as [root, list] (root)}
+            <optgroup label={rootLabel(root)}>
+              {#each list as a}<option value={a} title={a}>{accountLabel(a)}</option>{/each}
+            </optgroup>
+          {/each}
         </select>
       </label>
       {#if listView.payee}
@@ -1877,7 +1892,7 @@
               {#each categories as g (g.root)}
                 <table>
                   {#if categories.length > 1}
-                    <thead><tr class="group"><td colspan="3">{t(g.root.toLowerCase())}</td></tr></thead>
+                    <thead><tr class="group"><td colspan="3">{rootLabel(g.root)}</td></tr></thead>
                   {/if}
                   <tbody>
                     {#each allCategories ? g.items : g.items.slice(0, 8) as c (c.account)}
@@ -2103,7 +2118,7 @@
                 <label title={fixed ? t("liquidByName") : ""}>
                   <input type="checkbox" checked={a.counted} disabled={fixed}
                     onchange={(e) => setEdit(a.account, "liquid", e.currentTarget.checked ? null : "false")} />
-                  {a.account.split(":").slice(1).join(":")}
+                  {accountLabel(a.account)}
                 </label>
               </td>
               <td class="num">{eur(a.amount)}</td>
@@ -2115,7 +2130,7 @@
         {:else}
           {#each runway.liquid_by_account ?? [] as a (a.account)}
             <tr class="link" onclick={() => go({ name: "txns", account: a.account })}>
-              <td class="indent">{a.account.split(":").slice(1).join(":")}</td>
+              <td class="indent">{accountLabel(a.account)}</td>
               <td class="num">{eur(a.amount)}</td><td class="num muted">{duration(a.amount / runway.baseline.today)}</td>
               {#if withCash}<td></td>{/if}
               <td></td>
@@ -2168,7 +2183,7 @@
                 onclick={() =>
                   editing || (a.account.startsWith("Expenses") ? open(a.account) : go({ name: "txns", account: a.account }))}
               >
-                <td class="indent">{a.account.split(":").slice(1).join(":")}</td>
+                <td class="indent">{accountLabel(a.account)}</td>
                 <td class="num">{eur(a.today)}</td>
                 <td class="num">{@render was(old[a.account]?.reduced, a.reduced, eur)}</td><td></td>
                 {#if editing}

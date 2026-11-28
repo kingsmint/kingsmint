@@ -6,6 +6,7 @@
 </script>
 
 <script>
+  import { accountName, fullLabel } from "./accounts.js";
   import { t } from "./i18n.js";
 
   let { accounts, suggested = [], value = "", pick, cancel } = $props();
@@ -62,8 +63,8 @@
   />
   <ul role="listbox">
     {#each list as a, i (a)}
-      <li role="option" aria-selected={i === at} class:on={i === at} onmousedown={(e) => (e.preventDefault(), choose(a))}>
-        <b>{a.split(":").at(-1)}</b> <span class="muted">{a}</span>
+      <li title={a} role="option" aria-selected={i === at} class:on={i === at} onmousedown={(e) => (e.preventDefault(), choose(a))}>
+        <b>{accountName(a)}</b> <span class="muted">{fullLabel(a)}</span>
       </li>
     {:else}
       <li class="muted">{t("noAccount")}</li>

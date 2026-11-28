@@ -3,6 +3,7 @@
      account's budget from its date (the start of the chosen period unless changed); ending it starts with the
      budget's own current period. `averages`: the accounts' average month of the last 12, shown by the limit. -->
 <script>
+  import { accountLabel } from "./accounts.js";
   import { app } from "./app.svelte.js";
   import { t } from "./i18n.js";
   import Message from "./Message.svelte";
@@ -82,7 +83,7 @@
     {#if !account}
       <wa-select size="small" label={t("category")} placeholder={t("budgetChooseCategory")} value={chosen}
         onchange={(e) => (chosen = e.target.value)}>
-        {#each accounts as a}<wa-option value={a}>{a.replace(/^Expenses:/, "").replaceAll(":", " › ")}</wa-option>{/each}
+        {#each accounts as a}<wa-option value={a}>{accountLabel(a)}</wa-option>{/each}
       </wa-select>
     {/if}
     <div>
