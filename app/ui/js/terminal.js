@@ -7,6 +7,7 @@ import { tick } from "svelte";
 import { app } from "./app.svelte.js";
 import { openLink } from "./fava.js";
 import { t } from "./i18n.js";
+import { saveSoon } from "./panels.js";
 import { active, assign, restoring, side, tabs } from "./state.js";
 import { dark, invoke, listen } from "./util.js";
 import { fontSize } from "./zoom.js";
@@ -88,7 +89,9 @@ export function freeName(base) {
 // the new tabs that install their agent first (pty_start's install); not in the panel's params, which the layout keeps
 const installing = new Set();
 
-export function makeTab(api, { agent = "", claude = null }, el) {
+// `claude`: the conversation id in the layout of an older app, which had it for Claude Code only. A tab without a
+// profile (an older layout) runs its agent's own profile.
+export function makeTab(api, { agent = "", profile = null, conversation = null, claude = null }, el) {
   // linkHandler: links the program marks (OSC 8); without it xterm.js asks with confirm() and opens a new window
   const term = new Terminal({
     fontFamily: FONT,
@@ -104,7 +107,8 @@ export function makeTab(api, { agent = "", claude = null }, el) {
   const tab = {
     api,
     agent,
-    claude,
+    profile: profile ?? agent,
+    conversation: conversation ?? claude,
     install: installing.delete(api.id),
     resume: restoring,
     term,
@@ -115,7 +119,7 @@ export function makeTab(api, { agent = "", claude = null }, el) {
     last: 0,
     unread: false,
   };
-  term.onData((data) => tab.session && invoke("pty_write", { session: tab.session, data }));
+  term.onData((data) => send(tab, data));
   // xterm.js sends Enter for Shift+Enter too; an agent takes a line feed (Ctrl+J) as a new line in the message
   term.attachCustomKeyEventHandler((e) => {
     if (e.key !== "Enter" || !e.shiftKey || !tab.agent) return true;
@@ -149,11 +153,14 @@ export async function run(tab) {
   tab.starting = true;
   tab.last = 0; // a task waits for the new program's output
   tab.term.reset();
+  const p = profileOf(tab);
   tab.session = await invoke("pty_start", {
     agent: tab.agent,
+    path: p.path || null,
+    config: p.config || null,
     cols: tab.term.cols,
     rows: tab.term.rows,
-    claude: tab.claude,
+    conversation: tab.conversation,
     name: tab.api.title,
     resume: tab.resume,
     install: tab.install,
@@ -203,26 +210,48 @@ export function closeTab(tab) {
 }
 
 // A new terminal: a tab in the agent's sidebar.
-export function addTab({ agent = "", claude = null, name, install = false } = {}) {
-  if (agent === "claude" && !claude) claude = crypto.randomUUID();
+// `profile`: its id (profiles()); it gives the agent. Without one, the agent's own profile.
+// `claude`: the conversation in the layout of the first app.
+export function addTab({ agent = "", profile = null, conversation = null, claude = null, name, install = false } = {}) {
+  conversation ??= claude;
+  const p = profileById(profile);
+  if (p) agent = p.agent;
+  profile = p ? p.id : agent;
+  if (["claude", "pi"].includes(agent) && !conversation) conversation = crypto.randomUUID(); // Codex makes its own
   const id = `term-${crypto.randomUUID().slice(0, 8)}`;
   if (install) installing.add(id); // before addPanel, which makes the tab
   const panel = side.addPanel({
     id,
     component: "term",
-    title: name || freeName(agent || "shell"),
-    params: { agent, claude },
+    title: name || freeName(p?.name || agent || "shell"),
+    params: { agent, profile, conversation },
   });
   return tabs.find((t) => t.api.id === panel.id);
 }
-export const newTab = (agent) => showTab(addTab({ agent }));
+// `agent`: when the profile is gone (removed, or its agent not found now), the tab still runs the agent
+export const newTab = (profile, agent = "") => showTab(addTab({ profile, agent }));
 // a tab that runs the agent's official installer, then the agent, which asks the user to sign in
 export const installAgent = (agent) => showTab(addTab({ agent, install: true }));
-// the agent of new tabs: the one in the settings while it is installed, else the first one found
-export const defaultAgent = () =>
-  app.installed.includes(app.appSettings.agent) || app.appSettings.agent === ""
-    ? app.appSettings.agent
-    : app.installed[0] || "";
+
+// The agents the app knows, with their names for the user; pty_start knows them by the same keys (AGENTS in main.rs).
+export const AGENTS = { claude: "Claude Code", codex: "Codex", "cursor-agent": "Cursor", pi: "pi" };
+// The profiles: one for each agent found (its id is the agent's), and the user's own from the settings, which give the
+// agent's program (`path`) and its own folder (`config`: a second login, such as a private Claude Code).
+export const profiles = () => [
+  ...app.installed.map((a) => ({ id: a, name: AGENTS[a] ?? a, agent: a })),
+  ...(app.appSettings.profiles ?? []),
+];
+export const profileById = (id) => (id ? profiles().find((p) => p.id === id) : null);
+// a tab's profile; one removed from the settings leaves the agent as found on PATH
+const profileOf = (tab) => profileById(tab.profile) ?? { agent: tab.agent };
+// The profile of new tabs and of the app's tasks: the ledger's (the settings, on this computer), else the app's,
+// while it exists; "" is a shell. Else the first agent found.
+export function defaultProfile() {
+  for (const id of [app.appSettings.ledgerProfiles?.[app.current], app.appSettings.agent]) {
+    if (id === "" || profileById(id)) return id;
+  }
+  return profiles()[0]?.id ?? "";
+}
 
 export const TRUST = /trust (this|the) (folder|directory|workspace)|do you trust/i;
 export function screen(tab) {
@@ -241,6 +270,42 @@ export function agentNote() {
 // the agents found on PATH, which the "+" menu (Popups.svelte) and the settings offer
 export async function agentMenu() {
   assign({ installed: await invoke("agents") });
+}
+
+// the agents whose tab follows its conversation (conversations in main.rs)
+const FOLLOWS = ["claude", "codex", "pi"];
+// What the user types, or a task, to the tab's program. Enter in an agent's tab may start a conversation; the tab
+// keeps its Enters of the last 10 s, as a second Enter may come before the lookup.
+export function send(tab, data) {
+  if (!tab.session) return;
+  if (FOLLOWS.includes(tab.agent) && data.includes("\r")) {
+    const now = Date.now();
+    tab.enters = [...(tab.enters ?? []).filter((e) => now - e < 10000), now];
+    for (const ms of [1500, 6000]) setTimeout(() => findConversation(tab, now), ms);
+  }
+  return invoke("pty_write", { session: tab.session, data });
+}
+
+// A conversation the tab's agent started after an Enter: Codex's first one (its id comes from Codex; also after /new,
+// or when `codex resume` failed), /clear in Claude Code, /new in pi. The agents write it 30–70 ms after the Enter. It
+// belongs to the tab of the same agent and folder whose Enter came last before it, at most 2 s; not to another tab,
+// nor, mostly, to the agent run outside the app in the ledger. The tab keeps the id in the layout, so a restart
+// continues the conversation it was in.
+async function findConversation(tab, enter) {
+  const config = profileOf(tab).config || null;
+  const same = (t) => t.agent === tab.agent && (profileOf(t).config || null) === config; // the same folder
+  const found = await invoke("conversations", { agent: tab.agent, since: enter - 1000, config }).catch(() => []);
+  for (const [id, at] of found) {
+    const time = Date.parse(at);
+    // a tab's last Enter before the conversation (50 ms for clocks that round)
+    const before = (t) => Math.max(0, ...(t.enters ?? []).filter((e) => e - 50 <= time && time - e < 2000));
+    const last = tabs.filter((t) => same(t) && before(t)).sort((a, b) => before(b) - before(a))[0];
+    if (last !== tab || tabs.some((t) => t.conversation === id)) continue;
+    tab.conversation = id;
+    tab.api.updateParameters({ agent: tab.agent, profile: tab.profile, conversation: id });
+    saveSoon();
+    return;
+  }
 }
 
 // The terminals' output from the app, the agents' questions, the busy dots, and the theme and font.

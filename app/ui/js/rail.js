@@ -7,7 +7,7 @@ import { app } from "./app.svelte.js";
 import { addOverview, PARTS, saveSoon, shown, showPart, visible } from "./panels.js";
 import { saveApp } from "./settings.js";
 import { active, dock, overviews, tabs } from "./state.js";
-import { defaultAgent, newTab, showTab } from "./terminal.js";
+import { defaultProfile, newTab, showTab } from "./terminal.js";
 
 export function pane(id) {
   if (!dock) return;
@@ -17,7 +17,7 @@ export function pane(id) {
     return;
   }
   const tab = active ?? tabs.find((t) => t.agent) ?? tabs[0];
-  tab ? showTab(tab) : newTab(defaultAgent());
+  tab ? showTab(tab) : newTab(defaultProfile());
 }
 export function railState() {
   app.shown = {

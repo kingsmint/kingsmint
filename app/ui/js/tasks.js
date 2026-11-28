@@ -5,8 +5,8 @@
 import { app } from "./app.svelte.js";
 import { tAgent } from "./i18n.js";
 import { active, tabs } from "./state.js";
-import { addTab, agentNote, asksTrust, showTab } from "./terminal.js";
-import { invoke, rpc } from "./util.js";
+import { addTab, agentNote, asksTrust, defaultProfile, send, showTab } from "./terminal.js";
+import { rpc } from "./util.js";
 
 export const ACTIONS = {
   setup: () => [tAgent("setup") + tAgent("save"), "kingsmint import", tAgent("beforeSetup")],
@@ -28,15 +28,17 @@ export const ask = (act) => tell(...ACTIONS[act]());
 // message, so a click is one complete message; before it, a version to return to.
 export async function tell(task, command, before) {
   await rpc("versions_save", { message: before }).catch(() => {}); // a point to return to
-  let tab = active?.agent ? active : tabs.find((t) => t.agent);
-  if (!tab && app.installed.length) tab = addTab({ agent: app.installed[0] });
-  tab ??= active ?? addTab({ agent: "" }); // no agent installed: the command in a shell
+  // the agent tab in view, else one of the profile for this ledger, else a new one of it
+  const profile = defaultProfile();
+  let tab = active?.agent ? active : tabs.find((t) => t.agent && t.profile === profile);
+  if (!tab && profile) tab = addTab({ profile });
+  tab ??= tabs.find((t) => t.agent) ?? active ?? addTab({ agent: "" }); // no agent: the command in a shell
   await showTab(tab);
   for (let i = 0; i < 100 && (!tab.last || Date.now() - tab.last < 1000); i++)
     await new Promise((r) => setTimeout(r, 200));
   if (!tab.session || (!tab.agent && !command)) return;
   if (asksTrust(tab)) return agentNote(); // the user answers it first; then the button again
-  await invoke("pty_write", { session: tab.session, data: tab.agent ? task : command });
-  setTimeout(() => invoke("pty_write", { session: tab.session, data: "\r" }), 150);
+  await send(tab, tab.agent ? task : command);
+  setTimeout(() => send(tab, "\r"), 150);
   tab.term.focus();
 }

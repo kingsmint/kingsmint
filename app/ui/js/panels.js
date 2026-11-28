@@ -1,8 +1,8 @@
 // Panels (Dockview): Fava, the inbox, the overview, the reports and the settings; and in the agent's sidebar on the
 // right (a second Dockview, one group), one tab per terminal. A terminal runs one program (an agent,
 // or "" for a shell), which keeps running while another tab shows or the sidebar hides. `session` is the program's number; events of an
-// ended program are ignored. A Claude Code terminal has its own session id (`claude`), so it continues the same
-// conversation after a restart. The layout, with each terminal's agent and session id and Fava's page, is saved per
+// ended program are ignored. An agent's terminal keeps its conversation's id (`conversation`), so it continues the
+// same conversation after a restart. The layout, with each terminal's agent and session id and Fava's page, is saved per
 // ledger, with the sidebar's.
 
 import * as DV from "dockview-core";
@@ -20,7 +20,7 @@ import { loadSettings } from "./settings.js";
 import { assign, dock, favas, lastFava, loaded, overviews, side, tabs } from "./state.js";
 import TabHeader from "./TabHeader.svelte";
 import TerminalPanel from "./TerminalPanel.svelte";
-import { addTab, defaultAgent, newTab, showTab } from "./terminal.js";
+import { addTab, defaultProfile, newTab, showTab } from "./terminal.js";
 import { byId, dark, invoke } from "./util.js";
 
 export const PARTS = { inbox: "inbox", dashboard: "dashboard", reports: "reports", settings: "settings" }; // the pages that are in one panel only
@@ -129,7 +129,7 @@ export const TAB_ACTIONS = {
     await showTab(tab);
     rename(tab);
   },
-  clone: (tab) => newTab(tab.agent),
+  clone: (tab) => newTab(tab.profile, tab.agent),
   // a Claude Code tab continues its conversation
   restart: (tab) => {
     if (tab.session) invoke("pty_kill", { session: tab.session });
@@ -245,10 +245,10 @@ export async function loadLayout(dir) {
   }
   // the terminals of a layout from before the sidebar move into it, where their programs continue
   for (const tab of tabs.filter((t) => dock.getPanel(t.api.id))) {
-    const { agent, claude } = tab,
+    const { agent, profile, conversation } = tab,
       name = tab.api.title;
     dock.getPanel(tab.api.id).api.close();
-    addTab({ agent, claude, name });
+    addTab({ agent, profile, conversation, name });
   }
   if (!dock.panels.length) {
     dock.addPanel({ id: "dashboard", component: "dashboard", title: t("dashboard") });
@@ -257,7 +257,9 @@ export async function loadLayout(dir) {
   }
   if (!tabs.length) {
     assign({ restoring: !!saved?.tabs?.length }); // the tabs of an older app: they continue too
-    (saved?.tabs?.length ? saved.tabs : [...new Set([defaultAgent(), ""])].map((agent) => ({ agent }))).forEach(addTab);
+    (saved?.tabs?.length ? saved.tabs : [...new Set([defaultProfile(), ""])].map((profile) => ({ profile }))).forEach(
+      addTab,
+    );
   }
   assign({ restoring: false, loaded: true });
   // the rail's overview takes the view saved in its panel's parameters (Dashboard.svelte)

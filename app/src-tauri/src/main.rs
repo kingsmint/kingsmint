@@ -14,12 +14,17 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager, State};
 
-const AGENTS: [&str; 3] = ["claude", "codex", "cursor-agent"];
-/// The official installers of the agents a subscription brings: Claude (Pro, Max) and ChatGPT. (agent, sh, PowerShell)
-const INSTALLERS: [(&str, &str, &str); 2] = [
+const AGENTS: [&str; 4] = ["claude", "codex", "cursor-agent", "pi"];
+/// The agents' official installers. (agent, sh, PowerShell)
+const INSTALLERS: [(&str, &str, &str); 4] = [
     ("claude", "curl -fsSL https://claude.ai/install.sh | bash", "irm https://claude.ai/install.ps1 | iex"),
     ("codex", "curl -fsSL https://chatgpt.com/codex/install.sh | sh", "irm https://chatgpt.com/codex/install.ps1 | iex"),
+    ("cursor-agent", "curl -fsS https://cursor.com/install | bash", "irm 'https://cursor.com/install?win32=true' | iex"),
+    ("pi", "curl -fsSL https://pi.dev/install.sh | sh", "irm https://pi.dev/install.ps1 | iex"),
 ];
+/// The variable that gives an agent its own folder for the login, settings and conversations: a profile with its own
+/// folder is a second account (a private Claude Code beside the one for work). Cursor's agent has none.
+const CONFIG_VARS: [(&str, &str); 3] = [("claude", "CLAUDE_CONFIG_DIR"), ("codex", "CODEX_HOME"), ("pi", "PI_CODING_AGENT_DIR")];
 const KINGSMINT_GIT: &str = "https://github.com/kingsmint/kingsmint";
 
 struct Pty {
@@ -142,7 +147,7 @@ fn login_path() {
 /// before the user's shell profile has them, and the installers do not always add them.
 fn agent_path() {
     let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from);
-    let mut dirs: Vec<PathBuf> = home.into_iter().map(|h| h.join(".local").join("bin")).collect();
+    let mut dirs: Vec<PathBuf> = home.into_iter().flat_map(|h| [h.join(".local").join("bin"), h.join(".pi").join("agent").join("bin")]).collect();
     if let Some(local) = std::env::var_os("LOCALAPPDATA") {
         dirs.push(PathBuf::from(local).join(r"Programs\OpenAI\Codex\bin"));
     }
@@ -166,10 +171,44 @@ fn ledger_path(ledger: &Path) -> String {
     std::env::join_paths(parts).unwrap().to_string_lossy().into_owned()
 }
 
-fn on_path(name: &str) -> bool {
+/// The program `name` on PATH.
+fn which(name: &str) -> Option<PathBuf> {
     // npm installs the agents on Windows as .cmd scripts
     let exes: &[String] = if cfg!(windows) { &[format!("{name}.exe"), format!("{name}.cmd")] } else { &[name.to_string()] };
-    std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()).any(|d| exes.iter().any(|e| d.join(e).is_file()))
+    std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()).flat_map(|d| exes.iter().map(move |e| d.join(e))).find(|p| p.is_file())
+}
+
+/// `~/x` as the home folder's x; a profile's path and folder may be written so.
+fn expand(p: &str) -> PathBuf {
+    let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from);
+    match (p.strip_prefix("~/").or_else(|| p.strip_prefix("~\\")), home) {
+        (Some(rest), Some(h)) => h.join(rest),
+        _ => PathBuf::from(p),
+    }
+}
+
+/// The first line a program writes for `--version`, or why it does not run. A program that fails here is no
+/// agent: a broken or half-removed install is not offered.
+fn version(program: &Path) -> Result<String, String> {
+    let mut child = quiet(program).arg("--version").stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped())
+        .spawn().map_err(|e| format!("{}: {e}", program.display()))?;
+    let start = Instant::now();
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(st)) => break st,
+            Ok(None) if start.elapsed() < Duration::from_secs(10) => std::thread::sleep(Duration::from_millis(100)),
+            _ => {
+                child.kill().ok();
+                child.wait().ok();
+                return Err(format!("{} --version did not answer", program.display()));
+            }
+        }
+    };
+    let mut out = String::new();
+    let pipe: Option<Box<dyn Read>> = if status.success() { child.stdout.take().map(|o| Box::new(o) as _) } else { child.stderr.take().map(|e| Box::new(e) as _) };
+    pipe.map(|mut p| p.read_to_string(&mut out));
+    let line = out.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or_default().to_string();
+    if status.success() { Ok(line) } else { Err(format!("{} --version: {}", program.display(), if line.is_empty() { status.to_string() } else { line })) }
 }
 
 /// `canonicalize`, without the `\\?\` prefix it adds on Windows: PowerShell, uv and the user's eyes want `C:\...`.
@@ -349,9 +388,27 @@ fn log(message: String) {
     eprintln!("page: {message}");
 }
 
+/// The agents on PATH whose program runs (`--version`), checked in parallel.
 #[tauri::command]
-fn agents() -> Vec<&'static str> {
-    AGENTS.into_iter().filter(|a| on_path(a)).collect()
+async fn agents() -> Vec<&'static str> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let checks: Vec<_> = AGENTS.into_iter().filter_map(|a| Some((a, which(a)?)))
+            .map(|(a, p)| std::thread::spawn(move || version(&p).ok().map(|_| a))).collect();
+        checks.into_iter().filter_map(|c| c.join().ok().flatten()).collect()
+    }).await.unwrap_or_default()
+}
+
+/// The program a profile runs (its path, else the agent on PATH) and its version, for the settings.
+#[tauri::command]
+async fn agent_version(agent: String, path: Option<String>) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let program = match path.filter(|p| !p.trim().is_empty()) {
+            Some(p) => expand(p.trim()),
+            None => which(&agent).ok_or(format!("{agent} is not on PATH"))?,
+        };
+        let v = version(&program)?;
+        Ok(serde_json::json!({ "path": program.display().to_string(), "version": v }))
+    }).await.map_err(|e| e.to_string())?
 }
 
 static REQUESTS: AtomicU64 = AtomicU64::new(1);
@@ -675,7 +732,7 @@ struct PtyData<'a> {
     data: &'a [u8],
 }
 
-/// The saved tabs of a ledger (names, agents, Claude Code session ids), or null.
+/// The saved tabs of a ledger (names, agents, conversation ids), or null.
 #[tauri::command]
 fn load_tabs(dir: String, app: State<App>) -> serde_json::Value {
     let all: serde_json::Value = std::fs::read(&app.tabs_file).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
@@ -705,15 +762,22 @@ fn quote(text: &str) -> String {
     if cfg!(windows) { format!("'{}'", text.replace('\'', "''")) } else { format!("'{}'", text.replace('\'', "'\\''")) }
 }
 
-/// The command line of an agent. Claude Code gets the tab's session id: a new tab starts that session, a restored
-/// tab continues it (and starts it when it was never used, so `--resume` finds nothing).
-fn agent_command(agent: &str, claude: Option<&str>, name: &str, resume: bool) -> Result<String, String> {
-    let Some(id) = claude.filter(|_| agent == "claude") else { return Ok(agent.to_string()) };
+/// The command line of an agent. The tab keeps its conversation's id (`conversation`), so a restart continues it:
+/// Claude Code and pi take an id the app made (a new tab starts that conversation, a restored tab continues it, and
+/// starts it when it was never used); Codex makes its own, and a tab without one starts a new conversation. A new
+/// conversation in the tab (Codex's first message, /clear in Claude Code, /new in pi) gives the tab its id
+/// (conversations). Cursor's agent starts a new one each time.
+/// `exe` is the program as the shell runs it (program()).
+fn agent_command(agent: &str, exe: &str, conversation: Option<&str>, name: &str, resume: bool) -> Result<String, String> {
+    let Some(id) = conversation.filter(|_| ["claude", "codex", "pi"].contains(&agent)) else { return Ok(exe.to_string()) };
     if id.len() != 36 || !id.chars().all(|c| c.is_ascii_hexdigit() || c == '-') {
-        return Err(format!("bad session id {id}"));
+        return Err(format!("bad conversation id {id}"));
     }
-    let start = format!("claude --session-id {id} -n {}", quote(name));
-    let resume_cmd = format!("claude --resume {id} -n {}", quote(name));
+    let (start, resume_cmd) = match agent {
+        "claude" => (format!("{exe} --session-id {id} -n {}", quote(name)), format!("{exe} --resume {id} -n {}", quote(name))),
+        "pi" => return Ok(format!("{exe} --session-id {id} -n {}", quote(name))), // it starts the conversation when missing
+        _ => (exe.to_string(), format!("{exe} resume {id}")),
+    };
     // Windows PowerShell 5.1 has no `||`
     Ok(match (resume, cfg!(windows)) {
         (false, _) => start,
@@ -722,14 +786,93 @@ fn agent_command(agent: &str, claude: Option<&str>, name: &str, resume: bool) ->
     })
 }
 
+/// The agent's program for the shell: a profile's path, quoted (PowerShell runs a quoted path with `&`), or the
+/// agent's name, which the shell finds on PATH.
+fn program(agent: &str, path: Option<&Path>) -> String {
+    match path.map(|p| quote(&p.display().to_string())) {
+        Some(p) if cfg!(windows) => format!("& {p}"),
+        Some(p) => p,
+        None => agent.to_string(),
+    }
+}
+
+/// The conversations of `agent` (Claude Code, Codex, pi) that a person started in `dir`, in files written after `since`
+/// (ms since 1970): each id with the time in its file, which is a few ms after the Enter that started it: the first
+/// message to Codex, /clear in Claude Code, /new in pi. The tab whose Enter came just before takes it (findConversation
+/// in terminal.js). `config`: the profile's folder of the agent (CONFIG_VARS).
+#[tauri::command]
+fn conversations(agent: String, since: u64, config: Option<String>, app: State<App>) -> Vec<(String, String)> {
+    let Some(dir) = app.ledger.lock().unwrap().as_ref().map(|l| l.dir.clone()) else { return vec![] };
+    let Some((_, var)) = CONFIG_VARS.iter().find(|v| v.0 == agent) else { return vec![] };
+    let home = config.filter(|c| !c.trim().is_empty()).map(|c| expand(c.trim())).or_else(|| std::env::var_os(var).map(PathBuf::from)).or_else(|| {
+        let h = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })?;
+        Some(PathBuf::from(h).join(match agent.as_str() { "claude" => ".claude", "codex" => ".codex", _ => ".pi/agent" }))
+    });
+    home.map(|h| find_conversations(&agent, &h, &dir, std::time::UNIX_EPOCH + Duration::from_millis(since))).unwrap_or_default()
+}
+
+/// Where the agents keep a conversation: Claude Code in $CLAUDE_CONFIG_DIR/projects/<folder>/<id>.jsonl, pi in
+/// $PI_CODING_AGENT_DIR/sessions/<folder>/<time>_<id>.jsonl, Codex in $CODEX_HOME/sessions/<y>/<m>/<d>/rollout-*.jsonl.
+/// A folder that got a new file has a newer time, so only those are read.
+fn find_conversations(agent: &str, home: &Path, dir: &Path, since: std::time::SystemTime) -> Vec<(String, String)> {
+    let sorted = |d: &Path| -> Vec<PathBuf> {
+        let mut v: Vec<PathBuf> = std::fs::read_dir(d).into_iter().flatten().flatten().map(|e| e.path()).collect();
+        v.sort();
+        v
+    };
+    let new = |p: &Path| p.metadata().and_then(|m| m.modified()).is_ok_and(|t| t >= since);
+    let folders: Vec<PathBuf> = if agent == "codex" {
+        // the last two days: a conversation started before midnight is in the day before
+        let mut days: Vec<PathBuf> = sorted(&home.join("sessions")).iter().flat_map(|y| sorted(y)).flat_map(|m| sorted(&m)).collect();
+        days.drain(..days.len().saturating_sub(2));
+        days
+    } else {
+        sorted(&home.join(if agent == "claude" { "projects" } else { "sessions" })).into_iter().filter(|d| new(d)).collect()
+    };
+    folders.iter().flat_map(|d| sorted(d)).filter(|f| f.extension().is_some_and(|e| e == "jsonl") && new(f)).filter_map(|f| conversation(&f, dir)).collect()
+}
+
+/// A conversation file's id and time, from its first line with the folder (`cwd`): Codex's session_meta (its
+/// `payload`), pi's session, Claude Code's first entry. None for another folder, or a conversation no person started:
+/// a Codex subagent's, a Claude Code side chain or `claude -p`.
+fn conversation(file: &Path, dir: &Path) -> Option<(String, String)> {
+    let lines = std::io::BufReader::new(std::fs::File::open(file).ok()?).lines().take(10);
+    for line in lines.map_while(Result::ok) {
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else { continue };
+        let p = if v["payload"].is_object() { &v["payload"] } else { &v };
+        let Some(cwd) = p["cwd"].as_str() else { continue };
+        let person = p["thread_source"].as_str().is_none_or(|s| s == "user") && p["agent_role"].is_null()
+            && p["attached_thread_parent_id"].is_null() && v["isSidechain"] != true
+            && v["entrypoint"].as_str().is_none_or(|e| e == "cli");
+        if !person || Path::new(cwd) != dir {
+            return None;
+        }
+        return Some((p["id"].as_str().or(p["sessionId"].as_str())?.to_string(), v["timestamp"].as_str()?.to_string()));
+    }
+    None
+}
+
 /// Starts `agent` (or a plain shell when empty) in the ledger folder and returns its session number. Output goes to
 /// the `pty-data` event, the end to `pty-exit`, both with the session, so a tab ignores what an older program wrote.
+/// A profile gives the agent's program (`path`) and its own folder (`config`, CONFIG_VARS).
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-fn pty_start(agent: String, cols: u16, rows: u16, claude: Option<String>, name: String, resume: bool, install: bool,
-             app: State<App>, handle: tauri::AppHandle) -> Result<u64, String> {
+fn pty_start(agent: String, cols: u16, rows: u16, conversation: Option<String>, name: String, resume: bool, install: bool,
+             path: Option<String>, config: Option<String>, app: State<App>, handle: tauri::AppHandle) -> Result<u64, String> {
     if !agent.is_empty() && !AGENTS.contains(&agent.as_str()) {
         return Err(format!("unknown agent {agent}"));
+    }
+    let path = path.filter(|p| !p.trim().is_empty()).map(|p| expand(p.trim()));
+    if let Some(p) = path.as_ref().filter(|p| !p.is_absolute() || !p.is_file()) {
+        return Err(format!("{} is not a program (the profile's path, in the settings)", p.display()));
+    }
+    let config = config.filter(|c| !c.trim().is_empty()).map(|c| expand(c.trim()));
+    let var = CONFIG_VARS.iter().find(|v| v.0 == agent).map(|v| v.1);
+    if let Some(c) = &config {
+        if var.is_none() {
+            return Err(format!("{agent} has no folder of its own"));
+        }
+        std::fs::create_dir_all(c).map_err(|e| format!("{}: {e}", c.display()))?;
     }
     let (dir, port) = app.ledger.lock().unwrap().as_ref().map(|l| (l.dir.clone(), l.port)).ok_or("No ledger is open")?;
     let pair = native_pty_system()
@@ -738,7 +881,7 @@ fn pty_start(agent: String, cols: u16, rows: u16, claude: Option<String>, name: 
     let mut cmd = CommandBuilder::new(shell());
     if !agent.is_empty() {
         // when the agent exits, the tab ends too (no shell after it): the app's tasks type into agent tabs only
-        let mut line = agent_command(&agent, claude.as_deref(), &name, resume)?;
+        let mut line = agent_command(&agent, &program(&agent, path.as_deref()), conversation.as_deref(), &name, resume)?;
         if install {
             // the agent's installer first, in the tab, so the user sees it; then the agent, which asks to sign in
             let (_, sh, ps) = INSTALLERS.iter().find(|i| i.0 == agent).ok_or(format!("no installer for {agent}"))?;
@@ -756,6 +899,9 @@ fn pty_start(agent: String, cols: u16, rows: u16, claude: Option<String>, name: 
     cmd.env("COLORTERM", "truecolor");
     // the agent's links to Fava (skill `explain`); the app opens them in its Fava panel
     cmd.env("KINGSMINT_FAVA_URL", format!("http://127.0.0.1:{port}/ledger/"));
+    if let (Some(c), Some(var)) = (&config, var) {
+        cmd.env(var, c);
+    }
     let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
     drop(pair.slave);
     let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
@@ -910,7 +1056,7 @@ fn main() {
             })?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![log, setup_log, rpc, agents, ledger_dir, recent_ledgers, open_ledger, new_ledger, sample_ledger, server_url, app_settings, save_app_settings, inbox_add, inbox_remove, inbox_reveal, open_url, feedback, check_updates, claude_extension, claude_extension_install, load_tabs, save_tabs, pty_start, pty_write, pty_resize, pty_kill])
+        .invoke_handler(tauri::generate_handler![log, setup_log, rpc, agents, agent_version, ledger_dir, recent_ledgers, open_ledger, new_ledger, sample_ledger, server_url, app_settings, save_app_settings, inbox_add, inbox_remove, inbox_reveal, open_url, feedback, check_updates, claude_extension, claude_extension_install, load_tabs, save_tabs, conversations, pty_start, pty_write, pty_resize, pty_kill])
         .build(tauri::generate_context!())
         .expect("cannot build the app")
         .run(|handle, event| {
@@ -926,15 +1072,70 @@ mod tests {
 
     #[test]
     #[cfg(not(windows))]
-    fn claude_command() {
+    fn agent_commands() {
         let id = "0b9c8f8e-1d2a-4c3b-9a8f-7e6d5c4b3a21";
         assert_eq!(quote("it's"), r"'it'\''s'");
-        assert_eq!(agent_command("codex", Some(id), "x", true).unwrap(), "codex");
-        assert_eq!(agent_command("claude", None, "x", true).unwrap(), "claude");
-        assert_eq!(agent_command("claude", Some(id), "dane", false).unwrap(), format!("claude --session-id {id} -n 'dane'"));
-        assert_eq!(agent_command("claude", Some(id), "dane", true).unwrap(),
+        assert_eq!(agent_command("codex", "codex", None, "x", true).unwrap(), "codex");
+        assert_eq!(agent_command("codex", "codex", Some(id), "x", true).unwrap(), format!("codex resume {id} || codex"));
+        assert_eq!(agent_command("pi", "pi", Some(id), "dane", true).unwrap(), format!("pi --session-id {id} -n 'dane'"));
+        assert_eq!(agent_command("cursor-agent", "cursor-agent", Some(id), "x", true).unwrap(), "cursor-agent");
+        assert_eq!(agent_command("claude", "claude", None, "x", true).unwrap(), "claude");
+        assert_eq!(agent_command("claude", "claude", Some(id), "dane", false).unwrap(), format!("claude --session-id {id} -n 'dane'"));
+        assert_eq!(agent_command("claude", "claude", Some(id), "dane", true).unwrap(),
                    format!("claude --resume {id} -n 'dane' || claude --session-id {id} -n 'dane'"));
-        assert!(agent_command("claude", Some("x; rm -rf ~"), "x", false).is_err());
+        assert!(agent_command("claude", "claude", Some("x; rm -rf ~"), "x", false).is_err());
+        let exe = program("claude", Some(Path::new("/opt/my claude/claude")));
+        assert_eq!(exe, "'/opt/my claude/claude'");
+        assert_eq!(agent_command("claude", &exe, Some(id), "x", false).unwrap(), format!("'/opt/my claude/claude' --session-id {id} -n 'x'"));
+        assert_eq!(program("codex", None), "codex");
+    }
+
+    #[test]
+    fn conversation_files() {
+        let home = std::env::temp_dir().join(format!("kingsmint-conversations-{}", std::process::id()));
+        let at = "2026-11-26T07:06:13.661Z";
+        let id = |n: u8| format!("01a216ad-0000-7000-8000-00000000000{n}");
+        let write = |folder: &str, name: &str, lines: &[serde_json::Value]| {
+            std::fs::create_dir_all(home.join(folder)).unwrap();
+            let text: String = lines.iter().map(|l| format!("{l}\n")).collect();
+            std::fs::write(home.join(folder).join(name), text).unwrap();
+        };
+        let codex = |n: u8, payload: serde_json::Value| {
+            let mut meta = serde_json::json!({"timestamp": at, "type": "session_meta", "payload": payload});
+            meta["payload"]["id"] = id(n).into();
+            write("sessions/2026/11/26", &format!("rollout-2026-11-26T08-06-05-{}.jsonl", id(n)), &[meta]);
+        };
+        codex(1, serde_json::json!({"cwd": "/ledger", "thread_source": "user"}));
+        codex(2, serde_json::json!({"cwd": "/ledger"})); // an older Codex
+        codex(3, serde_json::json!({"cwd": "/other"}));
+        codex(4, serde_json::json!({"cwd": "/ledger", "thread_source": "subagent", "agent_role": "worker"}));
+        let claude = |n: u8, entrypoint: &str| {
+            let first = serde_json::json!({"type": "mode", "sessionId": id(n)});
+            let entry = serde_json::json!({"type": "user", "timestamp": at, "cwd": "/ledger", "sessionId": id(n), "isSidechain": false, "entrypoint": entrypoint});
+            write("projects/-ledger", &format!("{}.jsonl", id(n)), &[first, entry]);
+        };
+        claude(5, "cli");
+        claude(6, "sdk-cli"); // claude -p
+        write("sessions/--ledger--", &format!("2026-11-26T07-06-13-661Z_{}.jsonl", id(7)),
+              &[serde_json::json!({"type": "session", "id": id(7), "timestamp": at, "cwd": "/ledger"})]);
+        let since = std::time::SystemTime::now() - Duration::from_secs(5);
+        let find = |agent: &str| find_conversations(agent, &home, Path::new("/ledger"), since);
+        assert_eq!(find("codex"), vec![(id(1), at.to_string()), (id(2), at.to_string())]);
+        assert_eq!(find("claude"), vec![(id(5), at.to_string())]);
+        assert_eq!(find("pi"), vec![(id(7), at.to_string())]);
+        // only files written since
+        assert_eq!(find_conversations("codex", &home, Path::new("/ledger"), std::time::SystemTime::now() + Duration::from_secs(60)), vec![]);
+        std::fs::remove_dir_all(&home).ok();
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    fn agent_program_runs() {
+        assert_eq!(version(Path::new("/bin/echo")).unwrap(), "--version");
+        assert!(version(Path::new("/usr/bin/false")).is_err()); // a broken install is no agent
+        assert!(version(Path::new("/nonexistent/claude")).is_err());
+        assert_eq!(expand("~/x"), PathBuf::from(std::env::var("HOME").unwrap()).join("x"));
+        assert_eq!(expand("/opt/x"), PathBuf::from("/opt/x"));
     }
 
     #[test]
@@ -961,7 +1162,7 @@ mod tests {
     fn claude_command_powershell() {
         let id = "0b9c8f8e-1d2a-4c3b-9a8f-7e6d5c4b3a21";
         assert_eq!(quote("it's"), "'it''s'");
-        assert_eq!(agent_command("claude", Some(id), "dane", true).unwrap(),
+        assert_eq!(agent_command("claude", "claude", Some(id), "dane", true).unwrap(),
                    format!("claude --resume {id} -n 'dane'; if (-not $?) {{ claude --session-id {id} -n 'dane' }}"));
     }
 }
