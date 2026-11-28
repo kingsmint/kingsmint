@@ -5,7 +5,7 @@
 import { app } from "./app.svelte.js";
 import { tAgent } from "./i18n.js";
 import { active, tabs } from "./state.js";
-import { addTab, agentNote, asksTrust, showTab } from "./terminal.js";
+import { addTab, agentNote, asksTrust, defaultProfile, showTab } from "./terminal.js";
 import { invoke, rpc } from "./util.js";
 
 export const ACTIONS = {
@@ -28,9 +28,11 @@ export const ask = (act) => tell(...ACTIONS[act]());
 // message, so a click is one complete message; before it, a version to return to.
 export async function tell(task, command, before) {
   await rpc("versions_save", { message: before }).catch(() => {}); // a point to return to
-  let tab = active?.agent ? active : tabs.find((t) => t.agent);
-  if (!tab && app.installed.length) tab = addTab({ agent: app.installed[0] });
-  tab ??= active ?? addTab({ agent: "" }); // no agent installed: the command in a shell
+  // the agent tab in view, else one of the profile for this ledger, else a new one of it
+  const profile = defaultProfile();
+  let tab = active?.agent ? active : tabs.find((t) => t.agent && t.profile === profile);
+  if (!tab && profile) tab = addTab({ profile });
+  tab ??= tabs.find((t) => t.agent) ?? active ?? addTab({ agent: "" }); // no agent: the command in a shell
   await showTab(tab);
   for (let i = 0; i < 100 && (!tab.last || Date.now() - tab.last < 1000); i++)
     await new Promise((r) => setTimeout(r, 200));

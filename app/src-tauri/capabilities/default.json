@@ -13,6 +13,7 @@
     "allow-setup-log",
     "allow-rpc",
     "allow-agents",
+    "allow-agent-version",
     "allow-ledger-dir",
     "allow-recent-ledgers",
     "allow-open-ledger",

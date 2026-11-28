@@ -50,6 +50,11 @@ here is the installed version.
 - The Kingsmint app finds pi (the coding agent) and opens it in a tab, like Claude Code, Codex and Cursor.
 - A Codex or pi tab in the Kingsmint app continues its conversation after the app restarts, as a Claude Code tab
   does. Codex keeps the conversation from its first message; a Cursor tab still starts a new one.
+- Agent profiles in the Kingsmint app settings: another program of an agent, or its own folder with another login,
+  such as a private Claude Code beside the one for work. A ledger can have its own agent on this computer, and the
+  buttons that ask the agent use it, as new tabs do.
+- The Kingsmint app offers only an agent whose program runs (`--version`), so a broken install no longer opens a
+  tab with an error. Settings show each agent's program and version, and install Cursor and pi too.
 
 ### Ledger
 

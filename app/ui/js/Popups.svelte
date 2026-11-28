@@ -8,7 +8,7 @@
   import { t } from "./i18n.js";
   import { addOverview, tabAction } from "./panels.js";
   import { hideRail, PINS_ON_RAIL, RAIL_LABELS, railHidden, renamePin, resetRail, showView, unpin } from "./rail.js";
-  import { installAgent, newTab } from "./terminal.js";
+  import { AGENTS, installAgent, newTab, profiles } from "./terminal.js";
 
   const p = $derived(app.popup);
   const close = () => (app.popup = null);
@@ -32,22 +32,22 @@
   <!-- the buttons can be at the window's right edge -->
   <div id="add-menu" class="popup" style:left="{Math.min(p.x, innerWidth - 160)}px" style:top="{p.y}px">
     {#if p.side}
-      {#each [...app.installed, ""] as agent (agent)}
+      {#each [...profiles(), { id: "", name: "shell" }] as profile (profile.id)}
         <button
           type="button"
           onclick={() => {
             close();
-            newTab(agent);
-          }}>{agent || "shell"}</button
+            newTab(profile.id);
+          }}>{profile.name}</button
         >
       {/each}
-      {#each [["claude", "installClaude"], ["codex", "installCodex"]].filter(([a]) => !app.installed.includes(a)) as [agent, label] (agent)}
+      {#each Object.keys(AGENTS).filter((a) => !app.installed.includes(a)) as agent (agent)}
         <button
           type="button"
           onclick={() => {
             close();
             installAgent(agent);
-          }}>{t(label)}</button
+          }}>{t("installAgent", { agent: AGENTS[agent] })}</button
         >
       {/each}
     {:else}

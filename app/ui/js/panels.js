@@ -20,7 +20,7 @@ import { loadSettings } from "./settings.js";
 import { assign, dock, favas, lastFava, loaded, overviews, side, tabs } from "./state.js";
 import TabHeader from "./TabHeader.svelte";
 import TerminalPanel from "./TerminalPanel.svelte";
-import { addTab, defaultAgent, newTab, showTab } from "./terminal.js";
+import { addTab, defaultProfile, newTab, showTab } from "./terminal.js";
 import { byId, dark, invoke } from "./util.js";
 
 export const PARTS = { inbox: "inbox", dashboard: "dashboard", reports: "reports", settings: "settings" }; // the pages that are in one panel only
@@ -129,7 +129,7 @@ export const TAB_ACTIONS = {
     await showTab(tab);
     rename(tab);
   },
-  clone: (tab) => newTab(tab.agent),
+  clone: (tab) => newTab(tab.profile),
   // a Claude Code tab continues its conversation
   restart: (tab) => {
     if (tab.session) invoke("pty_kill", { session: tab.session });
@@ -245,10 +245,10 @@ export async function loadLayout(dir) {
   }
   // the terminals of a layout from before the sidebar move into it, where their programs continue
   for (const tab of tabs.filter((t) => dock.getPanel(t.api.id))) {
-    const { agent, conversation } = tab,
+    const { agent, profile, conversation } = tab,
       name = tab.api.title;
     dock.getPanel(tab.api.id).api.close();
-    addTab({ agent, conversation, name });
+    addTab({ agent, profile, conversation, name });
   }
   if (!dock.panels.length) {
     dock.addPanel({ id: "dashboard", component: "dashboard", title: t("dashboard") });
@@ -257,7 +257,9 @@ export async function loadLayout(dir) {
   }
   if (!tabs.length) {
     assign({ restoring: !!saved?.tabs?.length }); // the tabs of an older app: they continue too
-    (saved?.tabs?.length ? saved.tabs : [...new Set([defaultAgent(), ""])].map((agent) => ({ agent }))).forEach(addTab);
+    (saved?.tabs?.length ? saved.tabs : [...new Set([defaultProfile(), ""])].map((profile) => ({ profile }))).forEach(
+      addTab,
+    );
   }
   assign({ restoring: false, loaded: true });
   // the rail's overview takes the view saved in its panel's parameters (Dashboard.svelte)

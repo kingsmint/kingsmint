@@ -2,7 +2,7 @@
 import { app } from "./app.svelte.js";
 import { pane, showView } from "./rail.js";
 import { active, dock, tabs } from "./state.js";
-import { defaultAgent, newTab, showTab } from "./terminal.js";
+import { defaultProfile, newTab, showTab } from "./terminal.js";
 import { zoom } from "./zoom.js";
 
 export function shortcut(e) {
@@ -48,7 +48,7 @@ export function shortcut(e) {
   }
   if (e.code === "KeyT" && dock) {
     e.preventDefault();
-    newTab(active ? active.agent : defaultAgent());
+    newTab(active ? active.profile : defaultProfile());
   }
   // ⌘[ and ⌘]: back and forward in Fava; the window's history holds the frame's pages
   if (!e.shiftKey && (e.code === "BracketLeft" || e.code === "BracketRight")) {

@@ -5,7 +5,7 @@
   import { t } from "./i18n.js";
   import { installClaude, saveApp } from "./settings.js";
   import { ask } from "./tasks.js";
-  import { installAgent } from "./terminal.js";
+  import { installAgent, profiles } from "./terminal.js";
 
   let fixing = $state(false); // for 3 s after a click: one task per click
   async function fix(act = "fix") {
@@ -32,7 +32,7 @@
     >
   </p>
 {/if}
-{#if !app.installed.length}
+{#if !profiles().length}
   <p id="no-agent" class="banner">
     <span>{t("noAgent")}</span>
     <button type="button" onclick={() => installAgent("claude")}>{t("installClaude")}</button>
