@@ -57,12 +57,15 @@ export function showView(key, split = false) {
 // A pinned view: its label and the view, without the days chosen in a chart (the period is the overview's). Saved with
 // the ledger's layout (panels.js), as its views name the ledger's accounts.
 export const PINS_ON_RAIL = 3; // the rest are in the rail's "…" menu, so the rail fits a small window
-export const pinKey = (view) => JSON.stringify({ ...view, days: undefined });
+// col: Trends' period. trends: false matches a view without it (a pin made before Trends), but a pin keeps it, so a
+// Categories pin opens as Categories whatever the app's setting
+export const pinKey = (view) =>
+  JSON.stringify({ ...view, days: undefined, col: undefined, trends: view.trends || undefined });
 export const pinOf = (view) => app.pins.findIndex((p) => pinKey(p.view) === pinKey(view));
 export function togglePin(view, label) {
   const i = pinOf(view);
   if (i >= 0) app.pins.splice(i, 1);
-  else app.pins.push({ label, view: JSON.parse(pinKey(view)) });
+  else app.pins.push({ label, view: JSON.parse(JSON.stringify({ ...view, days: undefined, col: undefined })) });
   saveSoon();
 }
 export function renamePin(i, label) {

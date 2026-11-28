@@ -66,9 +66,9 @@ class Ledger:
 
 
 def overview(entries, errors, options, rate, period: str | None = None, unit: str = "month",
-             today: dt.date | None = None) -> dict:
-    """`period` (a month YYYY-MM or a year YYYY, by `unit`; else the last full month, or its year) and the 12 periods
-    before it, from the first with transactions. `window`: their labels; `ends`: the last month of each (YYYY-MM);
+             today: dt.date | None = None, span: int = 12) -> dict:
+    """`period` (a month YYYY-MM or a year YYYY, by `unit`; else the last full month, or its year) and the `span`
+    periods before it (Trends asks 24 months: each of 13 against the same month a year before), from the first with transactions. `window`: their labels; `ends`: the last month of each (YYYY-MM);
     `flows`: the Income and Expenses accounts and their parents, an amount per period; `accounts`: the balances at
     each end; `cash`: in the chosen period, the cash withdrawn and the cash payments entered (cash.beancount): the
     difference is the cash nobody categorized; `months`: how many months of each year count. A year that is not over
@@ -87,7 +87,7 @@ def overview(entries, errors, options, rate, period: str | None = None, unit: st
         sel = int(period) if period else default // 12
         months = default % 12 + 1 if sel == default // 12 else 12
         # the years before it from their January only: a year that starts later would compare less than its months
-        window = [y for y in range(sel - 12, sel) if y * 12 >= first] + [sel]
+        window = [y for y in range(sel - span, sel) if y * 12 >= first] + [sel]
         ends = [y * 12 + months - 1 for y in window]
         bucket = {y * 12 + m: y for y in window for m in range(months)}  # month -> its year, the months that count
         names = [str(y) for y in window]
@@ -95,7 +95,7 @@ def overview(entries, errors, options, rate, period: str | None = None, unit: st
     else:
         sel = key(dt.date.fromisoformat(period + "-01")) if period else default
         months = 1
-        window = ends = [k for k in range(sel - 12, sel + 1) if k >= first]
+        window = ends = [k for k in range(sel - span, sel + 1) if k >= first]
         bucket = {k: k for k in window}
         names = [label(k) for k in window]
         periods = [label(k) for k in range(last, first - 1, -1)]

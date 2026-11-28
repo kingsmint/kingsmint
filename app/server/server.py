@@ -129,14 +129,14 @@ def make_app(ledger: Path, ui: Path):
         currency = (l.options["operating_currency"] or ["EUR"])[0]
         return l, lambda c, day: l.prices.get_price((c, currency), day)
 
-    def overview(period: str | None = None, unit: str = "month") -> dict:
+    def overview(period: str | None = None, unit: str = "month", span: int = 12) -> dict:
         l, rate = loaded()
         try:
             b = budget_data()
         except Exception as e:  # a budgets bug, or an entry it cannot count with, leaves the rest of the overview
             logging.exception("budgets")
             b = {"accounts": [], "tags": [], "errors": [f"Budgets: {e}"]}
-        return dashboard.overview(l.all_entries, l.errors, l.options, rate, period, unit) | {"budgets": b}
+        return dashboard.overview(l.all_entries, l.errors, l.options, rate, period, unit, span=span) | {"budgets": b}
 
     def transactions(start: str, end: str, account: str | None = None) -> dict:
         l, rate = loaded()

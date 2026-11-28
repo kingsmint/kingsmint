@@ -7,6 +7,11 @@ here is the installed version.
 
 ## Unreleased
 
+- The Kingsmint app shows the trends without Fava: **Categories | Trends** in an expense account's view (Expenses, ⌘4,
+  or any category) shows the account and its subaccounts in the last 13 months, each against the same month a year
+  before, or by year against the year before. A slider keeps the accounts with a change of at least 15 % to 500 % in
+  the highlighted period. The app remembers the switch, the slider and the level of accounts; an amount opens its
+  transactions.
 - The Kingsmint app writes account and category names the same way everywhere: `Food › Groceries`, not
   `Expenses:Food:Groceries`. The transactions' account filter groups its accounts under Expenses, Income, Accounts and Debts.
   The colon name, as the ledger writes it, shows when the mouse rests on a name.
