@@ -5,7 +5,7 @@ Changes a user notices, newest first. A release takes its notes from the section
 upgrade` shows these to the agent, which applies them with the owner. Ships in the package: the newest version
 here is the installed version.
 
-## Unreleased
+## 0.2.6
 
 - The Kingsmint app shows the trends without Fava: **Categories | Trends** in an expense account's view (Expenses, ⌘4,
   or any category) shows the account and its subaccounts in the last 13 months, each against the same month a year
