@@ -23,8 +23,13 @@
     const { [app.current]: _, ...rest } = ledgers;
     saveApp({ ledgerProfiles: value === FOLLOW ? rest : { ...rest, [app.current]: value } });
   }
+  // another agent does not take the folder of the one before (Cursor's agent has none)
   const change = (id, field, value) =>
-    saveApp({ profiles: own.map((p) => (p.id === id ? { ...p, [field]: value.trim() } : p)) });
+    saveApp({
+      profiles: own.map((p) =>
+        p.id !== id ? p : { ...p, [field]: value.trim(), ...(field === "agent" && value !== p.agent && { config: "" }) },
+      ),
+    });
   function add() {
     const type = app.installed[0] ?? "claude";
     const id = `p-${crypto.randomUUID().slice(0, 8)}`; // never an agent's name, which the found ones have

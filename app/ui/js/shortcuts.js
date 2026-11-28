@@ -48,7 +48,8 @@ export function shortcut(e) {
   }
   if (e.code === "KeyT" && dock) {
     e.preventDefault();
-    newTab(active ? active.profile : defaultProfile());
+    if (active) newTab(active.profile, active.agent);
+    else newTab(defaultProfile());
   }
   // ⌘[ and ⌘]: back and forward in Fava; the window's history holds the frame's pages
   if (!e.shiftKey && (e.code === "BracketLeft" || e.code === "BracketRight")) {

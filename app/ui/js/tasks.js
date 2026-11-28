@@ -5,8 +5,8 @@
 import { app } from "./app.svelte.js";
 import { tAgent } from "./i18n.js";
 import { active, tabs } from "./state.js";
-import { addTab, agentNote, asksTrust, defaultProfile, showTab } from "./terminal.js";
-import { invoke, rpc } from "./util.js";
+import { addTab, agentNote, asksTrust, defaultProfile, send, showTab } from "./terminal.js";
+import { rpc } from "./util.js";
 
 export const ACTIONS = {
   setup: () => [tAgent("setup") + tAgent("save"), "kingsmint import", tAgent("beforeSetup")],
@@ -38,7 +38,7 @@ export async function tell(task, command, before) {
     await new Promise((r) => setTimeout(r, 200));
   if (!tab.session || (!tab.agent && !command)) return;
   if (asksTrust(tab)) return agentNote(); // the user answers it first; then the button again
-  await invoke("pty_write", { session: tab.session, data: tab.agent ? task : command });
-  setTimeout(() => invoke("pty_write", { session: tab.session, data: "\r" }), 150);
+  await send(tab, tab.agent ? task : command);
+  setTimeout(() => send(tab, "\r"), 150);
   tab.term.focus();
 }

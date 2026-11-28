@@ -199,6 +199,7 @@ fn version(program: &Path) -> Result<String, String> {
             Ok(None) if start.elapsed() < Duration::from_secs(10) => std::thread::sleep(Duration::from_millis(100)),
             _ => {
                 child.kill().ok();
+                child.wait().ok();
                 return Err(format!("{} --version did not answer", program.display()));
             }
         }
@@ -763,8 +764,9 @@ fn quote(text: &str) -> String {
 
 /// The command line of an agent. The tab keeps its conversation's id (`conversation`), so a restart continues it:
 /// Claude Code and pi take an id the app made (a new tab starts that conversation, a restored tab continues it, and
-/// starts it when it was never used); Codex makes its own (codex_conversation), and a tab without one starts a new
-/// conversation. Cursor's agent starts a new one each time.
+/// starts it when it was never used); Codex makes its own, and a tab without one starts a new conversation. A new
+/// conversation in the tab (Codex's first message, /clear in Claude Code, /new in pi) gives the tab its id
+/// (conversations). Cursor's agent starts a new one each time.
 /// `exe` is the program as the shell runs it (program()).
 fn agent_command(agent: &str, exe: &str, conversation: Option<&str>, name: &str, resume: bool) -> Result<String, String> {
     let Some(id) = conversation.filter(|_| ["claude", "codex", "pi"].contains(&agent)) else { return Ok(exe.to_string()) };
@@ -794,37 +796,60 @@ fn program(agent: &str, path: Option<&Path>) -> String {
     }
 }
 
-/// The id of the Codex conversation that a tab started in `dir` after `since` (ms since 1970), not one of `taken`
-/// (the other tabs'). Codex makes its id and writes it when the first message is sent, in the first line of
-/// $CODEX_HOME/sessions/<year>/<month>/<day>/rollout-<time>-<id>.jsonl, with the folder (`cwd`). `config`: the
-/// profile's CODEX_HOME.
+/// The conversations of `agent` (Claude Code, Codex, pi) that a person started in `dir`, in files written after `since`
+/// (ms since 1970): each id with the time in its file, which is a few ms after the Enter that started it: the first
+/// message to Codex, /clear in Claude Code, /new in pi. The tab whose Enter came just before takes it (findConversation
+/// in terminal.js). `config`: the profile's folder of the agent (CONFIG_VARS).
 #[tauri::command]
-fn codex_conversation(since: u64, taken: Vec<String>, config: Option<String>, app: State<App>) -> Option<String> {
-    let dir = app.ledger.lock().unwrap().as_ref()?.dir.clone();
-    let home = config.filter(|c| !c.trim().is_empty()).map(|c| expand(c.trim())).or_else(|| std::env::var_os("CODEX_HOME").map(PathBuf::from)).or_else(|| {
-        std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(|h| PathBuf::from(h).join(".codex"))
-    })?;
-    codex_find(&home, &dir, std::time::UNIX_EPOCH + Duration::from_millis(since), &taken)
+fn conversations(agent: String, since: u64, config: Option<String>, app: State<App>) -> Vec<(String, String)> {
+    let Some(dir) = app.ledger.lock().unwrap().as_ref().map(|l| l.dir.clone()) else { return vec![] };
+    let Some((_, var)) = CONFIG_VARS.iter().find(|v| v.0 == agent) else { return vec![] };
+    let home = config.filter(|c| !c.trim().is_empty()).map(|c| expand(c.trim())).or_else(|| std::env::var_os(var).map(PathBuf::from)).or_else(|| {
+        let h = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })?;
+        Some(PathBuf::from(h).join(match agent.as_str() { "claude" => ".claude", "codex" => ".codex", _ => ".pi/agent" }))
+    });
+    home.map(|h| find_conversations(&agent, &h, &dir, std::time::UNIX_EPOCH + Duration::from_millis(since))).unwrap_or_default()
 }
 
-fn codex_find(home: &Path, dir: &Path, since: std::time::SystemTime, taken: &[String]) -> Option<String> {
+/// Where the agents keep a conversation: Claude Code in $CLAUDE_CONFIG_DIR/projects/<folder>/<id>.jsonl, pi in
+/// $PI_CODING_AGENT_DIR/sessions/<folder>/<time>_<id>.jsonl, Codex in $CODEX_HOME/sessions/<y>/<m>/<d>/rollout-*.jsonl.
+/// A folder that got a new file has a newer time, so only those are read.
+fn find_conversations(agent: &str, home: &Path, dir: &Path, since: std::time::SystemTime) -> Vec<(String, String)> {
     let sorted = |d: &Path| -> Vec<PathBuf> {
         let mut v: Vec<PathBuf> = std::fs::read_dir(d).into_iter().flatten().flatten().map(|e| e.path()).collect();
         v.sort();
         v
     };
-    // the last two days: a conversation started before midnight is in the day before
-    let mut days: Vec<PathBuf> = sorted(&home.join("sessions")).iter().flat_map(|y| sorted(y)).flat_map(|m| sorted(&m)).collect();
-    days.drain(..days.len().saturating_sub(2));
-    days.iter().flat_map(|d| sorted(d)).find_map(|f| {
-        if f.extension()? != "jsonl" || f.metadata().ok()?.modified().ok()? < since {
+    let new = |p: &Path| p.metadata().and_then(|m| m.modified()).is_ok_and(|t| t >= since);
+    let folders: Vec<PathBuf> = if agent == "codex" {
+        // the last two days: a conversation started before midnight is in the day before
+        let mut days: Vec<PathBuf> = sorted(&home.join("sessions")).iter().flat_map(|y| sorted(y)).flat_map(|m| sorted(&m)).collect();
+        days.drain(..days.len().saturating_sub(2));
+        days
+    } else {
+        sorted(&home.join(if agent == "claude" { "projects" } else { "sessions" })).into_iter().filter(|d| new(d)).collect()
+    };
+    folders.iter().flat_map(|d| sorted(d)).filter(|f| f.extension().is_some_and(|e| e == "jsonl") && new(f)).filter_map(|f| conversation(&f, dir)).collect()
+}
+
+/// A conversation file's id and time, from its first line with the folder (`cwd`): Codex's session_meta (its
+/// `payload`), pi's session, Claude Code's first entry. None for another folder, or a conversation no person started:
+/// a Codex subagent's, a Claude Code side chain or `claude -p`.
+fn conversation(file: &Path, dir: &Path) -> Option<(String, String)> {
+    let lines = std::io::BufReader::new(std::fs::File::open(file).ok()?).lines().take(10);
+    for line in lines.map_while(Result::ok) {
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else { continue };
+        let p = if v["payload"].is_object() { &v["payload"] } else { &v };
+        let Some(cwd) = p["cwd"].as_str() else { continue };
+        let person = p["thread_source"].as_str().is_none_or(|s| s == "user") && p["agent_role"].is_null()
+            && p["attached_thread_parent_id"].is_null() && v["isSidechain"] != true
+            && v["entrypoint"].as_str().is_none_or(|e| e == "cli");
+        if !person || Path::new(cwd) != dir {
             return None;
         }
-        let first = std::io::BufReader::new(std::fs::File::open(&f).ok()?).lines().next()?.ok()?;
-        let meta: serde_json::Value = serde_json::from_str(&first).ok()?;
-        let (id, cwd) = (meta["payload"]["id"].as_str()?, meta["payload"]["cwd"].as_str()?);
-        (Path::new(cwd) == dir && !taken.iter().any(|t| t == id)).then(|| id.to_string())
-    })
+        return Some((p["id"].as_str().or(p["sessionId"].as_str())?.to_string(), v["timestamp"].as_str()?.to_string()));
+    }
+    None
 }
 
 /// Starts `agent` (or a plain shell when empty) in the ledger folder and returns its session number. Output goes to
@@ -1031,7 +1056,7 @@ fn main() {
             })?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![log, setup_log, rpc, agents, agent_version, ledger_dir, recent_ledgers, open_ledger, new_ledger, sample_ledger, server_url, app_settings, save_app_settings, inbox_add, inbox_remove, inbox_reveal, open_url, feedback, check_updates, claude_extension, claude_extension_install, load_tabs, save_tabs, codex_conversation, pty_start, pty_write, pty_resize, pty_kill])
+        .invoke_handler(tauri::generate_handler![log, setup_log, rpc, agents, agent_version, ledger_dir, recent_ledgers, open_ledger, new_ledger, sample_ledger, server_url, app_settings, save_app_settings, inbox_add, inbox_remove, inbox_reveal, open_url, feedback, check_updates, claude_extension, claude_extension_install, load_tabs, save_tabs, conversations, pty_start, pty_write, pty_resize, pty_kill])
         .build(tauri::generate_context!())
         .expect("cannot build the app")
         .run(|handle, event| {
@@ -1066,23 +1091,40 @@ mod tests {
     }
 
     #[test]
-    fn codex_conversation_file() {
-        let home = std::env::temp_dir().join(format!("kingsmint-codex-{}", std::process::id()));
-        let day = home.join("sessions/2026/11/26");
-        std::fs::create_dir_all(&day).unwrap();
-        let since = std::time::SystemTime::now() - Duration::from_secs(5);
-        let rollout = |name: &str, id: &str, cwd: &str| {
-            let meta = serde_json::json!({"type": "session_meta", "payload": {"id": id, "cwd": cwd}});
-            std::fs::write(day.join(format!("rollout-{name}-{id}.jsonl")), format!("{meta}\n{{}}\n")).unwrap();
+    fn conversation_files() {
+        let home = std::env::temp_dir().join(format!("kingsmint-conversations-{}", std::process::id()));
+        let at = "2026-11-26T07:06:13.661Z";
+        let id = |n: u8| format!("01a216ad-0000-7000-8000-00000000000{n}");
+        let write = |folder: &str, name: &str, lines: &[serde_json::Value]| {
+            std::fs::create_dir_all(home.join(folder)).unwrap();
+            let text: String = lines.iter().map(|l| format!("{l}\n")).collect();
+            std::fs::write(home.join(folder).join(name), text).unwrap();
         };
-        let (a, b) = ("01a216ac-fc81-7723-9f86-2fb13cb9d17b", "01a216ad-0000-7000-8000-000000000001");
-        rollout("2026-11-26T08-06-05", a, "/ledger");
-        rollout("2026-11-26T08-06-07", b, "/ledger");
-        rollout("2026-11-26T08-06-06", "01a216ad-0000-7000-8000-000000000002", "/other");
-        let find = |taken: &[String]| codex_find(&home, Path::new("/ledger"), since, taken);
-        assert_eq!(find(&[]).as_deref(), Some(a));
-        assert_eq!(find(&[a.to_string()]).as_deref(), Some(b)); // another tab has the first
-        assert_eq!(codex_find(&home, Path::new("/ledger"), std::time::SystemTime::now() + Duration::from_secs(60), &[]), None);
+        let codex = |n: u8, payload: serde_json::Value| {
+            let mut meta = serde_json::json!({"timestamp": at, "type": "session_meta", "payload": payload});
+            meta["payload"]["id"] = id(n).into();
+            write("sessions/2026/11/26", &format!("rollout-2026-11-26T08-06-05-{}.jsonl", id(n)), &[meta]);
+        };
+        codex(1, serde_json::json!({"cwd": "/ledger", "thread_source": "user"}));
+        codex(2, serde_json::json!({"cwd": "/ledger"})); // an older Codex
+        codex(3, serde_json::json!({"cwd": "/other"}));
+        codex(4, serde_json::json!({"cwd": "/ledger", "thread_source": "subagent", "agent_role": "worker"}));
+        let claude = |n: u8, entrypoint: &str| {
+            let first = serde_json::json!({"type": "mode", "sessionId": id(n)});
+            let entry = serde_json::json!({"type": "user", "timestamp": at, "cwd": "/ledger", "sessionId": id(n), "isSidechain": false, "entrypoint": entrypoint});
+            write("projects/-ledger", &format!("{}.jsonl", id(n)), &[first, entry]);
+        };
+        claude(5, "cli");
+        claude(6, "sdk-cli"); // claude -p
+        write("sessions/--ledger--", &format!("2026-11-26T07-06-13-661Z_{}.jsonl", id(7)),
+              &[serde_json::json!({"type": "session", "id": id(7), "timestamp": at, "cwd": "/ledger"})]);
+        let since = std::time::SystemTime::now() - Duration::from_secs(5);
+        let find = |agent: &str| find_conversations(agent, &home, Path::new("/ledger"), since);
+        assert_eq!(find("codex"), vec![(id(1), at.to_string()), (id(2), at.to_string())]);
+        assert_eq!(find("claude"), vec![(id(5), at.to_string())]);
+        assert_eq!(find("pi"), vec![(id(7), at.to_string())]);
+        // only files written since
+        assert_eq!(find_conversations("codex", &home, Path::new("/ledger"), std::time::SystemTime::now() + Duration::from_secs(60)), vec![]);
         std::fs::remove_dir_all(&home).ok();
     }
 

@@ -129,7 +129,7 @@ export const TAB_ACTIONS = {
     await showTab(tab);
     rename(tab);
   },
-  clone: (tab) => newTab(tab.profile),
+  clone: (tab) => newTab(tab.profile, tab.agent),
   // a Claude Code tab continues its conversation
   restart: (tab) => {
     if (tab.session) invoke("pty_kill", { session: tab.session });

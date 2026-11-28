@@ -32,7 +32,7 @@
     "allow-claude-extension-install",
     "allow-load-tabs",
     "allow-save-tabs",
-    "allow-codex-conversation",
+    "allow-conversations",
     "allow-pty-start",
     "allow-pty-write",
     "allow-pty-resize",
