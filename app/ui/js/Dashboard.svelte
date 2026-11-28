@@ -53,7 +53,7 @@
   }
   // the rail marks the view of the overview it goes to
   $effect(() => {
-    if (app.overview.id === id) Object.assign(app.overview, { key: railKey(view), view: pinKey(view) });
+    if (app.overview.id === id) Object.assign(app.overview, { key: railKey(view), view: pinKey(pinView) });
   });
   // what a split starts with, and what a split view's layout saves
   const current = () => ({ view: $state.snapshot(view), unit, period });
@@ -190,6 +190,75 @@
     return { text, cls: mark(LEVELS.find(([low]) => c >= low)?.[1] ?? -2) };
   }
   const riseOf = (account) => (account.startsWith("Expenses") ? "bad" : "good");
+
+  // Trends: an expense account's view as a table over time (Categories | Trends): it and its subaccounts in each
+  // period, newest first, against the period a year before, as Fava's Trends report shows it. A month needs the 24
+  // before it (rpc span), so each of the last 13 has its month a year before; a year is the overview's own. The switch,
+  // the slider (a marked change of at least `min` %) and the level stay in the app's settings; a view that names the
+  // switch (view.trends, a pin's) keeps it. The column the slider looks at is a period, so it is the view's
+  // (view.col), not a pin's.
+  const STEPS = [0, 15, 25, 50, 100, 200, 500];
+  let months24 = $state(null);
+  $effect(() => {
+    if (!showTrends || unit !== "month" || !d?.period) return;
+    const period = d.period;
+    // an answer for another period (← pressed twice, the older answer last) is dropped
+    rpc("dashboard", { unit, period, span: 24 })
+      .then((r) => r.period === d?.period && (months24 = r))
+      .catch((e) => period === d?.period && (months24 = { period, error: String(e) }));
+  });
+  const trendSet = $derived(app.appSettings.trends ?? {}); // { on, min, depth }: depth null for all accounts
+  const showTrends = $derived(view.name === "account" && view.account.startsWith("Expenses") && (view.trends ?? !!trendSet.on));
+  // the view a pin keeps: with the mode that shows, so its name ("Food – Trends") and what it opens agree
+  const pinView = $derived(view.name === "account" && view.account.startsWith("Expenses") ? { ...view, trends: showTrends } : view);
+  function setTrends(change) {
+    assign({ appSettings: { ...app.appSettings, trends: { ...trendSet, ...change } } });
+    invoke("save_app_settings", { settings: app.appSettings });
+  }
+  // the switch, or the period whose changes the slider filters by: not a step of the history
+  function setView(change) {
+    view = { ...view, ...change };
+    history.replaceState({ dashboard: $state.snapshot(view), panel: id }, "");
+  }
+  // the cell of period `i` of series `s` against period `i - step`; `peak`: its marked change in %, a new one 10000
+  function trend(s, i, step, total) {
+    if (i < step) return null; // the ledger starts later
+    const v = s[i];
+    const base = s[i - step];
+    // nothing in the month a year before, but in the months between: a payment now and then, not a new one
+    if (!base && v && step > 1 && s.slice(i - step, i).some(Boolean)) return { text: "–", cls: "small", peak: 0 };
+    const c = change(v, base, "bad", total[i - step]);
+    if (!c) return null;
+    const marked = c.cls && c.cls !== "small";
+    return { ...c, peak: !marked ? 0 : !base ? 10000 : Math.round(Math.abs((v - base) / base) * 100) };
+  }
+  // the account and its subaccounts, a parent before its children, with a cell per column; `level` below the account
+  const trends = $derived.by(() => {
+    const src = unit === "month" ? months24?.unit === "month" && months24.period === d?.period && months24 : d;
+    if (!showTrends || !src?.flows) return null;
+    const root = view.account;
+    const step = unit === "month" ? 12 : 1;
+    const idx = [...src.window.keys()].slice(unit === "month" ? -13 : 0).reverse();
+    const total = src.flows.Expenses ?? [];
+    const level = (a) => a.split(":").length - root.split(":").length;
+    const all = Object.entries(src.flows)
+      .filter(([a]) => (a === root || a.startsWith(`${root}:`)) && (trendSet.depth == null || level(a) <= trendSet.depth))
+      .sort(([a], [b]) => (a.replaceAll(":", "\0") < b.replaceAll(":", "\0") ? -1 : 1)) // a parent before its children
+      .map(([a, s]) => ({ account: a, level: level(a), cells: idx.map((i) => ({ v: s[i], c: trend(s, i, step, total) })) }))
+      .filter((r) => r.cells.some((c) => c.v));
+    const cols = idx.map((i) => ({ label: src.window[i], end: src.ends[i] }));
+    const col = Math.max(0, cols.findIndex((c) => c.label === view.col));
+    const min = trendSet.min ?? 0;
+    // the rows with a marked change of at least `min` % in the column, and their parents
+    const keep = new Set();
+    for (const r of all)
+      if (!min || (r.cells[col].c?.peak ?? 0) >= min)
+        r.account.split(":").forEach((_, k, p) => keep.add(p.slice(0, k + 1).join(":")));
+    return { cols, col, rows: all.filter((r) => !r.level || keep.has(r.account)) };
+  });
+  // a cell's transactions: the account over the period's days, without changing the overview's period
+  const trendTxns = (account, c) =>
+    go({ name: "txns", account, all: true, days: [c.label.length === 4 ? `${c.label}-01-01` : `${c.label}-01`, `${c.end}-31`] });
 
   // a rise over the average is a warning for spending, not for income
   const over = (a, s) => a.startsWith("Expenses") && avgOf(s) > 0 && s.at(-1) > avgOf(s) * 1.15;
@@ -330,7 +399,8 @@
   const crumbs = $derived(crumbsOf(view));
   // a pin's name on the rail: transactions by their filter (the rail's icon says they are transactions), else the title
   const pinLabel = (v) =>
-    (v.name === "txns" && (v.payee ?? (v.account && name(v.account)) ?? (v.tag && `#${v.tag}`))) || crumbs.at(-1)?.label || t("overview");
+    (v.name === "txns" && (v.payee ?? (v.account && name(v.account)) ?? (v.tag && `#${v.tag}`))) ||
+    (showTrends && `${crumbs.at(-1)?.label} – ${t("trends")}`) || crumbs.at(-1)?.label || t("overview");
   // an account and its parents, each to its detail
   const path = (account) =>
     account.split(":").map((_, i, p) => {
@@ -1365,13 +1435,13 @@
           {/if}
         {/each}
         <!-- ★ pins the view on the rail; the rail's own views have their buttons there -->
-        {#if pinOf(view) >= 0 || !Object.values(VIEWS).some((v) => pinKey(v) === pinKey(view))}
+        {#if pinOf(pinView) >= 0 || !Object.values(VIEWS).some((v) => pinKey(v) === pinKey(pinView))}
         <button
           type="button"
           class="pin"
-          class:on={pinOf(view) >= 0}
-          title={t(pinOf(view) >= 0 ? "unpinView" : "pinView")}
-          onclick={() => togglePin(view, pinLabel(view))}
+          class:on={pinOf(pinView) >= 0}
+          title={t(pinOf(pinView) >= 0 ? "unpinView" : "pinView")}
+          onclick={() => togglePin(pinView, pinLabel(view))}
           ><wa-icon name="star"></wa-icon></button
         >
         {/if}
@@ -1547,6 +1617,17 @@
       <button type="button" class="more" onclick={() => go({ name: "txns", account: view.account })}
         >{t("transactions")} <wa-icon name="chevron-right"></wa-icon></button
       >
+      {#if view.account.startsWith("Expenses")}
+        <wa-radio-group class="trend-switch" orientation="horizontal" size="small" value={showTrends ? "trends" : "categories"}
+          onchange={(e) => {
+            const on = e.currentTarget.value === "trends";
+            setTrends({ on });
+            setView({ trends: on });
+          }}>
+          <wa-radio appearance="button" value="categories">{t("trendsCategories")}</wa-radio>
+          <wa-radio appearance="button" value="trends">{t("trends")}</wa-radio>
+        </wa-radio-group>
+      {/if}
     </div>
     {#if view.account.startsWith("Expenses:") && d.budgets?.file}
       {@const b = d.budgets.accounts.find((x) => x.account === view.account)}
@@ -1561,6 +1642,61 @@
         <BudgetForm account={view.account} budget={b} averages={d.budgets.averages} today={d.budgets.today} currency={d.currency} label={t(b ? "budgetChange" : "budgetSet")} onsaved={load} />
       </div>
     {/if}
+    {#if showTrends}
+    <div class="trend-controls">
+      <wa-radio-group orientation="horizontal" size="small" label={t("trendsLevel")} value={String(trendSet.depth ?? "all")}
+        onchange={(e) => setTrends({ depth: e.currentTarget.value === "all" ? null : +e.currentTarget.value })}>
+        <wa-radio appearance="button" value="1">1</wa-radio>
+        <wa-radio appearance="button" value="2">2</wa-radio>
+        <wa-radio appearance="button" value="all">{t("trendsAll")}</wa-radio>
+      </wa-radio-group>
+      <label>
+        {t("trendsMin")}
+        <input type="range" min="0" max={STEPS.length - 1} step="1"
+          value={Math.max(0, STEPS.findLastIndex((x) => x <= (trendSet.min ?? 0)))}
+          oninput={(e) => setTrends({ min: STEPS[e.currentTarget.value] })} />
+        <span class="num">{trendSet.min ? `≥ ${trendSet.min} %` : t("trendsAll")}</span>
+      </label>
+    </div>
+    {#if unit === "month" && months24?.error && months24.period === d.period}
+      <p class="error">{months24.error}</p>
+    {:else if !trends}
+      <p class="muted">{t("loading")}</p>
+    {:else}
+      <div class="trends-scroll">
+        <table class="trends">
+          <thead>
+            <tr>
+              <th>{t("category")}</th>
+              {#each trends.cols as c, j (c.label)}
+                <th class="num" class:on={j === trends.col} title={t("trendsColumn")} onclick={() => setView({ col: c.label })}
+                  >{periodShort(c.label)}</th
+                >
+              {/each}
+            </tr>
+          </thead>
+          <tbody>
+            {#each trends.rows as r (r.account)}
+              <tr class:group={r.level === 0}>
+                <td style:padding-left="{0.75 + r.level}em" title={r.account}>
+                  <button type="button" class="more" onclick={() => open(r.account)}>{name(r.account)}</button>
+                </td>
+                {#each r.cells as cell, j}
+                  <td class="num" class:on={j === trends.col}>
+                    {#if cell.v || cell.c}
+                      <button type="button" class="more" onclick={() => trendTxns(r.account, trends.cols[j])}>{eur(cell.v)}</button>
+                    {/if}
+                    {#if cell.c}<small class="chg {cell.c.cls}">{cell.c.text}</small>{/if}
+                  </td>
+                {/each}
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
+    <p class="muted note">{t(unit === "month" ? "trendsNoteMonth" : "trendsNoteYear")}</p>
+    {:else}
     <Chart
       type="bar"
       columns={[t(unit), name(view.account)]}
@@ -1610,6 +1746,7 @@
           {/each}
         </tbody>
       </table>
+    {/if}
     {/if}
   {:else if view.name === "recurring" && rec}
     {@const suggested = recIn("suggested")}

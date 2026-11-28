@@ -162,6 +162,11 @@ def test_dashboard(ledger, tmp_path):
     assert set(r["baseline"]) == {"today", "reduced", "minimum"} and r["baseline"]["today"] > 0
     assert r["query"].startswith("SELECT")  # Baseline by account: what the baseline is made of
 
+    # Trends: 24 months before, so each of the last 13 has the same month a year before; the same amounts
+    wide = methods["dashboard"](period=d["period"], span=24)
+    assert len(wide["window"]) == 25 and wide["window"][-13:] == d["window"]
+    assert wide["flows"]["Expenses"][-13:] == flows["Expenses"]
+
     month = {"start": d["period"], "end": d["period"]}
     t = methods["transactions"](**month)
     assert abs(sum(r["amount"] for r in t["rows"]) - (income - expenses)) < 0.05

@@ -7,7 +7,7 @@
   import { closeHistory, showHistory } from "./history.js";
   import { t } from "./i18n.js";
   import { badgeOf, basename, closeMenu, showMenu } from "./ledger.js";
-  import { moveRail, pane, PINS_ON_RAIL, RAIL_LABELS, railHidden, railKey, railOrder, showView } from "./rail.js";
+  import { moveRail, pane, pinKey, PINS_ON_RAIL, RAIL_LABELS, railHidden, railKey, railOrder, showView } from "./rail.js";
   import { invoke } from "./util.js";
 
   const badge = $derived(app.current ? badgeOf(app.current) : { text: "K", color: "" });
@@ -20,7 +20,7 @@
   const waiting = $derived(app.waiting.length);
   // a pin's icon: its kind of view's, as railKey names it (a report or an account other than an expense: a star)
   const PIN_ICONS = { txns: "receipt-text", spending: "chart-pie", runway: "hourglass", overview: "star" };
-  const pinned = $derived(app.pins.findIndex((p) => JSON.stringify(p.view) === app.overview.view)); // the pin that shows
+  const pinned = $derived(app.pins.findIndex((p) => pinKey(p.view) === app.overview.view)); // the pin that shows
   // the items that show: not hidden, and not empty
   const items = $derived(
     railOrder().filter(
