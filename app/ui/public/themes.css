@@ -1,0 +1,294 @@
+/* The app's own themes (settings.js APP_THEMES) over Web Awesome's default theme, each a light and a dark variant of a
+   theme under the MIT licence. An element with the classes km-theme and km-<theme> takes one: the variant of its
+   wa-dark or wa-light class (dark.js puts it on <html>; the settings' preview cards have their own). Outside Web
+   Awesome's layers, so they win over its theme. A theme gives 10 colors (--km-*); the rules below make Web Awesome's
+   tokens of them, and its borders and fills of the neutral scale, as Web Awesome's theme does, which Fava's colors also come from (fava.css).
+   Each color of Web Awesome is a scale from 05 (dark) to 95 (light) around its loud tint 50: here the theme's color,
+   mixed toward --km-lo below 50 and toward --km-hi above, its quiet text (40 and 60) far enough from the color for
+   contrast; the neutral scale goes from --km-lo to --km-hi. */
+.km-theme {
+  --km-hi: var(--km-bg);
+  --km-lo: var(--km-text);
+  --wa-color-surface-raised: var(--km-raised);
+  --wa-color-surface-default: var(--km-bg);
+  --wa-color-surface-lowered: var(--km-lowered);
+  --wa-color-text-normal: var(--km-text);
+  --wa-color-text-quiet: var(--km-quiet);
+  --wa-color-neutral-95: color-mix(in oklab, var(--km-hi) 95%, var(--km-lo));
+  --wa-color-neutral-90: color-mix(in oklab, var(--km-hi) 90%, var(--km-lo));
+  --wa-color-neutral-80: color-mix(in oklab, var(--km-hi) 80%, var(--km-lo));
+  --wa-color-neutral-70: color-mix(in oklab, var(--km-hi) 70%, var(--km-lo));
+  --wa-color-neutral-60: color-mix(in oklab, var(--km-hi) 60%, var(--km-lo));
+  --wa-color-neutral-50: color-mix(in oklab, var(--km-hi) 50%, var(--km-lo));
+  --wa-color-neutral-40: color-mix(in oklab, var(--km-hi) 40%, var(--km-lo));
+  --wa-color-neutral-30: color-mix(in oklab, var(--km-hi) 30%, var(--km-lo));
+  --wa-color-neutral-20: color-mix(in oklab, var(--km-hi) 20%, var(--km-lo));
+  --wa-color-neutral-10: color-mix(in oklab, var(--km-hi) 10%, var(--km-lo));
+  --wa-color-neutral-05: color-mix(in oklab, var(--km-hi) 5%, var(--km-lo));
+  --wa-color-brand-on-loud: var(--km-on-loud);
+  --wa-color-success-on-loud: var(--km-on-loud);
+  --wa-color-warning-on-loud: var(--km-on-loud);
+  --wa-color-danger-on-loud: var(--km-on-loud);
+  --wa-color-neutral-on-loud: var(--km-on-loud);
+  --wa-color-brand-95: color-mix(in oklab, var(--km-brand) 10%, var(--km-hi));
+  --wa-color-brand-90: color-mix(in oklab, var(--km-brand) 20%, var(--km-hi));
+  --wa-color-brand-80: color-mix(in oklab, var(--km-brand) 40%, var(--km-hi));
+  --wa-color-brand-70: color-mix(in oklab, var(--km-brand) 60%, var(--km-hi));
+  --wa-color-brand-60: color-mix(in oklab, var(--km-brand) 65%, var(--km-hi));
+  --wa-color-brand-50: var(--km-brand);
+  --wa-color-brand-40: color-mix(in oklab, var(--km-brand) 65%, var(--km-lo));
+  --wa-color-brand-30: color-mix(in oklab, var(--km-brand) 60%, var(--km-lo));
+  --wa-color-brand-20: color-mix(in oklab, var(--km-brand) 40%, var(--km-lo));
+  --wa-color-brand-10: color-mix(in oklab, var(--km-brand) 20%, var(--km-lo));
+  --wa-color-brand-05: color-mix(in oklab, var(--km-brand) 10%, var(--km-lo));
+  --wa-color-success-95: color-mix(in oklab, var(--km-success) 10%, var(--km-hi));
+  --wa-color-success-90: color-mix(in oklab, var(--km-success) 20%, var(--km-hi));
+  --wa-color-success-80: color-mix(in oklab, var(--km-success) 40%, var(--km-hi));
+  --wa-color-success-70: color-mix(in oklab, var(--km-success) 60%, var(--km-hi));
+  --wa-color-success-60: color-mix(in oklab, var(--km-success) 65%, var(--km-hi));
+  --wa-color-success-50: var(--km-success);
+  --wa-color-success-40: color-mix(in oklab, var(--km-success) 65%, var(--km-lo));
+  --wa-color-success-30: color-mix(in oklab, var(--km-success) 60%, var(--km-lo));
+  --wa-color-success-20: color-mix(in oklab, var(--km-success) 40%, var(--km-lo));
+  --wa-color-success-10: color-mix(in oklab, var(--km-success) 20%, var(--km-lo));
+  --wa-color-success-05: color-mix(in oklab, var(--km-success) 10%, var(--km-lo));
+  --wa-color-warning-95: color-mix(in oklab, var(--km-warning) 10%, var(--km-hi));
+  --wa-color-warning-90: color-mix(in oklab, var(--km-warning) 20%, var(--km-hi));
+  --wa-color-warning-80: color-mix(in oklab, var(--km-warning) 40%, var(--km-hi));
+  --wa-color-warning-70: color-mix(in oklab, var(--km-warning) 60%, var(--km-hi));
+  --wa-color-warning-60: color-mix(in oklab, var(--km-warning) 65%, var(--km-hi));
+  --wa-color-warning-50: var(--km-warning);
+  --wa-color-warning-40: color-mix(in oklab, var(--km-warning) 65%, var(--km-lo));
+  --wa-color-warning-30: color-mix(in oklab, var(--km-warning) 60%, var(--km-lo));
+  --wa-color-warning-20: color-mix(in oklab, var(--km-warning) 40%, var(--km-lo));
+  --wa-color-warning-10: color-mix(in oklab, var(--km-warning) 20%, var(--km-lo));
+  --wa-color-warning-05: color-mix(in oklab, var(--km-warning) 10%, var(--km-lo));
+  --wa-color-danger-95: color-mix(in oklab, var(--km-danger) 10%, var(--km-hi));
+  --wa-color-danger-90: color-mix(in oklab, var(--km-danger) 20%, var(--km-hi));
+  --wa-color-danger-80: color-mix(in oklab, var(--km-danger) 40%, var(--km-hi));
+  --wa-color-danger-70: color-mix(in oklab, var(--km-danger) 60%, var(--km-hi));
+  --wa-color-danger-60: color-mix(in oklab, var(--km-danger) 65%, var(--km-hi));
+  --wa-color-danger-50: var(--km-danger);
+  --wa-color-danger-40: color-mix(in oklab, var(--km-danger) 65%, var(--km-lo));
+  --wa-color-danger-30: color-mix(in oklab, var(--km-danger) 60%, var(--km-lo));
+  --wa-color-danger-20: color-mix(in oklab, var(--km-danger) 40%, var(--km-lo));
+  --wa-color-danger-10: color-mix(in oklab, var(--km-danger) 20%, var(--km-lo));
+  --wa-color-danger-05: color-mix(in oklab, var(--km-danger) 10%, var(--km-lo));
+}
+.km-theme.wa-dark {
+  --km-hi: var(--km-text);
+  --km-lo: var(--km-bg);
+}
+
+/* Catppuccin: latte, the light variant of each */
+.km-catppuccin,
+.km-catppuccin-macchiato,
+.km-catppuccin-frappe {
+  --km-bg: #eff1f5;
+  --km-raised: #eff1f5;
+  --km-lowered: #e6e9ef;
+  --km-text: #4c4f69;
+  --km-quiet: #5c5f77;
+  --km-brand: #1e66f5;
+  --km-success: #40a02b;
+  --km-warning: #df8e1d;
+  --km-danger: #d20f39;
+  --km-on-loud: #eff1f5;
+}
+
+/* Catppuccin: Latte and Mocha: mocha */
+.km-catppuccin.wa-dark {
+  --km-bg: #1e1e2e;
+  --km-raised: #313244;
+  --km-lowered: #181825;
+  --km-text: #cdd6f4;
+  --km-quiet: #a6adc8;
+  --km-brand: #89b4fa;
+  --km-success: #a6e3a1;
+  --km-warning: #f9e2af;
+  --km-danger: #f38ba8;
+  --km-on-loud: #11111b;
+}
+
+/* Catppuccin: Latte and Macchiato: macchiato */
+.km-catppuccin-macchiato.wa-dark {
+  --km-bg: #24273a;
+  --km-raised: #363a4f;
+  --km-lowered: #1e2030;
+  --km-text: #cad3f5;
+  --km-quiet: #a5adcb;
+  --km-brand: #8aadf4;
+  --km-success: #a6da95;
+  --km-warning: #eed49f;
+  --km-danger: #ed8796;
+  --km-on-loud: #181926;
+}
+
+/* Catppuccin: Latte and Frappé: frappe */
+.km-catppuccin-frappe.wa-dark {
+  --km-bg: #303446;
+  --km-raised: #414559;
+  --km-lowered: #292c3c;
+  --km-text: #c6d0f5;
+  --km-quiet: #a5adce;
+  --km-brand: #8caaee;
+  --km-success: #a6d189;
+  --km-warning: #e5c890;
+  --km-danger: #e78284;
+  --km-on-loud: #232634;
+}
+
+/* Rosé Pine: dawn, the light variant of each */
+.km-rose-pine,
+.km-rose-pine-moon {
+  --km-bg: #faf4ed;
+  --km-raised: #fffaf3;
+  --km-lowered: #f2e9e1;
+  --km-text: #575279;
+  --km-quiet: color-mix(in oklab, #575279 85%, #faf4ed);
+  --km-brand: #907aa9;
+  --km-success: #286983;
+  --km-warning: #ea9d34;
+  --km-danger: #b4637a;
+  --km-on-loud: #faf4ed;
+}
+
+/* Rosé Pine: Dawn and Main: rpmain */
+.km-rose-pine.wa-dark {
+  --km-bg: #191724;
+  --km-raised: #1f1d2e;
+  --km-lowered: color-mix(in oklab, #191724, black 20%);
+  --km-text: #e0def4;
+  --km-quiet: #908caa;
+  --km-brand: #c4a7e7;
+  --km-success: #9ccfd8;
+  --km-warning: #f6c177;
+  --km-danger: #eb6f92;
+  --km-on-loud: #191724;
+}
+
+/* Rosé Pine: Dawn and Moon: moon */
+.km-rose-pine-moon.wa-dark {
+  --km-bg: #232136;
+  --km-raised: #2a273f;
+  --km-lowered: color-mix(in oklab, #232136, black 20%);
+  --km-text: #e0def4;
+  --km-quiet: #908caa;
+  --km-brand: #c4a7e7;
+  --km-success: #9ccfd8;
+  --km-warning: #f6c177;
+  --km-danger: #eb6f92;
+  --km-on-loud: #232136;
+}
+
+/* Gruvbox: gruvbox-light */
+.km-gruvbox {
+  --km-bg: #fbf1c7;
+  --km-raised: #f9f5d7;
+  --km-lowered: #f2e5bc;
+  --km-text: #3c3836;
+  --km-quiet: #665c54;
+  --km-brand: #076678;
+  --km-success: #79740e;
+  --km-warning: #b57614;
+  --km-danger: #9d0006;
+  --km-on-loud: #fbf1c7;
+}
+
+/* Gruvbox: gruvbox-dark */
+.km-gruvbox.wa-dark {
+  --km-bg: #282828;
+  --km-raised: #3c3836;
+  --km-lowered: #1d2021;
+  --km-text: #ebdbb2;
+  --km-quiet: #a89984;
+  --km-brand: #83a598;
+  --km-success: #b8bb26;
+  --km-warning: #fabd2f;
+  --km-danger: #fb4934;
+  --km-on-loud: #1d2021;
+}
+
+/* Solarized: solarized-light */
+.km-solarized {
+  --km-bg: #fdf6e3;
+  --km-raised: #fdf6e3;
+  --km-lowered: #eee8d5;
+  --km-text: #586e75;
+  --km-quiet: #657b83;
+  --km-brand: #268bd2;
+  --km-success: #859900;
+  --km-warning: #b58900;
+  --km-danger: #dc322f;
+  --km-on-loud: #fdf6e3;
+}
+
+/* Solarized: solarized-dark */
+.km-solarized.wa-dark {
+  --km-bg: #002b36;
+  --km-raised: #073642;
+  --km-lowered: color-mix(in oklab, #002b36, black 20%);
+  --km-text: #93a1a1;
+  --km-quiet: #839496;
+  --km-brand: #268bd2;
+  --km-success: #859900;
+  --km-warning: #b58900;
+  --km-danger: #dc322f;
+  --km-on-loud: #fdf6e3;
+}
+
+/* Everforest (medium): everforest-light */
+.km-everforest {
+  --km-bg: #fdf6e3;
+  --km-raised: #fdf6e3;
+  --km-lowered: #f4f0d9;
+  --km-text: #5c6a72;
+  --km-quiet: color-mix(in oklab, #5c6a72 90%, #fdf6e3);
+  --km-brand: #3a94c5;
+  --km-success: #8da101;
+  --km-warning: #dfa000;
+  --km-danger: #f85552;
+  --km-on-loud: #fdf6e3;
+}
+
+/* Everforest (medium): everforest-dark */
+.km-everforest.wa-dark {
+  --km-bg: #2d353b;
+  --km-raised: #343f44;
+  --km-lowered: #232a2e;
+  --km-text: #d3c6aa;
+  --km-quiet: color-mix(in oklab, #d3c6aa 75%, #2d353b);
+  --km-brand: #7fbbb3;
+  --km-success: #a7c080;
+  --km-warning: #dbbc7f;
+  --km-danger: #e67e80;
+  --km-on-loud: #232a2e;
+}
+
+/* Nord: Snow Storm and Polar Night: nord-light */
+.km-nord {
+  --km-bg: #eceff4;
+  --km-raised: #eceff4;
+  --km-lowered: #e5e9f0;
+  --km-text: #2e3440;
+  --km-quiet: #4c566a;
+  --km-brand: #5e81ac;
+  --km-success: #a3be8c;
+  --km-warning: #d08770;
+  --km-danger: #bf616a;
+  --km-on-loud: #eceff4;
+}
+
+/* Nord: Snow Storm and Polar Night: nord-dark */
+.km-nord.wa-dark {
+  --km-bg: #2e3440;
+  --km-raised: #3b4252;
+  --km-lowered: color-mix(in oklab, #2e3440, black 20%);
+  --km-text: #d8dee9;
+  --km-quiet: color-mix(in oklab, #d8dee9 65%, #2e3440);
+  --km-brand: #88c0d0;
+  --km-success: #a3be8c;
+  --km-warning: #ebcb8b;
+  --km-danger: #bf616a;
+  --km-on-loud: #2e3440;
+}

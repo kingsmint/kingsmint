@@ -56,10 +56,11 @@ except ImportError:  # a ledger on a kingsmint without the merge of hand edits: 
     edit = None
 
 
-# The app's tokens on Fava's pages: Web Awesome's theme, the app's adjustments, Fava's colors from them, dark mode;
+# The app's tokens on Fava's pages: Web Awesome's theme, the app's adjustments and themes (the app's setting), Fava's colors from them, dark mode;
 # and bridge.js, which tells the app's page what happens in Fava's frame
 THEME = (b'<link rel="stylesheet" href="/vendor/@awesome.me/webawesome/dist-cdn/styles/themes/default.css">'
-         b'<link rel="stylesheet" href="/theme.css"><link rel="stylesheet" href="/fava.css"><script src="/dark.js"></script>'
+         b'<link rel="stylesheet" href="/theme.css"><link rel="stylesheet" href="/themes.css">'
+         b'<link rel="stylesheet" href="/fava.css"><script src="/dark.js"></script>'
          b'<script src="/bridge.js"></script>')
 
 

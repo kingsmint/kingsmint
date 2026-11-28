@@ -53,9 +53,16 @@
     lineScale = false,
   } = $props();
   let el;
+  // the app's dark mode as state: the chart is drawn again in the other mode's theme
+  let isDark = $state(dark.matches);
+  $effect(() => {
+    const follow = () => (isDark = dark.matches);
+    dark.addEventListener("change", follow);
+    return () => dark.removeEventListener("change", follow);
+  });
 
   $effect(() => {
-    const chart = echarts.init(el, dark.matches ? "dark" : null, { renderer: "svg" }); // SVG: sharp text at any pixel ratio and zoom
+    const chart = echarts.init(el, isDark ? "dark" : null, { renderer: "svg" }); // SVG: sharp text at any pixel ratio and zoom
     const compact = new Intl.NumberFormat(app.lang, { ...unit, notation: "compact" });
     const exact = new Intl.NumberFormat(app.lang, { ...unit, maximumFractionDigits: 2 });
     // numbers come as exact strings (Decimal); a column with a value that is not a number is not a series

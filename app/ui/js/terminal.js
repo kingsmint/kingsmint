@@ -50,11 +50,24 @@ export const THEMES = {
     brightWhite: "#ffffff",
   },
 };
+export const retheme = () => tabs.forEach((t) => (t.term.options.theme = theme()));
+// A CSS color as #rrggbb, which xterm takes: a theme's token can be color-mix()
+const pixel = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+const hex = (color) => {
+  pixel.fillStyle = "#000";
+  pixel.fillStyle = color;
+  pixel.fillRect(0, 0, 1, 1);
+  return `#${[...pixel.getImageData(0, 0, 1, 1).data.slice(0, 3)].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+};
 export function theme() {
   const css = getComputedStyle(document.documentElement),
-    token = (name) => css.getPropertyValue(`--wa-color-${name}`).trim();
+    token = (name) => hex(css.getPropertyValue(`--wa-color-${name}`).trim());
+  const km = (name) => css.getPropertyValue(`--km-${name}`).trim(); // the app's theme (themes.css), if one
+  const colors = (red, green, yellow, blue) =>
+    red && { red, green, yellow, blue, brightRed: red, brightGreen: green, brightYellow: yellow, brightBlue: blue };
   return {
     ...THEMES[dark.matches ? "dark" : "light"],
+    ...colors(km("danger"), km("success"), km("warning"), km("brand")),
     background: token("surface-default"),
     foreground: token("text-normal"),
     cursor: token("text-normal"),
@@ -250,7 +263,7 @@ export function initTerminal() {
   // answer the question, and the default answer exits.
   setInterval(agentNote, 1000);
   // after dark.js switched the tokens
-  dark.addEventListener("change", () => setTimeout(() => tabs.forEach((t) => (t.term.options.theme = theme()))));
+  dark.addEventListener("change", () => setTimeout(retheme));
   // xterm measures the font when it opens; measure again once Fira Mono is loaded
   document.fonts.load('13px "Fira Mono"').then(() =>
     tabs.forEach((t) => {
