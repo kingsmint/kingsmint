@@ -15,6 +15,11 @@ The owner's own reports live in `reports/*.toml`: `name`, `query` (BQL, as `uv r
 column labels the x axis, and each other column of numbers is a series (`sum(number)`, not `sum(position)`, which is
 text). Write a report when the owner wants to see a number again later.
 
+Budgets live in `budgets.beancount`: a limit per expense account and period (`custom "budget"`, as Fava reads it), and
+a limit per tag with a start and an optional end date (`custom "budget-tag"`); the file's header shows both. The
+Kingsmint app writes them; write them there too when the owner asks. To propose limits, start from the saved query
+`Baseline by account` (the average month of the last 12) and round up.
+
 Talk to the owner in LANGUAGE, also when a skill is written in English. Ledger names (accounts, rules,
 comments) stay as they are.
 

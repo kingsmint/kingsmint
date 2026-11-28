@@ -1,0 +1,10 @@
+; Budgets. The Kingsmint app writes them here (Set budget in an account's view, and the Budgets view);
+; you can write them by hand too.
+;
+; A limit per expense account, as Fava reads it (Fava shows it in the account's report). It holds from its date until
+; a newer entry for the same account; 0 ends it. Periods: "monthly", "quarterly", "yearly". Subaccounts count in.
+;   2026-01-01 custom "budget" Expenses:Food "monthly" 400.00 EUR
+;
+; A limit for a tag, from its date to an optional end date, with an optional name: the expenses of the transactions
+; with the tag (#fence), any account. Only kingsmint reads it.
+;   2026-02-01 custom "budget-tag" "fence" 8000.00 EUR 2026-09-30 "New fence"

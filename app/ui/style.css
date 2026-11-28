@@ -1378,6 +1378,78 @@ select.lang {
   font-size: var(--wa-font-size-s);
 }
 /* the runway's edit view: Edit beside the note; while editing, a bar with Cancel and Save that stays in sight */
+/* budgets (Budgets.svelte, BudgetForm.svelte): a card per budget, its meter in the state's color */
+.dashboard .budget-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20em, 1fr));
+  align-items: start; /* an open form makes its own card taller, not the row */
+  gap: 0.75em;
+  margin-bottom: 0.75em;
+}
+.dashboard .budget-list .card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25em;
+}
+.dashboard .budget-list .card > :is(dl, table, .meter) {
+  align-self: stretch;
+}
+.dashboard .budgets h3 {
+  /* the name, and the period on a line of its own: the cards of a row line up whatever the name's length */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 0;
+  font-size: 1em;
+  font-weight: 500;
+}
+.dashboard .budgets h2 {
+  margin-top: 1.5em;
+}
+.dashboard .budgets h2 .period {
+  margin-left: auto;
+  font-size: var(--wa-font-size-s);
+  font-weight: normal;
+}
+/* one field under the other, as wide in a card as on its own */
+.dashboard .budget-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75em;
+  align-self: stretch;
+  max-width: 24em;
+  margin: 0.5em 0;
+}
+.dashboard .budget-form .label {
+  display: block;
+  margin-bottom: 0.3em;
+  font-size: var(--wa-font-size-s);
+  font-weight: var(--wa-form-control-label-font-weight);
+}
+.dashboard .budget-form .actions {
+  display: flex;
+  gap: 0.5em;
+}
+.dashboard .budget-form .error {
+  margin: 0;
+}
+.dashboard .account-budget {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75em;
+  margin: 0.5em 0;
+}
+.dashboard .account-budget[data-state="good"] > span {
+  color: var(--wa-color-success-on-quiet);
+}
+.dashboard .account-budget[data-state="warn"] > span {
+  color: var(--wa-color-warning-on-quiet);
+}
+.dashboard .account-budget[data-state="bad"] > span {
+  color: var(--wa-color-danger-on-quiet);
+}
 .dashboard .runway-head {
   display: flex;
   align-items: flex-start;

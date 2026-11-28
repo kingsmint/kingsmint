@@ -4,7 +4,8 @@ origin: a script in Fava's frame cannot call the app's commands.
 
 The app asks it for the ledger's data on stdin (rpc.py), with the methods in `app.state.methods`: `query` (BQL on
 Fava's loaded ledger), `dashboard`, `transactions`, `entry` and `recurring` (the overview), the changes of transactions (`entry_save`, `rule_preview`,
-`rule_save`, `entry_reset`, `cash_save`, `recurring_set`), the tags (`tags`, `tags_save`), `reports` (reports/*.toml), `state` (statements
+`rule_save`, `entry_reset`, `cash_save`, `recurring_set`), the tags (`tags`, `tags_save`), the budgets (`budgets`, `budget_save`,
+`budget_tag_save`), `reports` (reports/*.toml), `state` (statements
 waiting, the check, a first import), `inbox`, `settings` and `save_settings`, and the versions (`history`, `versions_init`, `versions_restore`, `versions_save`).
 
 The app runs it in the ledger, with the ledger's Python, so Fava and its kingsmint extensions are the ledger's version:
@@ -30,6 +31,7 @@ from types import SimpleNamespace
 from pathlib import Path
 
 import beanquery
+import budgets
 import dashboard
 import inbox
 import jj_versions as versions
@@ -128,7 +130,12 @@ def make_app(ledger: Path, ui: Path):
 
     def overview(period: str | None = None, unit: str = "month") -> dict:
         l, rate = loaded()
-        return dashboard.overview(l.all_entries, l.errors, l.options, rate, period, unit)
+        try:
+            b = budget_data()
+        except Exception as e:  # a budgets bug, or an entry it cannot count with, leaves the rest of the overview
+            logging.exception("budgets")
+            b = {"accounts": [], "tags": [], "errors": [f"Budgets: {e}"]}
+        return dashboard.overview(l.all_entries, l.errors, l.options, rate, period, unit) | {"budgets": b}
 
     def transactions(start: str, end: str, account: str | None = None) -> dict:
         l, rate = loaded()
@@ -324,6 +331,40 @@ def make_app(ledger: Path, ui: Path):
         l.load_file()
         return changed(edit.hash_of(l.all_entries, e.meta["id"]), messages=messages, error=error)
 
+    def budget_data(offset: int = 0) -> dict:
+        """The budgets (budgets.py), the account budgets `offset` periods back; `expense_accounts`: those to budget,
+        `file`: whether the ledger loads budgets.beancount, so what the app writes there counts."""
+        l, rate = loaded()
+        return budgets.overview(l.all_entries, l.options, rate, offset) | {
+            "expense_accounts": budgets.expense_accounts(l.all_entries),
+            "file": str((root / budgets.FILE).resolve()) in {str(Path(f).resolve()) for f in l.options["include"]}}
+
+    def budget_save(account: str, period: str, limit, since: str | None = None) -> dict:
+        """An account's budget from `since` (budgets.set_account), saved as a version; `error` when it is not written,
+        `version_error` when the version fails after the file was written."""
+        l, _ = loaded()
+        try:
+            currency = (l.options["operating_currency"] or ["EUR"])[0]
+            what = budgets.set_account(root, l.all_entries, currency, account, period, limit, since)
+        except budgets.BudgetError as e:
+            return {"error": str(e)}
+        error = save_version("Budget: " + what)
+        l.load_file()
+        return {"changed": what, "version_error": error}
+
+    def budget_tag_save(tag: str, limit, start: str, end: str | None = None, name: str | None = None,
+                        old: str | None = None) -> dict:
+        """A tag's budget (budgets.set_tag), saved as a version; `tag`: as written."""
+        l, _ = loaded()
+        try:
+            currency = (l.options["operating_currency"] or ["EUR"])[0]
+            tag, what = budgets.set_tag(root, currency, tag, limit, start, end, name, old)
+        except budgets.BudgetError as e:
+            return {"error": str(e)}
+        error = save_version("Budget: " + what)
+        l.load_file()
+        return {"tag": tag, "changed": what, "version_error": error}
+
     def reports() -> list[dict]:
         """The reports in reports/*.toml: name, query (BQL), view (table, bar, line). A broken file comes with its
         error, so it does not hide the others."""
@@ -429,6 +470,8 @@ def make_app(ledger: Path, ui: Path):
                          "rule_save": exclusive(rule_save), "entry_reset": exclusive(entry_reset), "cash_save": exclusive(cash_save),
                          "recurring": recurring, "recurring_set": exclusive(recurring_set),
                          "reports": reports, "tags": tags, "tags_save": exclusive(tags_save),
+                         "budgets": budget_data, "budget_save": exclusive(budget_save),
+                         "budget_tag_save": exclusive(budget_tag_save),
                          "inbox": inbox_data, "settings": settings_data,
                          "save_settings": exclusive(save_settings), "runway_edit": runway_edit,
                          "runway_save": exclusive(runway_save), "history": history, "versions_init": versions_init,
